@@ -1,0 +1,11 @@
+<linker>
+  <!--
+    GameObject.CreatePrimitive(PrimitiveType.Sphere) adds a SphereCollider natively,
+    but no script ever references the SphereCollider type directly (PenFactory destroys
+    it immediately), so the managed stripper removes it and the native call fails at
+    runtime ("Can't add component because class 'SphereCollider' doesn't exist!").
+  -->
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.SphereCollider" preserve="all" />
+  </assembly>
+</linker>
