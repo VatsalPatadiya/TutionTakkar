@@ -103,6 +103,25 @@ namespace TuitionTakkar
 
         public static void Rot(VisualElement e, float deg) => e.style.rotate = new Rotate(new Angle(deg, AngleUnit.Degree));
 
+        /// <summary>
+        /// Lets touches go straight through this element and everything inside it, except
+        /// real buttons. Text labels catch touches by default in UI Toolkit, which made the
+        /// timer tape, the power ruler and the debug bar "dead" spots when grabbing a pen.
+        /// </summary>
+        public static void PassThrough(VisualElement root)
+        {
+            if (root == null) return;
+            if (!(root is Button)) root.pickingMode = PickingMode.Ignore;
+            root.Query<VisualElement>().ForEach(e =>
+            {
+                if (e is Button) return;
+                // Children of a button stay as they are so the button still gets its taps.
+                for (var p = e.parent; p != null; p = p.parent)
+                    if (p is Button) return;
+                e.pickingMode = PickingMode.Ignore;
+            });
+        }
+
         public static void Fill(VisualElement e)
         {
             e.style.position = Position.Absolute;

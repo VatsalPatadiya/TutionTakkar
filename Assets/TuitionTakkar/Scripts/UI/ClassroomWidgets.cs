@@ -199,4 +199,64 @@ namespace TuitionTakkar
             };
         }
     }
+
+    /// <summary>A gold coin: the marks currency icon.</summary>
+    public class CoinIcon : VisualElement
+    {
+        readonly float size;
+
+        public CoinIcon(float size = 18f)
+        {
+            this.size = size;
+            pickingMode = PickingMode.Ignore;
+            style.width = size;
+            style.height = size;
+            style.flexShrink = 0;
+            generateVisualContent += ctx =>
+            {
+                var p = ctx.painter2D;
+                var c = new Vector2(this.size * 0.5f, this.size * 0.5f);
+                float r = this.size * 0.5f;
+                p.fillColor = Pal.H("#B8860B");
+                p.BeginPath(); p.Arc(c, r, new Angle(0, AngleUnit.Degree), new Angle(360, AngleUnit.Degree)); p.ClosePath(); p.Fill();
+                p.fillColor = Pal.H("#FFD23F");
+                p.BeginPath(); p.Arc(c, r * 0.8f, new Angle(0, AngleUnit.Degree), new Angle(360, AngleUnit.Degree)); p.ClosePath(); p.Fill();
+                p.strokeColor = Pal.H("#C99A1A");
+                p.lineWidth = Mathf.Max(1f, this.size * 0.08f);
+                p.BeginPath(); p.Arc(c, r * 0.52f, new Angle(0, AngleUnit.Degree), new Angle(360, AngleUnit.Degree)); p.Stroke();
+            };
+        }
+    }
+
+    /// <summary>"ink 14 / 20" bar for a pen card: blue when fine, orange when low, red when empty.</summary>
+    public class InkBar : VisualElement
+    {
+        public InkBar(int ink, int tank, float width = 0f)
+        {
+            pickingMode = PickingMode.Ignore;
+            style.flexDirection = FlexDirection.Row;
+            style.alignItems = Align.Center;
+            if (width > 0f) style.width = width;
+            float k = tank > 0 ? Mathf.Clamp01(ink / (float)tank) : 0f;
+            Color fill = ink <= 0 ? Pal.Red : ink <= Economy.InkLowAt ? Pal.Orange : Pal.H("#2F5D8C");
+
+            var track = new VisualElement();
+            track.style.flexGrow = 1;
+            track.style.height = 8;
+            track.style.backgroundColor = Pal.H("#E3DCC8");
+            track.style.borderTopLeftRadius = track.style.borderTopRightRadius = track.style.borderBottomLeftRadius = track.style.borderBottomRightRadius = 4;
+            track.style.overflow = Overflow.Hidden;
+            var bar = new VisualElement();
+            bar.style.height = 8;
+            bar.style.width = Length.Percent(k * 100f);
+            bar.style.backgroundColor = fill;
+            track.Add(bar);
+            Add(track);
+
+            var label = UIKit.Strong(ink <= 0 ? "empty" : ink + " / " + tank, 11f, ink <= Economy.InkLowAt ? fill : Pal.InkSoft, TextAnchor.MiddleRight);
+            label.style.marginLeft = 6;
+            label.style.minWidth = 38;
+            Add(label);
+        }
+    }
 }

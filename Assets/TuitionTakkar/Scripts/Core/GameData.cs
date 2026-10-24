@@ -110,7 +110,6 @@ namespace TuitionTakkar
     public static class Catalog
     {
         public const string StarterId = "starter";
-        public const int LossPenalty = 10;
 
         public static readonly List<PenDef> Pens = new List<PenDef>
         {

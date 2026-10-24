@@ -1,30 +1,67 @@
 using UnityEngine;
+#if UNITY_ANDROID && !UNITY_EDITOR
+using System.Collections.Concurrent;
+using System.Threading;
+#endif
 
 namespace TuitionTakkar
 {
     /// <summary>
     /// Very short buzzes. Android gets precise millisecond pulses; iOS only has
     /// the long system buzz without a native plugin, so it is used for big moments only.
+    ///
+    /// On Android the vibrator call goes to a system service and can block for tens of
+    /// milliseconds on some phones, so pulses are sent from a background thread, never
+    /// from the frame that is drawing your aim.
     /// </summary>
     public static class Haptics
     {
         public static bool Enabled = true;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
+        struct Job { public int ms, amp; public bool big; }
+
+        static readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>(new ConcurrentQueue<Job>(), 8);
+        static Thread worker;
         static AndroidJavaObject vibrator;
         static int sdk;
+        static bool noVibrator;
 
-        static AndroidJavaObject Vibrator
+        static void EnsureWorker()
         {
-            get
+            if (worker != null) return;
+            worker = new Thread(Run) { IsBackground = true, Name = "Haptics" };
+            worker.Start();
+        }
+
+        static void Run()
+        {
+            AndroidJNI.AttachCurrentThread();
+            try
             {
-                if (vibrator != null) return vibrator;
                 using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                 using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
                     vibrator = activity.Call<AndroidJavaObject>("getSystemService", "vibrator");
                 using (var version = new AndroidJavaClass("android.os.Build$VERSION"))
                     sdk = version.GetStatic<int>("SDK_INT");
-                return vibrator;
+            }
+            catch (System.Exception) { vibrator = null; }
+            noVibrator = vibrator == null;
+
+            foreach (var j in jobs.GetConsumingEnumerable())
+            {
+                if (vibrator == null) continue;
+                try
+                {
+                    if (sdk >= 26)
+                    {
+                        using (var effect = new AndroidJavaClass("android.os.VibrationEffect"))
+                        using (var e = effect.CallStatic<AndroidJavaObject>("createOneShot", (long)j.ms, Mathf.Clamp(j.amp, 1, 255)))
+                            vibrator.Call("vibrate", e);
+                    }
+                    else vibrator.Call("vibrate", (long)j.ms);
+                }
+                catch (System.Exception) { }
             }
         }
 #endif
@@ -34,24 +71,14 @@ namespace TuitionTakkar
         {
             if (!Enabled) return;
 #if UNITY_ANDROID && !UNITY_EDITOR
-            try
+            if (noVibrator)
             {
-                var v = Vibrator;
-                if (v == null)
-                {
-                    // Referencing Handheld.Vibrate also makes Unity add the VIBRATE permission.
-                    if (big) Handheld.Vibrate();
-                    return;
-                }
-                if (sdk >= 26)
-                {
-                    using (var effect = new AndroidJavaClass("android.os.VibrationEffect"))
-                    using (var e = effect.CallStatic<AndroidJavaObject>("createOneShot", (long)ms, Mathf.Clamp(amplitude, 1, 255)))
-                        v.Call("vibrate", e);
-                }
-                else v.Call("vibrate", (long)ms);
+                // Referencing Handheld.Vibrate also makes Unity add the VIBRATE permission.
+                if (big) Handheld.Vibrate();
+                return;
             }
-            catch (System.Exception) { }
+            EnsureWorker();
+            jobs.TryAdd(new Job { ms = ms, amp = amplitude, big = big }); // dropped if 8 are already waiting
 #elif UNITY_IOS && !UNITY_EDITOR
             if (big) Handheld.Vibrate();
 #endif

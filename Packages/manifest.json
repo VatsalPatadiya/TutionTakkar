@@ -6,6 +6,10 @@
     "com.unity.modules.jsonserialize": "1.0.0",
     "com.unity.modules.physics": "1.0.0",
     "com.unity.modules.ui": "1.0.0",
-    "com.unity.modules.uielements": "1.0.0"
+    "com.unity.modules.uielements": "1.0.0",
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.services.authentication": "3.8.0",
+    "com.unity.services.leaderboards": "2.3.4",
+    "com.unity.services.multiplayer": "2.4.1"
   }
 }

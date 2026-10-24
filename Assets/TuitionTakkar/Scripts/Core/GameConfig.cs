@@ -84,6 +84,14 @@ namespace TuitionTakkar
 
         // Turn timer (T1-T3 designs): a human gets this long to shoot, then the game shoots for them.
         public const float TurnTimeLimit = 60f;
+        /// <summary>Online turns are shorter: someone is waiting on the other phone.</summary>
+        public const float OnlineTurnTimeLimit = 30f;
+        /// <summary>Extra seconds to wait for the other phone before it counts as gone.</summary>
+        public const float OnlineAbsentGrace = 20f;
+        /// <summary>3–4 player online desk: a square two-seater (52 x 52 cm).</summary>
+        public const float PartyDeskSize = 0.52f * WorldScale;
+        /// <summary>How far from the middle each pen starts on the party desk.</summary>
+        public const float PartyStartRadius = 0.15f * WorldScale;
         public const float TurnTimeUrgent = 10f;
         /// <summary>
         /// The automatic shot when your time runs out plays it safe: steady aim, gentle power,

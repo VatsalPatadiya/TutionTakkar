@@ -54,7 +54,7 @@ namespace TuitionTakkar
             info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
             info.Add(UIKit.KeyValue("Win", replay ? "+" + rival.reward / 2 + " marks (rematch)" : "Keep " + theirPen.name + " · +" + rival.reward + " marks", Pal.Green));
             info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
-            info.Add(UIKit.KeyValue("Lose", "−" + Catalog.LossPenalty + " marks", Pal.Red));
+            info.Add(UIKit.KeyValue("Lose", "+" + Economy.LossConsolation + " marks for trying", Pal.InkSoft));
             card.Add(info);
             root.Add(card);
             UIRoot.PopIn(card);

@@ -13,6 +13,8 @@ namespace TuitionTakkar
         /// <summary>Viewport rect (0..1, y up) the bench must fit inside. Set by the UI.</summary>
         public Rect safeArea = new Rect(0.036f, 0.12f, 0.928f, 0.70f);
         public float pitch = 68f;
+        /// <summary>0 = player 0 at the bottom of the screen. Online player 1 looks from the other side (180).</summary>
+        public float yaw;
 
         Camera cam;
         Vector3 basePos;
@@ -58,14 +60,15 @@ namespace TuitionTakkar
             float hw = BenchWorld.HalfW + BenchWorld.RimSize;
             float hd = BenchWorld.HalfD + BenchWorld.RimSize;
             float t = GameConfig.DeskThickness;
+            var turn = Quaternion.Euler(0f, yaw, 0f);
             corners = new[]
             {
-                new Vector3(-hw, 0f, -hd), new Vector3(hw, 0f, -hd),
-                new Vector3(-hw, -t, -hd), new Vector3(hw, -t, -hd), // keep the front edge in view
-                new Vector3(-hw, 0f, hd), new Vector3(hw, 0f, hd)
+                turn * new Vector3(-hw, 0f, -hd), turn * new Vector3(hw, 0f, -hd),
+                turn * new Vector3(-hw, -t, -hd), turn * new Vector3(hw, -t, -hd), // keep the front edge in view
+                turn * new Vector3(-hw, 0f, hd), turn * new Vector3(hw, 0f, hd)
             };
 
-            baseRot = Quaternion.Euler(pitch, 0f, 0f);
+            baseRot = turn * Quaternion.Euler(pitch, 0f, 0f);
             Vector3 fwd = baseRot * Vector3.forward;
 
             // For each look-at point along z, find the closest distance where the whole
@@ -78,7 +81,7 @@ namespace TuitionTakkar
             for (int i = 0; i < n; i++)
             {
                 float z = -4f + i * 0.05f;
-                var target = new Vector3(0f, 0f, z);
+                var target = turn * new Vector3(0f, 0f, z);
                 dists[i] = MinFitDistance(target, fwd);
                 transform.SetPositionAndRotation(target - fwd * dists[i], baseRot);
                 errs[i] = Mathf.Abs(VerticalCentre() - safeArea.center.y);
@@ -93,7 +96,7 @@ namespace TuitionTakkar
                 if (errs[i] < bestErr) { bestErr = errs[i]; best = i; }
             }
 
-            var bestTarget = new Vector3(0f, 0f, -4f + best * 0.05f);
+            var bestTarget = turn * new Vector3(0f, 0f, -4f + best * 0.05f);
             basePos = bestTarget - fwd * dists[best];
             transform.SetPositionAndRotation(basePos, baseRot);
         }

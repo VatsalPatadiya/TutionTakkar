@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "239004855800",
+    "project_id": "penfighter-6be8b",
+    "storage_bucket": "penfighter-6be8b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:239004855800:android:817b41482dcc8865567a0d",
+        "android_client_info": {
+          "package_name": "com.unitygame.tuitiontakkar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "239004855800-rpgjb69io0sr6vqkuqilk6ut1issth93.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.unitygame.tuitiontakkar",
+            "certificate_hash": "f6a9c29b45729760c8511768408575a2cfd2669f"
+          }
+        },
+        {
+          "client_id": "239004855800-8l4c9jht8gndk954s4g2ar89bh29u0tu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbWAr8T7P4gHPaUG1sP0ZQucIism8JFZQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "239004855800-8l4c9jht8gndk954s4g2ar89bh29u0tu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "239004855800-vg805hs2rj47dtugev8t3beub9q5icv2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.unitygame.tuitiontakkar"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

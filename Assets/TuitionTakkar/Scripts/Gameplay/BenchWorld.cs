@@ -7,7 +7,8 @@ namespace TuitionTakkar
     {
         public Camera Cam { get; private set; }
         public CameraRig Rig { get; private set; }
-        public readonly PenBody[] Pens = new PenBody[2];
+        /// <summary>2 pens normally, 3–4 in an online party match.</summary>
+        public PenBody[] Pens { get; private set; } = new PenBody[2];
         public PhysicsMaterial DeskMaterial { get; private set; }
         public PhysicsMaterial FloorMaterial { get; private set; }
 
@@ -16,8 +17,15 @@ namespace TuitionTakkar
         /// <summary>Height of the desk's front panel under the top (world units).</summary>
         public const float ApronHeight = 1.5f;
 
-        public static float HalfW => GameConfig.DeskWidth * 0.5f;
-        public static float HalfD => GameConfig.DeskDepth * 0.5f;
+        static float deskW = GameConfig.DeskWidth, deskD = GameConfig.DeskDepth;
+        public static float DeskW => deskW;
+        public static float DeskD => deskD;
+        public static float HalfW => deskW * 0.5f;
+        public static float HalfD => deskD * 0.5f;
+        /// <summary>The square two-seater desk used for 3–4 player online matches.</summary>
+        public static bool PartyDesk { get; private set; }
+
+        Transform deskRoot;
 
         public void Build()
         {
@@ -35,40 +43,7 @@ namespace TuitionTakkar
                 frictionCombine = PhysicsMaterialCombine.Average, bounceCombine = PhysicsMaterialCombine.Average
             };
 
-            float t = GameConfig.DeskThickness;
-
-            // Desk top (the only surface pens play on).
-            var top = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            top.name = "DeskTop";
-            top.transform.SetParent(transform, false);
-            top.transform.localPosition = new Vector3(0f, -t * 0.5f, 0f);
-            top.transform.localScale = new Vector3(GameConfig.DeskWidth, t, GameConfig.DeskDepth);
-            top.GetComponent<MeshRenderer>().sharedMaterial =
-                ArtLib.LitTextured(ArtLib.Laminate, new Vector2(GameConfig.DeskWidth / 1.6f, GameConfig.DeskDepth / 1.6f));
-            top.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            top.GetComponent<Collider>().sharedMaterial = DeskMaterial;
-            top.AddComponent<Surface>().kind = SurfaceKind.Desk;
-
-            // Rim around the laminate, the darker front edge, the front panel and steel legs,
-            // like "D · Tuition desk, front view". All visual only: the playable top stays
-            // exactly DeskWidth x DeskDepth.
-            const float rim = RimSize;
-            Visual(PrimitiveType.Cube, "Rim", new Vector3(0f, -t * 0.5f - 0.01f, 0f),
-                new Vector3(GameConfig.DeskWidth + rim * 2f, t, GameConfig.DeskDepth + rim * 2f), Pal.H("#9DBBA9"));
-            Visual(PrimitiveType.Cube, "FrontEdge", new Vector3(0f, -t * 0.5f - 0.01f, -HalfD - rim - 0.005f),
-                new Vector3(GameConfig.DeskWidth + rim * 2f, t + 0.02f, 0.01f), Pal.H("#7FA08C"));
-            Visual(PrimitiveType.Cube, "FrontPanel", new Vector3(0f, -t - ApronHeight * 0.5f, -HalfD + 0.06f),
-                new Vector3(GameConfig.DeskWidth - 0.14f, ApronHeight, 0.06f), Pal.LaminateShadow);
-            Visual(PrimitiveType.Cube, "SidePanelL", new Vector3(-HalfW + 0.08f, -t - ApronHeight * 0.5f, 0f),
-                new Vector3(0.05f, ApronHeight, GameConfig.DeskDepth - 0.2f), Pal.LaminateShadow);
-            Visual(PrimitiveType.Cube, "SidePanelR", new Vector3(HalfW - 0.08f, -t - ApronHeight * 0.5f, 0f),
-                new Vector3(0.05f, ApronHeight, GameConfig.DeskDepth - 0.2f), Pal.LaminateShadow);
-
-            float legH = GameConfig.DeskHeight - t;
-            float lx = HalfW - 0.12f, lz = HalfD - 0.12f;
-            foreach (var p in new[] { new Vector2(lx, lz), new Vector2(-lx, lz), new Vector2(lx, -lz), new Vector2(-lx, -lz) })
-                Visual(PrimitiveType.Cube, "Leg", new Vector3(p.x, -t - legH * 0.5f, p.y),
-                    new Vector3(0.12f, legH, 0.12f), Pal.H("#8A949B"));
+            BuildDesk();
 
             // Classroom floor tiles. Fallen pens land here.
             var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -109,23 +84,92 @@ namespace TuitionTakkar
             Rig = camGo.AddComponent<CameraRig>();
         }
 
+        /// <summary>Switches between the normal desk and the square party desk (3–4 players).</summary>
+        public void SetPartyDesk(bool party)
+        {
+            if (deskRoot != null && PartyDesk == party) return;
+            PartyDesk = party;
+            deskW = party ? GameConfig.PartyDeskSize : GameConfig.DeskWidth;
+            deskD = party ? GameConfig.PartyDeskSize : GameConfig.DeskDepth;
+            BuildDesk();
+            if (Rig != null) Rig.Fit();
+        }
+
+        void BuildDesk()
+        {
+            if (deskRoot != null) Destroy(deskRoot.gameObject);
+            deskRoot = new GameObject("Desk").transform;
+            deskRoot.SetParent(transform, false);
+
+            float t = GameConfig.DeskThickness;
+
+            // Desk top (the only surface pens play on).
+            var top = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            top.name = "DeskTop";
+            top.transform.SetParent(deskRoot, false);
+            top.transform.localPosition = new Vector3(0f, -t * 0.5f, 0f);
+            top.transform.localScale = new Vector3(deskW, t, deskD);
+            top.GetComponent<MeshRenderer>().sharedMaterial =
+                ArtLib.LitTextured(ArtLib.Laminate, new Vector2(deskW / 1.6f, deskD / 1.6f));
+            top.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            top.GetComponent<Collider>().sharedMaterial = DeskMaterial;
+            top.AddComponent<Surface>().kind = SurfaceKind.Desk;
+
+            // Rim around the laminate, the darker front edge, the front panel and steel legs,
+            // like "D · Tuition desk, front view". All visual only: the playable top stays
+            // exactly DeskWidth x DeskDepth.
+            const float rim = RimSize;
+            Visual(PrimitiveType.Cube, "Rim", new Vector3(0f, -t * 0.5f - 0.01f, 0f),
+                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#9DBBA9"));
+            // Front edge + panels: on the near side only for the normal desk, on all four sides
+            // for the square party desk (every player looks at it from a different side).
+            int sides = PartyDesk ? 4 : 1;
+            for (int k = 0; k < sides; k++)
+            {
+                var turn = Quaternion.Euler(0f, 90f * k, 0f);
+                bool across = k % 2 == 1;
+                float halfFar = across ? HalfW : HalfD;
+                float span = across ? deskD : deskW;
+                var edge = Visual(PrimitiveType.Cube, "FrontEdge", turn * new Vector3(0f, -t * 0.5f - 0.01f, -halfFar - rim - 0.005f),
+                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#7FA08C"));
+                edge.transform.localRotation = turn;
+                var panel = Visual(PrimitiveType.Cube, "FrontPanel", turn * new Vector3(0f, -t - ApronHeight * 0.5f, -halfFar + 0.06f),
+                    new Vector3(span - 0.14f, ApronHeight, 0.06f), Pal.LaminateShadow);
+                panel.transform.localRotation = turn;
+            }
+            if (!PartyDesk)
+            {
+                Visual(PrimitiveType.Cube, "SidePanelL", new Vector3(-HalfW + 0.08f, -t - ApronHeight * 0.5f, 0f),
+                    new Vector3(0.05f, ApronHeight, deskD - 0.2f), Pal.LaminateShadow);
+                Visual(PrimitiveType.Cube, "SidePanelR", new Vector3(HalfW - 0.08f, -t - ApronHeight * 0.5f, 0f),
+                    new Vector3(0.05f, ApronHeight, deskD - 0.2f), Pal.LaminateShadow);
+            }
+
+            float legH = GameConfig.DeskHeight - t;
+            float lx = HalfW - 0.12f, lz = HalfD - 0.12f;
+            foreach (var p in new[] { new Vector2(lx, lz), new Vector2(-lx, lz), new Vector2(lx, -lz), new Vector2(-lx, -lz) })
+                Visual(PrimitiveType.Cube, "Leg", new Vector3(p.x, -t - legH * 0.5f, p.y),
+                    new Vector3(0.12f, legH, 0.12f), Pal.H("#8A949B"));
+
+        }
+
         GameObject Visual(PrimitiveType t, string n, Vector3 pos, Vector3 scale, Color c)
         {
             var go = GameObject.CreatePrimitive(t);
             go.name = n;
             Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(deskRoot != null ? deskRoot : transform, false);
             go.transform.localPosition = pos;
             go.transform.localScale = scale;
             go.GetComponent<MeshRenderer>().sharedMaterial = ArtLib.Matte(c);
             return go;
         }
 
-        public void SpawnPens(PenDef a, PenDef b)
+        public void SpawnPens(params PenDef[] defs)
         {
             ClearPens();
-            Pens[0] = PenBody.Create(a, 0, transform);
-            Pens[1] = PenBody.Create(b, 1, transform);
+            Pens = new PenBody[defs.Length];
+            for (int i = 0; i < defs.Length; i++) Pens[i] = PenBody.Create(defs[i], i, transform);
             ResetPens();
         }
 
@@ -139,10 +183,25 @@ namespace TuitionTakkar
         }
 
         /// <summary>Player 0 near you (bottom of screen), player 1 at the far end.</summary>
-        public void ResetPens()
+        public void ResetPens() => ResetPens(Random.Range(-4f, 4f));
+
+        /// <summary>Online passes the same jitter on every phone so the start is identical.</summary>
+        public void ResetPens(float jitter)
         {
-            if (Pens[0] == null) return;
-            float jitter = Random.Range(-4f, 4f);
+            if (Pens.Length == 0 || Pens[0] == null) return;
+            if (Pens.Length > 2)
+            {
+                // Party desk: pens in a ring, player 0 nearest the bottom, each lying across its side.
+                int n = Pens.Length;
+                for (int i = 0; i < n; i++)
+                {
+                    float theta = -90f + 360f * i / n;
+                    float r = theta * Mathf.Deg2Rad;
+                    var pos = new Vector3(Mathf.Cos(r) * GameConfig.PartyStartRadius, PenFactory.RestHeight(Pens[i].Def), Mathf.Sin(r) * GameConfig.PartyStartRadius);
+                    Pens[i].Place(pos, Quaternion.Euler(0f, -(theta + 90f) + (i % 2 == 0 ? jitter : -jitter), 0f));
+                }
+                return;
+            }
             Pens[0].Place(new Vector3(0f, PenFactory.RestHeight(Pens[0].Def), -GameConfig.StartOffsetZ),
                 Quaternion.Euler(0f, jitter, 0f));
             Pens[1].Place(new Vector3(0f, PenFactory.RestHeight(Pens[1].Def), GameConfig.StartOffsetZ),
@@ -150,6 +209,9 @@ namespace TuitionTakkar
         }
 
         public PenState[] Snapshot() => new[] { Pens[0].Snapshot(), Pens[1].Snapshot() };
+
+        /// <summary>Camera yaw that puts this pen index at the bottom of the screen.</summary>
+        public static float YawFor(int index, int count) => count <= 1 ? 0f : -360f * index / count;
 
         /// <summary>
         /// Out once it really drops: 4 cm below the top, or already falling with its
@@ -206,11 +268,12 @@ namespace TuitionTakkar
         /// flat moves that open the gap: split between both pens, or all on one pen when the
         /// other would be nudged toward an edge. False when no move is needed or possible.
         /// </summary>
-        public bool SeparationNeeded(float minGap, out Vector3 push0, out Vector3 push1)
+        public bool SeparationNeeded(float minGap, out Vector3 push0, out Vector3 push1) =>
+            SeparationNeeded(Pens[0], Pens[1], minGap, out push0, out push1);
+
+        public bool SeparationNeeded(PenBody a, PenBody b, float minGap, out Vector3 push0, out Vector3 push1)
         {
             push0 = push1 = Vector3.zero;
-            var a = Pens[0];
-            var b = Pens[1];
             if (a == null || b == null || IsOut(a) || IsOut(b)) return false;
 
             ClosestPointsFlat(a.TipEnd, a.CapEnd, b.TipEnd, b.CapEnd, out var pa, out var pb);

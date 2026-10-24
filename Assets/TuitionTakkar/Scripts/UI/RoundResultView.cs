@@ -7,7 +7,8 @@ namespace TuitionTakkar
     {
         static string Possessive(MatchSetup s, int i)
         {
-            if (s.mode != MatchMode.PassAndPlay && i == 0) return "YOUR";
+            int me = s.mode == MatchMode.Online ? s.localIndex : 0;
+            if (s.mode != MatchMode.PassAndPlay && i == me) return "YOUR";
             return HudView.DisplayName(s, i).ToUpperInvariant() + "'S";
         }
 
@@ -36,7 +37,9 @@ namespace TuitionTakkar
             else headline = Possessive(setup, loser) + " PEN\nHIT THE FLOOR";
             card.Add(UIKit.Disp(headline, 34f, Pal.Ink, TextAnchor.MiddleCenter).St(s => s.marginTop = 10));
 
-            bool humanWon = setup.mode == MatchMode.PassAndPlay || !setup.isBot[sum.winner];
+            bool online = setup.mode == MatchMode.Online;
+            int meIdx = online ? setup.localIndex : 0, themIdx = 1 - meIdx;
+            bool humanWon = online ? sum.winner == meIdx : setup.mode == MatchMode.PassAndPlay || !setup.isBot[sum.winner];
             string stampText = setup.mode == MatchMode.PassAndPlay
                 ? (sum.winner == 0 ? "P1 TAKES IT" : "P2 TAKES IT")
                 : humanWon ? "ROUND YOURS" : "ROUND LOST";
@@ -52,15 +55,15 @@ namespace TuitionTakkar
             UIRoot.PopIn(stamp, 220);
             stamp.schedule.Execute(() => gm.Audio.Stamp()).StartingIn(240);
 
-            if (sum.shooterSelfOut)
+            if (sum.shooterSelfOut && !online)
                 card.Add(UIKit.HandText("your own pen falls = round lost", 16f, Pal.Red, TextAnchor.MiddleCenter).St(s => s.marginTop = 4));
 
             // Scores
             var scores = UIKit.Row().St(s => s.marginTop = 10);
-            scores.Add(ScoreNote(HudView.DisplayName(setup, 0), sum.score[0], Pal.Yellow, -3f));
+            scores.Add(ScoreNote(HudView.DisplayName(setup, meIdx), sum.score[meIdx], Pal.Yellow, -3f));
             scores.Add(UIKit.Text("vs", UIKit.HandBold, 22f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 18; s.marginRight = 18; }));
             Color rc = setup.rival != null ? setup.rival.avatar : setup.mode == MatchMode.PassAndPlay ? Pal.Pink : Pal.Teal;
-            scores.Add(ScoreNote(HudView.DisplayName(setup, 1), sum.score[1], rc, 3f));
+            scores.Add(ScoreNote(HudView.DisplayName(setup, themIdx), sum.score[themIdx], rc, 3f));
             card.Add(scores);
 
             var stats = UIKit.Col().St(s => { s.alignSelf = Align.Stretch; s.marginTop = 14; });
@@ -74,6 +77,25 @@ namespace TuitionTakkar
             {
                 string quip = setup.isBot[sum.winner] ? setup.rival.quipWhenTheyWin : setup.rival.quipWhenTheyLose;
                 card.Add(UIKit.HandText(setup.rival.name + ": \"" + quip + "\"", 18f, Pal.Ink, TextAnchor.MiddleCenter).St(s => s.marginTop = 4));
+            }
+
+            if (online)
+            {
+                // Both phones move on by themselves, so nobody waits on a button.
+                var next = UIKit.HandText(sum.matchOver ? "match over…" : "next round in 4…", 18f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => s.marginTop = 14);
+                card.Add(next);
+                int left = 4;
+                next.schedule.Execute(() =>
+                {
+                    left--;
+                    if (left > 0) { if (!sum.matchOver) next.text = "next round in " + left + "…"; return; }
+                    if (next.panel == null) return;
+                    gm.UI.HideOverlay();
+                    gm.Match.Continue();
+                }).StartingIn(1000).Every(1000).Until(() => left <= 0);
+                o.Add(card);
+                UIRoot.PopIn(card);
+                return o;
             }
 
             // Home (leave the match) + Next round / See result.

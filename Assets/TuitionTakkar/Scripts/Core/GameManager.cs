@@ -70,6 +70,10 @@ namespace TuitionTakkar
             // thin pens then get jagged, stretched-looking outlines. 4x MSAA keeps them crisp.
             QualitySettings.antiAliasing = 4;
             Time.fixedDeltaTime = GameConfig.FixedDt;
+            // Physics runs 240 times a second. After one slow frame Unity would otherwise try to
+            // catch up with up to 80 physics steps at once, which makes the next frame slow too
+            // (the "hang" while aiming). Cap the catch-up to 1/20 s.
+            Time.maximumDeltaTime = 1f / 20f;
             Physics.gravity = GameConfig.Gravity;
             Physics.defaultSolverIterations = 12;
             Physics.defaultSolverVelocityIterations = 4;
@@ -108,6 +112,18 @@ namespace TuitionTakkar
 
         void Update()
         {
+            // Development builds: report any frame that takes longer than 1/10 s, so a freeze on
+            // the phone shows up on screen with what was happening at that moment.
+            if (Debug.isDebugBuild && Time.unscaledDeltaTime > 0.1f && Time.frameCount > 120)
+            {
+                string what = Input != null && Input.IsAiming ? "while aiming" : Match != null && Match.Shooting ? "during a shot" : "";
+                Debug.LogWarning("[TuitionTakkar] slow frame " + Mathf.RoundToInt(Time.unscaledDeltaTime * 1000f) + " ms " + what);
+                if (UI != null && UI.Hud.Root.style.display == UnityEngine.UIElements.DisplayStyle.Flex)
+                {
+                    UI.Hud.SetDebugShot("slow frame " + Mathf.RoundToInt(Time.unscaledDeltaTime * 1000f) + " ms " + what);
+                }
+            }
+
             // Slide noise follows the fastest pen still on the bench.
             float speed = 0f;
             if (Match != null && Match.Shooting)
@@ -141,17 +157,42 @@ namespace TuitionTakkar
             UI.ShowScreen(RivalScreen.Build(this, Save.CurrentRival));
         }
 
-        public void ShowPouch()
+        public void ShowPouch(int tab = 0)
         {
             Match.Stop();
             World.ClearPens();
-            UI.ShowScreen(PouchScreen.Build(this));
+            UI.ShowScreen(PouchScreen.Build(this, tab));
+        }
+
+        /// <summary>
+        /// Anything online (Play Online, Leaderboard, Sign in): without internet, the
+        /// no-internet popup; with internet, a "coming soon" note until online play ships.
+        /// </summary>
+        /// <summary>Play Online: no internet popup, or sign in / name / online lobby.</summary>
+        public void ShowOnline() => OnlineScreens.Enter(this);
+
+        public void ShowLeaderboard() => OnlineScreens.Enter(this, true);
+
+        /// <summary>
+        /// The player's pen for an offline match. Uses one match of ink; a dry pen plays
+        /// with Starter Click stats (it keeps its colours) until it is refilled.
+        /// </summary>
+        PenDef PlayerPenForMatch()
+        {
+            var pen = Catalog.Pen(Save.equipped);
+            if (!Economy.UsesInk(pen.id)) return pen;
+            if (Save.UseInk(pen.id))
+            {
+                Save.Save();
+                return pen;
+            }
+            return Catalog.Pen(Catalog.StarterId).Recolor(pen.color, pen.capColor);
         }
 
         public void StartLadder(RivalDef rival)
         {
             var s = new MatchSetup { mode = MatchMode.Ladder, rival = rival, bot = rival.bot };
-            s.pens[0] = Catalog.Pen(Save.equipped);
+            s.pens[0] = PlayerPenForMatch();
             s.pens[1] = Catalog.Pen(rival.penId);
             // Mirror match? Give the rival a recoloured copy so the pens are easy to tell apart.
             if (s.pens[0].id == s.pens[1].id) s.pens[1] = s.pens[1].Recolor(Pal.H("#2A9D8F"), Pal.H("#16324F"));
@@ -165,7 +206,7 @@ namespace TuitionTakkar
         {
             level = Mathf.Clamp(level, 0, Catalog.PracticeBots.Length - 1);
             var s = new MatchSetup { mode = MatchMode.Practice, bot = Catalog.PracticeBots[level], practiceLevel = level };
-            s.pens[0] = Catalog.Pen(Save.equipped);
+            s.pens[0] = PlayerPenForMatch();
             s.pens[1] = Catalog.Pen(Catalog.StarterId).Recolor(Pal.H("#2A9D8F"), Pal.H("#16324F"));
             s.names[0] = "You";
             s.names[1] = Catalog.PracticeNames[level] + " bot";
@@ -176,7 +217,7 @@ namespace TuitionTakkar
         public void StartPassAndPlay()
         {
             var s = new MatchSetup { mode = MatchMode.PassAndPlay };
-            s.pens[0] = Catalog.Pen(Save.equipped);
+            s.pens[0] = PlayerPenForMatch();
             s.pens[1] = Catalog.Pen(Catalog.StarterId).Recolor(Pal.H("#C8414B"), Pal.H("#1F2A44"));
             s.names[0] = "Player 1";
             s.names[1] = "Player 2";
@@ -190,11 +231,14 @@ namespace TuitionTakkar
             else ShowRival();
         }
 
-        void StartMatch(MatchSetup s)
+        public void StartMatch(MatchSetup s)
         {
             Paused = false;
             Time.timeScale = 1f;
             UI.ShowHud();
+            // Online: every player looks at the desk from their own side (pen at the bottom).
+            World.SetPartyDesk(s.IsParty);
+            World.Rig.yaw = s.mode == MatchMode.Online ? BenchWorld.YawFor(s.localIndex, s.Players) : 0f;
             World.Rig.Fit();
             Match.Begin(s);
         }
@@ -207,33 +251,37 @@ namespace TuitionTakkar
             UI.ShowOverlay(RoundResultView.Build(this, sum, Match.Setup));
         }
 
-        public void OnMatchOver(MatchSetup s, int winner, int[] score)
+        public void OnMatchOver(MatchSetup s, int winner, int[] score, int[] knockOffs = null)
         {
+            if (s.mode == MatchMode.Online)
+            {
+                OnlineMatch.Finish(this, s, winner, score, null);
+                return;
+            }
             var o = new MatchOutcome { setup = s, winner = winner, score = score, marksBefore = Save.marks };
             bool humanWon = s.mode == MatchMode.PassAndPlay || !s.isBot[winner];
+            bool firstLadderWin = false;
 
-            if (s.mode == MatchMode.Ladder)
+            if (s.mode == MatchMode.Ladder && humanWon)
             {
                 var rival = s.rival;
-                if (humanWon)
+                firstLadderWin = !Save.Owns(rival.penId);
+                if (firstLadderWin)
                 {
-                    bool firstWin = !Save.Owns(rival.penId);
-                    if (firstWin)
-                    {
-                        Save.owned.Add(rival.penId);
-                        o.wonPen = Catalog.Pen(rival.penId);
-                        Save.marks += rival.reward;
-                    }
-                    else Save.marks += rival.reward / 2;
-
-                    int idx = Catalog.Rivals.IndexOf(rival);
-                    if (idx == Save.ladderIndex) Save.ladderIndex++;
-                    o.becameChampion = firstWin && idx == Catalog.Rivals.Count - 1;
-                    o.nextRival = Save.LadderComplete ? null : Save.CurrentRival;
+                    Save.AddPen(rival.penId);
+                    o.wonPen = Catalog.Pen(rival.penId);
                 }
-                else Save.marks = Mathf.Max(0, Save.marks - Catalog.LossPenalty);
-                Save.Save();
+                int idx = Catalog.Rivals.IndexOf(rival);
+                if (idx == Save.ladderIndex) Save.ladderIndex++;
+                o.becameChampion = firstLadderWin && idx == Catalog.Rivals.Count - 1;
+                o.nextRival = Save.LadderComplete ? null : Save.CurrentRival;
             }
+
+            // Marks: see Economy (match win, knock-offs, first win of the day, or 2 for trying).
+            int knocks = knockOffs != null ? knockOffs[0] : 0;
+            o.rewards = Economy.ForMatch(s, humanWon, knocks, firstLadderWin, Save);
+            Save.marks += o.rewards.total;
+            Save.Save();
 
             o.marksAfter = Save.marks;
             if (humanWon) { Audio.Win(); Haptics.Win(); }
@@ -247,6 +295,12 @@ namespace TuitionTakkar
 
         public void Pause()
         {
+            // Online can't stop time (the other phone keeps going): offer to leave instead.
+            if (Match.Setup != null && Match.Setup.mode == MatchMode.Online && UI.Hud.Root.style.display == UnityEngine.UIElements.DisplayStyle.Flex)
+            {
+                UI.ShowOverlay(OnlineMatch.LeaveSheet(this));
+                return;
+            }
             if (Paused) return;
             Paused = true;
             Time.timeScale = 0f;
@@ -269,6 +323,11 @@ namespace TuitionTakkar
 
         void OnApplicationPause(bool paused)
         {
+            if (Match != null && Match.Setup != null && Match.Setup.mode == MatchMode.Online)
+            {
+                if (!paused) OnlineMatch.OnResume();
+                return;
+            }
             if (paused && Match != null && Match.Shooting == false && UI != null && UI.Hud.Root.style.display == UnityEngine.UIElements.DisplayStyle.Flex)
                 Pause();
         }

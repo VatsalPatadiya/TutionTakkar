@@ -24,3 +24,8 @@
 .idea/
 .DS_Store
 crashlytics-build.properties
+
+# Release signing key: never commit
+Keystore/
+*.keystore
+*.jks

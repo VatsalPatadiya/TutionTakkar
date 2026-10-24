@@ -119,6 +119,29 @@ namespace TuitionTakkar
 
         public PenState Snapshot() => new PenState { pos = Rb.position, rot = Rb.rotation };
 
+        /// <summary>
+        /// Online: put this pen exactly where the shooter's phone had it. A pen that is out
+        /// stays out (held where it fell); one on the desk is laid flat and still.
+        /// </summary>
+        public void ApplyNetState(Vector3 pos, Quaternion rot, bool flat, bool isOut)
+        {
+            gameObject.SetActive(true);
+            Rb.isKinematic = true;
+            Rb.position = pos;
+            Rb.rotation = rot;
+            transform.SetPositionAndRotation(pos, rot);
+            Rb.constraints = flat ? PenFactory.Flat : RigidbodyConstraints.None;
+            HitFloor = isOut;
+            if (!isOut)
+            {
+                Rb.isKinematic = false;
+                Rb.linearVelocity = Vector3.zero;
+                Rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        public bool IsFlat => Rb.constraints == PenFactory.Flat;
+
         void OnCollisionEnter(Collision c)
         {
             float s = c.relativeVelocity.magnitude / GameConfig.WorldScale;
