@@ -48,7 +48,11 @@ namespace TuitionTakkar.EditorTools
                 var parts = line.Trim().Split('\t');
                 if (parts.Length != 2 || parts[1] != "device") continue;
                 log.AppendLine("== " + parts[0]);
-                log.AppendLine(Run(adb, "-s " + parts[0] + " logcat -d -s TTPush:I FirebaseMessaging:* FirebaseInstanceId:* Unity:W"));
+                string serial = parts[0];
+                log.AppendLine(Run(adb, "-s " + serial + " shell getprop ro.build.version.release"));
+                log.AppendLine(Run(adb, "-s " + serial + " logcat -d -s TTPush:I FirebaseMessaging:* FCM:* GCM:*"));
+                log.AppendLine("--- notifications\n" + Run(adb, "-s " + serial + " shell dumpsys notification --noredact"));
+                log.AppendLine("--- app ops\n" + Run(adb, "-s " + serial + " shell dumpsys package " + Package));
             }
             File.WriteAllText("Builds/push-log.txt", log.ToString());
         }
