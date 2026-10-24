@@ -29,3 +29,6 @@ crashlytics-build.properties
 Keystore/
 *.keystore
 *.jks
+
+# Local APK builds
+/Builds/
