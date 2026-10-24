@@ -49,7 +49,27 @@ namespace TuitionTakkar
             else ShowPlay(gm);
         }
 
-        public static void ShowPlay(GameManager gm) => gm.UI.ShowScreen(Play(gm));
+        public static void ShowPlay(GameManager gm)
+        {
+            gm.UI.ShowScreen(Play(gm));
+            if (inviteCode == null) return;
+            string code = inviteCode, from = inviteFrom;
+            inviteCode = inviteFrom = null;
+            gm.UI.ShowOverlay(JoinSheet(gm, code, from));
+        }
+
+        static string inviteCode, inviteFrom;
+
+        /// <summary>
+        /// An invite link was tapped: sign in / pick a name if needed, then Play Online
+        /// with the Join sheet filled in.
+        /// </summary>
+        public static void JoinFromInvite(GameManager gm, string code, string from)
+        {
+            inviteCode = code;
+            inviteFrom = from;
+            Enter(gm);
+        }
 
         // =====================================================================
         // O2 sign in
@@ -360,12 +380,15 @@ namespace TuitionTakkar
             }
         }
 
-        static VisualElement JoinSheet(GameManager gm)
+        static VisualElement JoinSheet(GameManager gm, string code = "", string from = null)
         {
+            bool invited = !string.IsNullOrEmpty(code);
             var o = Sheet(out var c);
-            c.Add(UIKit.Disp("JOIN A ROOM", 28f, Pal.Ink));
-            c.Add(UIKit.HandText("type the 6-letter code your friend shared.", 16f, Pal.InkSoft));
-            var field = Field("", 6);
+            c.Add(UIKit.Disp(invited ? "YOU'RE INVITED!" : "JOIN A ROOM", 28f, Pal.Ink));
+            c.Add(UIKit.HandText(!invited ? "type the 6-letter code your friend shared."
+                : !string.IsNullOrEmpty(from) ? from + " saved you a seat. tap join to sit down."
+                : "a classmate saved you a seat. tap join to sit down.", 16f, Pal.InkSoft));
+            var field = Field(code ?? "", 6);
             field.style.marginTop = 12;
             var input = field.Q(className: TextField.inputUssClassName);
             if (input != null) { input.style.fontSize = 30; input.style.unityTextAlign = TextAnchor.MiddleCenter; input.style.letterSpacing = 6; }
@@ -390,7 +413,7 @@ namespace TuitionTakkar
             };
             c.Add(go);
             c.Add(UIKit.Btn("Cancel", () => gm.UI.HideOverlay(), Color.clear, Pal.Ink, UIKit.BodyBold, 15f, 46f, 12f).St(s => s.marginTop = 6));
-            field.schedule.Execute(() => field.Focus()).StartingIn(200);
+            if (!invited) field.schedule.Execute(() => field.Focus()).StartingIn(200);
             return o;
         }
 
@@ -469,7 +492,7 @@ namespace TuitionTakkar
                 var start = UIKit.PrimaryBtn(room.Full ? "START MATCH" : "START WITH " + found, () => DoStart(gm, room), 56f);
                 content.Add(start);
             }
-            else if (room.IsHost && found >= OnlineRoom.MinPlayers)
+            else if (room.InCharge && found >= OnlineRoom.MinPlayers)
                 content.Add(UIKit.Plain("you can start with fewer players in " + Mathf.CeilToInt(OnlineRoom.QuickStartAfter - waited) + " s", 12f, Pal.BenchText, TextAnchor.MiddleCenter));
             else if (found >= OnlineRoom.MinPlayers)
                 content.Add(UIKit.Plain("waiting for more classmates…", 12f, Pal.BenchText, TextAnchor.MiddleCenter));
@@ -477,6 +500,15 @@ namespace TuitionTakkar
             var cancel = UIKit.Btn("CANCEL", () => Leave(gm, room), Pal.Paper, Pal.Ink, UIKit.Display, 20f, 54f, 14f, null, Pal.Ink);
             cancel.style.marginTop = 10;
             content.Add(cancel);
+        }
+
+        /// <summary>Phone share sheet with the invite link (opens the game on the Join sheet).</summary>
+        static void ShareInvite(GameManager gm, string code)
+        {
+            string me = gm.Save.onlineName;
+            string msg = "Pen fight on Tuition Takkar! ✏️ Join my room: " + DeepLinks.InviteUrl(code, me) +
+                         "\nor type code " + code + " in Play Online → Join with code.";
+            NativeShare.Share(msg, "Join my Tuition Takkar room");
         }
 
         static void PaintPrivate(GameManager gm, OnlineRoom room, VisualElement content)
@@ -496,7 +528,12 @@ namespace TuitionTakkar
                 GUIUtility.systemCopyBuffer = room.Code;
                 copy.text = "Copied!";
             };
-            cork.Add(copy);
+            var share = UIKit.Btn("Share", () => ShareInvite(gm, room.Code), Pal.Ink, Color.white, UIKit.BodyBold, 14f, 44f, 12f, Pal.H("#0E1424"));
+            share.style.marginTop = 8;
+            var actions = UIKit.Col().St(s => s.alignItems = Align.Stretch);
+            actions.Add(copy);
+            actions.Add(share);
+            cork.Add(actions);
             content.Add(cork);
 
             var head = UIKit.Row().St(s => { s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; });
@@ -509,7 +546,7 @@ namespace TuitionTakkar
             content.Add(list);
             content.Add(UIKit.Grow());
 
-            if (room.IsHost)
+            if (room.InCharge)
             {
                 var start = UIKit.PrimaryBtn("START MATCH", () => DoStart(gm, room), 56f);
                 bool ok = room.CanStart;
@@ -518,6 +555,8 @@ namespace TuitionTakkar
                 content.Add(start);
                 content.Add(UIKit.Plain(ok ? "everyone in? start when ready." : "needs at least 2 players", 12f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => s.marginTop = 6));
             }
+            else if (room.IsOwner)
+                content.Add(UIKit.HandText("getting your room back…", 17f, Pal.BenchText, TextAnchor.MiddleCenter));
             else
                 content.Add(UIKit.HandText("waiting for the host to start…", 17f, Pal.BenchText, TextAnchor.MiddleCenter));
 
@@ -540,7 +579,7 @@ namespace TuitionTakkar
             var col = UIKit.Col().St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; });
             var nr = UIKit.Row();
             nr.Add(UIKit.Strong(name + (me ? " (you)" : ""), 15f, dark ? Color.white : Pal.Ink));
-            if (p.Id == room.Lobby.HostId && !room.IsQuick)
+            if (p.Id == room.Owner && !room.IsQuick)
                 nr.Add(UIKit.Strong("HOST", 10f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
             col.Add(nr);
             col.Add(PenIcon.Build(Catalog.Pen(OnlineRoom.PenOf(p)), 110f).St(s => s.marginTop = 2));

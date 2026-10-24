@@ -58,7 +58,18 @@ namespace TuitionTakkar
             WireFeel();
             ApplySettings();
             World.Rig.Fit();
-            ShowHome();
+            DeepLinks.Init(this);
+            Push.Init();
+            Reminders.Init();
+            bool welcomeBack = Reminders.CheckComeback(Save);
+            Reminders.Reschedule(Save);
+            SplashScreen.Show(this, () =>
+            {
+                // An invite link wins over the welcome-back card (the marks are paid either way).
+                bool invite = DeepLinks.HasPending;
+                ShowHome();
+                if (welcomeBack && !invite) UI.ShowOverlay(Reminders.WelcomeBack(this));
+            });
         }
 
         static void ConfigureRuntime()
@@ -149,6 +160,7 @@ namespace TuitionTakkar
             Match.Stop();
             World.ClearPens();
             UI.ShowScreen(HomeScreen.Build(this));
+            DeepLinks.OnHomeShown();
         }
 
         public void ShowRival()
@@ -289,6 +301,7 @@ namespace TuitionTakkar
 
             World.ClearPens();
             UI.ShowScreen(MatchEndScreen.Build(this, o));
+            if (humanWon && s.mode != MatchMode.PassAndPlay) Reminders.AskAfterWin(this);
         }
 
         // ---------- pause ----------
@@ -323,6 +336,11 @@ namespace TuitionTakkar
 
         void OnApplicationPause(bool paused)
         {
+            // Going to the background: book the next 7 PM reminders from today's state.
+            if (paused && Save != null) Reminders.Reschedule(Save);
+            // Back from the share sheet etc. while waiting in a room: reclaim the host seat.
+            if (!paused) OnlineRoom.Current?.OnResume();
+            if (!paused) Push.CheckTappedLink();
             if (Match != null && Match.Setup != null && Match.Setup.mode == MatchMode.Online)
             {
                 if (!paused) OnlineMatch.OnResume();

@@ -81,6 +81,8 @@ namespace TuitionTakkar
         float TurnLimit => Online ? GameConfig.OnlineTurnTimeLimit : GameConfig.TurnTimeLimit;
         /// <summary>Shots fired this match; online messages are matched by this number.</summary>
         int turnNo;
+        /// <summary>Online: auto shots this phone's player has used this match.</summary>
+        int autoShotsUsed;
 
         public void Begin(MatchSetup s)
         {
@@ -91,6 +93,7 @@ namespace TuitionTakkar
             round = 1;
             firstShooter = 0;
             turnNo = 0;
+            autoShotsUsed = 0;
             running = true;
             gm.World.SpawnPens(s.pens);
             if (s.IsParty)
@@ -179,6 +182,16 @@ namespace TuitionTakkar
 
             if (gm.Input.ReleaseNow()) yield break; // their pull becomes the shot
             gm.Input.Disable();
+            if (Online)
+            {
+                // Online, everyone else waits on this phone: only a few auto shots per match.
+                autoShotsUsed++;
+                if (autoShotsUsed > GameConfig.OnlineMaxAutoShots)
+                {
+                    setup.net.ForfeitSelf(autoShotsUsed);
+                    yield break;
+                }
+            }
             gm.UI.Hud.SetTimeUp();
             yield return PlanAndFire(GameConfig.AutoShotProfile, true);
         }
@@ -247,7 +260,8 @@ namespace TuitionTakkar
                 var grab = Flick.StrikePoint(pen.Def, pen.Rb.position, pen.Rb.rotation, plan.strikeT);
                 gm.Aim.Show(grab, null, plan.dir, plan.power * grow, pen.Length * 0.5f);
                 gm.UI.Hud.SetPower(plan.power * grow, plan.strikeT);
-                if (autoShot) gm.UI.Hud.ShowAutoShot(plan.power, gm.UI.Hud.PanelPoint(gm.World.Cam, pen.Rb.position));
+                if (autoShot) gm.UI.Hud.ShowAutoShot(plan.power, gm.UI.Hud.PanelPoint(gm.World.Cam, pen.Rb.position),
+                    Online ? GameConfig.OnlineMaxAutoShots - autoShotsUsed : -1);
                 yield return null;
             }
             gm.Aim.Hide();

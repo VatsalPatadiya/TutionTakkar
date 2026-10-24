@@ -50,6 +50,15 @@ namespace TuitionTakkar
 
         public string MyId => OnlineServices.PlayerId;
         public bool IsHost => Lobby != null && Lobby.HostId == MyId;
+        /// <summary>
+        /// Who made the room. The lobby service moves "host" to someone else when the maker's app
+        /// goes to the background for a few seconds (e.g. sharing the code on WhatsApp), so the
+        /// room remembers its maker and the borrowed host hands it straight back.
+        /// </summary>
+        public string Owner => Data("owner", Lobby?.HostId ?? "");
+        public bool IsOwner => Owner == MyId;
+        /// <summary>This phone runs the room: it is the host and the maker (or the maker has left).</summary>
+        public bool InCharge => IsHost && (IsOwner || Find(Owner) == null);
         public string Code => Lobby?.LobbyCode ?? "";
         public int Seats => Lobby?.MaxPlayers ?? 0;
         public List<Player> Players => Lobby?.Players ?? new List<Player>();
@@ -74,7 +83,7 @@ namespace TuitionTakkar
 
         /// <summary>Host may start: private room with 2+, or Quick Match full / waited long enough.</summary>
         public bool CanStart =>
-            IsHost && !Playing && Players.Count >= MinPlayers &&
+            InCharge && !Playing && Players.Count >= MinPlayers &&
             (!IsQuick || Full || Time.realtimeSinceStartup - JoinedAt >= QuickStartAfter);
 
         // ---------- create / join ----------
@@ -97,6 +106,7 @@ namespace TuitionTakkar
                 {
                     { "kind", new DataObject(DataObject.VisibilityOptions.Public, quick ? KindQuick : KindRoom, DataObject.IndexOptions.S1) },
                     { "state", new DataObject(DataObject.VisibilityOptions.Member, "wait") },
+                    { "owner", new DataObject(DataObject.VisibilityOptions.Member, OnlineServices.PlayerId) },
                 },
             };
             var lobby = await LobbyService.Instance.CreateLobbyAsync(quick ? "Quick match" : "Private room", seats, options);
@@ -154,6 +164,7 @@ namespace TuitionTakkar
                 if (Closed) return;
                 if (changes.LobbyDeleted) { End("the room was closed."); return; }
                 changes.ApplyToLobby(Lobby);
+                HandBackIfBorrowed();
                 Changed?.Invoke();
             };
             cb.KickedFromLobby += () => End("you were removed from the room.");
@@ -211,7 +222,64 @@ namespace TuitionTakkar
             if (Closed) return;
             Lobby = await LobbyService.Instance.GetLobbyAsync(Lobby.Id);
             if (!Players.Exists(p => p.Id == MyId)) { End("you were removed from the room."); return; }
+            HandBackIfBorrowed();
             Changed?.Invoke();
+        }
+
+        // ---------- host hand-back ----------
+
+        string handedFor;
+        bool handing;
+
+        /// <summary>
+        /// We were made host while the room's maker was away: give it back once they are in the
+        /// room (again once each time they come back, so a maker who is really gone isn't chased).
+        /// </summary>
+        async void HandBackIfBorrowed()
+        {
+            if (handing || Closed || Lobby == null || !IsHost || IsOwner || Playing) return;
+            var owner = Find(Owner);
+            if (owner == null) return;
+            string back = PlayerData(owner, "back", "");
+            if (back == handedFor) return;
+            handing = true;
+            handedFor = back;
+            try
+            {
+                Lobby = await LobbyService.Instance.UpdateLobbyAsync(Lobby.Id, new UpdateLobbyOptions { HostId = Owner });
+                Changed?.Invoke();
+            }
+            catch (Exception e)
+            {
+                handedFor = null;
+                Debug.LogWarning("Hand host back: " + e.Message);
+            }
+            finally
+            {
+                handing = false;
+            }
+        }
+
+        /// <summary>
+        /// The app came back from the background (share sheet, a call…): say we're here so a
+        /// borrowed host hands the room back, and catch up on anything missed.
+        /// </summary>
+        public async void OnResume()
+        {
+            if (Closed || Playing) return;
+            try
+            {
+                await SetMyDataAsync(new Dictionary<string, string> { { "back", DateTime.UtcNow.Ticks.ToString() } });
+                await RefreshAsync();
+            }
+            catch (LobbyServiceException e) when (e.Reason == LobbyExceptionReason.LobbyNotFound)
+            {
+                End("the room was closed.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("Room resume: " + e.Message);
+            }
         }
 
         // ---------- updates ----------

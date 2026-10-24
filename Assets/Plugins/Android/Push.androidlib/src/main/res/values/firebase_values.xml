@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from Assets/google-services.json (what the google-services Gradle plugin would make). -->
+<resources>
+    <string name="google_app_id" translatable="false">1:239004855800:android:817b41482dcc8865567a0d</string>
+    <string name="gcm_defaultSenderId" translatable="false">239004855800</string>
+    <string name="google_api_key" translatable="false">AIzaSyAbWAr8T7P4gHPaUG1sP0ZQucIism8JFZQ</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAbWAr8T7P4gHPaUG1sP0ZQucIism8JFZQ</string>
+    <string name="project_id" translatable="false">penfighter-6be8b</string>
+    <string name="google_storage_bucket" translatable="false">penfighter-6be8b.firebasestorage.app</string>
+    <string name="default_web_client_id" translatable="false">239004855800-8l4c9jht8gndk954s4g2ar89bh29u0tu.apps.googleusercontent.com</string>
+</resources>

@@ -68,6 +68,27 @@ namespace TuitionTakkar
 
         public void SendQuit() => Send("quit", MatchId);
 
+        /// <summary>
+        /// This player's clock ran out once too often (past the auto-shot limit): they lose.
+        /// The others see it through "quit" and carry on (2 players: the other one wins).
+        /// </summary>
+        public void ForfeitSelf(int timeouts)
+        {
+            if (over) return;
+            Send("quit", MatchId + "|auto");
+            over = true;
+            var setup = gm.Match.Setup;
+            string reason = "your time ran out " + timeouts + " times, and only " + GameConfig.OnlineMaxAutoShots + " auto shots are allowed per match.";
+            gm.Match.Stop();
+            if (Party)
+            {
+                OnlineMatch.Kicked(gm, reason + " your pen was counted out.");
+                return;
+            }
+            var score = new[] { gm.Match.Score[0], gm.Match.Score[1] };
+            OnlineMatch.Finish(gm, setup, 1 - LocalIndex, score, reason);
+        }
+
         // ---------- reactions ----------
 
         /// <summary>(pen index, reaction code) from another player.</summary>
@@ -197,7 +218,9 @@ namespace TuitionTakkar
             {
                 if (i == LocalIndex) continue;
                 var p = Room.Find(Order[i]);
-                bool gone = p == null || OnlineRoom.PlayerData(p, "quit", "") == MatchId;
+                string quit = p == null ? "" : OnlineRoom.PlayerData(p, "quit", "");
+                bool timedOut = quit == MatchId + "|auto";
+                bool gone = p == null || quit == MatchId || timedOut;
                 if (!gone) continue;
                 if (Party)
                 {
@@ -205,7 +228,7 @@ namespace TuitionTakkar
                     if (over || !gm.Match.Running) return;
                     continue;
                 }
-                WinByForfeit(NameAt(i) + " left the match.", i);
+                WinByForfeit(timedOut ? NameAt(i) + " ran out of auto shots, so you win." : NameAt(i) + " left the match.", i);
                 return;
             }
         }

@@ -39,6 +39,14 @@ namespace TuitionTakkar
         /// <summary>Last known online wins (shown before the leaderboard answers).</summary>
         public int onlineWins;
 
+        // ---------- reminders ----------
+        /// <summary>Settings switch for the 7 PM reminders.</summary>
+        public bool remindersOn = true;
+        /// <summary>The "want a reminder?" question has been shown (after the first win).</summary>
+        public bool remindersAsked;
+        /// <summary>Local date (yyyy-MM-dd) the game was last opened, for the comeback bonus.</summary>
+        public string lastPlayDay = "";
+
         public int Ink(string penId)
         {
             if (!Economy.UsesInk(penId)) return Economy.InkTank;
@@ -92,6 +100,7 @@ namespace TuitionTakkar
                 if (data.inks == null) data.inks = new List<PenInk>();
                 if (data.lastDoubleDay == null) data.lastDoubleDay = "";
                 if (data.onlineName == null) data.onlineName = "";
+                if (data.lastPlayDay == null) data.lastPlayDay = "";
                 if (!data.owned.Contains(Catalog.StarterId)) data.owned.Insert(0, Catalog.StarterId);
                 if (!data.Owns(data.equipped)) data.equipped = Catalog.StarterId;
                 return data;

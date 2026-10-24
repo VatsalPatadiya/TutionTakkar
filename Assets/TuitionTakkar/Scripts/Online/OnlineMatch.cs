@@ -206,7 +206,7 @@ namespace TuitionTakkar
             root.Add(buttons);
 
             gm.UI.ShowScreen(root);
-            if (iWon) ReportWin(gm, winsText, rankLine);
+            if (iWon) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
         }
 
         // =====================================================================
@@ -297,7 +297,7 @@ namespace TuitionTakkar
 
             gm.UI.ShowScreen(root);
             gm.Audio.Stamp();
-            if (iWon && real) ReportWin(gm, winsText, rankLine);
+            if (iWon && real) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
         }
 
         /// <summary>This phone was counted out (away too long, or the room closed).</summary>

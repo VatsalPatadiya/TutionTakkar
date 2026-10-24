@@ -607,9 +607,11 @@ namespace TuitionTakkar
         }
 
         /// <summary>Navy "AUTO SHOT · 55%" chip beside your pen while the auto shot aims.</summary>
-        public void ShowAutoShot(float power, Vector2 penPanel)
+        /// <param name="left">Online: auto shots left after this one (-1 offline, where there is no limit).</param>
+        public void ShowAutoShot(float power, Vector2 penPanel, int left = -1)
         {
-            autoChip.text = "AUTO SHOT · " + Mathf.RoundToInt(power * 100f) + "%";
+            autoChip.text = "AUTO SHOT · " + Mathf.RoundToInt(power * 100f) + "%"
+                + (left < 0 ? "" : left == 0 ? "\nlast one! next time you lose" : "\n" + left + " left this match");
             autoChip.style.display = DisplayStyle.Flex;
             float panelW = Root.layout.width > 1f ? Root.layout.width : 390f;
             autoChip.style.left = Mathf.Clamp(penPanel.x + 12f, 8f, panelW - 150f);

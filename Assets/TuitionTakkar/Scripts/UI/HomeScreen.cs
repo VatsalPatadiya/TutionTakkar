@@ -229,6 +229,7 @@ namespace TuitionTakkar
             c.Add(UIKit.Disp("SETTINGS", 30f, Pal.Ink));
             c.Add(Toggle("Sound", () => save.soundOn, v => save.soundOn = v, gm).St(s => s.marginTop = 12));
             c.Add(Toggle("Vibration", () => save.hapticsOn, v => save.hapticsOn = v, gm).St(s => s.marginTop = 10));
+            c.Add(Toggle("Reminders (7 pm)", () => save.remindersOn, v => Reminders.SetOn(save, v), gm).St(s => s.marginTop = 10));
             var done = UIKit.PrimaryBtn("DONE", () => gm.UI.HideOverlay(), 52f);
             done.style.marginTop = 18;
             c.Add(done);

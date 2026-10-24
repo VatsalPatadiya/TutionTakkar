@@ -88,6 +88,11 @@ namespace TuitionTakkar
         public const float OnlineTurnTimeLimit = 30f;
         /// <summary>Extra seconds to wait for the other phone before it counts as gone.</summary>
         public const float OnlineAbsentGrace = 20f;
+        /// <summary>
+        /// Online: auto shots each player may get per match when their clock runs out.
+        /// One more time-out after that and they lose the match (or their pen is out).
+        /// </summary>
+        public const int OnlineMaxAutoShots = 3;
         /// <summary>3–4 player online desk: a square two-seater (52 x 52 cm).</summary>
         public const float PartyDeskSize = 0.52f * WorldScale;
         /// <summary>How far from the middle each pen starts on the party desk.</summary>
