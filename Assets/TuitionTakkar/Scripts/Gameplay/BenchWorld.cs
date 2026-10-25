@@ -27,16 +27,23 @@ namespace TuitionTakkar
 
         Transform deskRoot;
 
+        /// <summary>
+        /// The desk top. Friction multiplies with the pen's own (Multiply wins over the pens'
+        /// Average), so each pen's grip stat changes how far it slides, while pen-on-pen contacts
+        /// keep their own grip.
+        /// </summary>
+        public static PhysicsMaterial MakeDeskMaterial() => new PhysicsMaterial("Desk")
+        {
+            dynamicFriction = GameConfig.DeskFriction,
+            staticFriction = GameConfig.DeskFriction * 1.15f,
+            bounciness = GameConfig.DeskBounce,
+            frictionCombine = PhysicsMaterialCombine.Multiply,
+            bounceCombine = PhysicsMaterialCombine.Average
+        };
+
         public void Build()
         {
-            DeskMaterial = new PhysicsMaterial("Desk")
-            {
-                dynamicFriction = GameConfig.DeskFriction,
-                staticFriction = GameConfig.DeskFriction * 1.15f,
-                bounciness = GameConfig.DeskBounce,
-                frictionCombine = PhysicsMaterialCombine.Average,
-                bounceCombine = PhysicsMaterialCombine.Average
-            };
+            DeskMaterial = MakeDeskMaterial();
             FloorMaterial = new PhysicsMaterial("Floor")
             {
                 dynamicFriction = 0.5f, staticFriction = 0.6f, bounciness = 0.2f,

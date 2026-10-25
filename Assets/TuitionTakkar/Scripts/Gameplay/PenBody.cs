@@ -28,7 +28,9 @@ namespace TuitionTakkar
     {
         public static float Impulse(PenDef def, float power)
         {
-            float j = Mathf.Lerp(GameConfig.ImpulseMin, GameConfig.ImpulseMax, Mathf.Clamp01(power));
+            // Slide distance goes with speed squared, so speed follows sqrt(power): distance then
+            // grows evenly with power.
+            float j = Mathf.Lerp(GameConfig.ImpulseMin, GameConfig.ImpulseMax, Mathf.Sqrt(Mathf.Clamp01(power)));
             return j * Mathf.Pow(def.mass / GameConfig.RefMass, GameConfig.MassAdapt);
         }
 
@@ -95,6 +97,7 @@ namespace TuitionTakkar
             pen.Radius = PenFactory.ScaledRadius(def);
             PenFactory.BuildVisual(go.transform, def);
             pen.Rb = PenFactory.BuildPhysics(go, def, true);
+            go.AddComponent<PenStreak>(); // light motion blur when fast (visual only)
             return pen;
         }
 

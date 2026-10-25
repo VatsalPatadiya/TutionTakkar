@@ -20,8 +20,11 @@ namespace TuitionTakkar
         public const float DeskDepth = 0.50f * WorldScale;   // z
         public const float DeskThickness = 0.03f * WorldScale;
         public const float DeskHeight = 0.72f * WorldScale;
-        // Grippier desk: pens slow down steadily (feels weighty) instead of gliding far.
-        public const float DeskFriction = 0.40f;
+        // Desk grip, multiplied with each pen's own grip (so slick pens glide, rubber ones park).
+        // Tuned against real pen-fight footage: a flick slides for ~0.3-0.65 s and eases to a
+        // stop. The old 0.40 (averaged) braked about 4x harder than a real desk, so every
+        // flick was over in ~0.15 s and pens looked like they jumped.
+        public const float DeskFriction = 0.25f;
         public const float DeskBounce = 0.10f;
 
         /// <summary>A pen is out once its centre drops this far below the desk top.</summary>
@@ -45,7 +48,10 @@ namespace TuitionTakkar
         // a full-power hit pushes the other pen ~9 cm while yours stops after ~3 cm, so a pen
         // is worked off the edge in two or three good hits. (0.020 with no bounce left touching
         // pens glued together: 100% moved the pair only 3 cm and rounds never ended.)
-        public const float ImpulseMax = 0.024f * WorldScale;
+        // Real-footage tuning: full flick ~120 cm/s, slides ~39 cm over ~0.65 s. Strength grows with
+        // the square root of power so slide distance grows evenly with power (half power slides
+        // about half as far) instead of tiny soft flicks and huge strong ones.
+        public const float ImpulseMax = 0.017f * WorldScale;
         public const float RefMass = 0.0138f;
         public const float MassAdapt = 0.8f;
 
