@@ -92,7 +92,9 @@ namespace TuitionTakkar
             float bestErr = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
-                if (dists[i] > minD * 1.01f) continue;
+                // A desk limited by the screen width (the square party desk) may sit a touch smaller
+                // so it can be centred in the free area instead of hugging the top.
+                if (dists[i] > minD * 1.05f) continue;
                 if (errs[i] < bestErr) { bestErr = errs[i]; best = i; }
             }
 

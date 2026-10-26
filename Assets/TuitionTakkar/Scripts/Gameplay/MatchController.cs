@@ -403,7 +403,7 @@ namespace TuitionTakkar
             {
                 teeterTime += Time.unscaledDeltaTime;
                 Time.timeScale = Mathf.MoveTowards(Time.timeScale, GameConfig.TeeterSlowMo, Time.unscaledDeltaTime * 4f);
-                gm.Rig.SetPushIn(1.2f);
+                gm.Rig.SetPushIn(0f); // no zoom: the whole desk stays framed the same (slow motion only)
             }
             else
             {

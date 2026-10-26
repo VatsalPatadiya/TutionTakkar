@@ -17,15 +17,13 @@ namespace TuitionTakkar
         readonly GameManager gm;
 
         // Layout (panel units, the 390 x 844 reference).
-        const float BoardTop = 12f;
-        const float BoardHeight = 142f;
-        const float WallHeight = BoardTop + BoardHeight + 14f; // board centred in the wall strip
-        const float TapeTop = WallHeight + 12f;                // "your turn" label on the desk
+        const float WallHeight = 66f;               // C1: one slim cork strip (was a 168 tall board)
+        const float TapeTop = WallHeight + 18f;     // "your turn" label at the far end of the desk
+        const float PauseTop = WallHeight + 8f;     // pause button just under the strip, right side
         const float DeskNearEdgeGap = 26f;                     // just the desk's front edge (no ruler any more)
-        const float StickyW = 150f, StickyH = 114f;
 
         float topInset, bottomInset;
-        public float TopClearance => WallHeight + topInset;
+        public float TopClearance => WallHeight + 12f + topInset;
         public float BottomClearance => DeskNearEdgeGap + bottomInset;
 
         readonly VisualElement wall;
@@ -39,6 +37,7 @@ namespace TuitionTakkar
         bool humanTurn;
         int shooterNow = -1;
         readonly PowerRing ring;
+        readonly Button pauseBtn;
         readonly Label penHint;
         readonly EdgeWarning[] edges = new EdgeWarning[4];
         Label debugShot;   // development builds only: last shot's numbers, for tuning from a mirrored phone
@@ -46,7 +45,8 @@ namespace TuitionTakkar
         class Sticky
         {
             public VisualElement root;
-            public Label name, score, initial, turnTag, secs;
+            public Label name, score, initial, secs;
+            public bool active;
             public BorderTimer timer;
             public VisualElement[] dots = new VisualElement[GameConfig.RoundsToWin];
         }
@@ -99,11 +99,12 @@ namespace TuitionTakkar
             });
             wall.pickingMode = PickingMode.Ignore;
 
-            // Centred cork notice board: two big score cards (or one small card per player in 3–4 player games).
+            // C1: one slim cork strip across the top: your pill on the left, theirs on the right, the round
+            // tag in the middle (3–4 players: a mini card each).
             var cork = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = 14; s.right = 14; s.top = BoardTop; s.height = BoardHeight;
-                UIKit.Border(s, 7f, Pal.H("#7A4E26"));
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
+                s.borderBottomWidth = 5; s.borderBottomColor = Pal.H("#7A4E26");
                 s.backgroundColor = Pal.H("#C99A61");
                 s.backgroundImage = new StyleBackground(ArtLib.Cork);
                 s.backgroundRepeat = new BackgroundRepeat(Repeat.Repeat, Repeat.Repeat);
@@ -112,54 +113,28 @@ namespace TuitionTakkar
             cork.pickingMode = PickingMode.Ignore;
             var pair = UIKit.Row().St(s =>
             {
-                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
-                s.justifyContent = Justify.Center;
+                s.position = Position.Absolute; s.left = 10; s.right = 10; s.top = 0; s.bottom = 0;
+                s.justifyContent = Justify.SpaceBetween;
             });
             pair.pickingMode = PickingMode.Ignore;
-            left = MakeSticky(Pal.Yellow, -1.5f, Pal.H("#D9472F"));
-            right = MakeSticky(Pal.Teal, 1.5f, Pal.Pouch);
-            right.root.style.marginLeft = 16;
-            pair.Add(left.root, right.root);
+            left = MakePill(Pal.Yellow, false);
+            right = MakePill(Pal.Teal, true);
+            roundLabel = UIKit.Text("round 1\nof 5", UIKit.HandBold, 12f, Pal.H("#3A230E"), TextAnchor.MiddleCenter, false).St(s =>
+            {
+                s.backgroundColor = Pal.H("#FBF8EF"); UIKit.Pad(s, 2, 7, 2, 7); s.whiteSpace = WhiteSpace.Normal;
+            });
+            roundLabel.pickingMode = PickingMode.Ignore;
+            pair.Add(left.root, roundLabel, right.root);
             cork.Add(pair);
-            // 3–4 player online: one small card per player instead of the two big notes.
             partyRow = UIKit.Row().St(s =>
             {
-                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
-                s.justifyContent = Justify.Center; s.display = DisplayStyle.None;
+                s.position = Position.Absolute; s.left = 8; s.right = 8; s.top = 0; s.bottom = 0;
+                s.display = DisplayStyle.None;
             });
             partyRow.pickingMode = PickingMode.Ignore;
             cork.Add(partyRow);
             wall.Add(cork);
 
-            // Paper tag hanging off the bottom of the board, centred.
-            roundLabel = UIKit.Text("round 1 · best of 5", UIKit.HandBold, 12f, Pal.H("#3A230E"), TextAnchor.MiddleCenter, false).St(s =>
-            {
-                s.position = Position.Absolute; s.left = Length.Percent(50); s.width = 170; s.marginLeft = -85; s.top = BoardTop + BoardHeight - 8;
-                s.backgroundColor = Pal.H("#FBF8EF"); UIKit.Border(s, 1.5f, Pal.H("#B9A57A")); UIKit.Pad(s, 1, 6, 1, 6);
-            });
-            roundLabel.pickingMode = PickingMode.Ignore;
-            wall.Add(roundLabel);
-
-            // Pause: a round badge pinned to the board's top-right corner.
-            var pauseBtn = UIKit.Btn("", () => gm.Pause(), Pal.Paper, Pal.Ink, UIKit.Body, 10f, 36f, 18f);
-            pauseBtn.style.width = 36;
-            UIKit.Pad(pauseBtn.style, 0);
-            UIKit.Border(pauseBtn.style, 3f, Pal.H("#7A4E26"));
-            pauseBtn.style.position = Position.Absolute;
-            pauseBtn.style.right = 6;
-            pauseBtn.style.top = BoardTop - 8;
-            pauseBtn.style.alignItems = Align.Center;
-            pauseBtn.style.justifyContent = Justify.Center;
-            pauseBtn.tooltip = "Pause";
-            var bars = UIKit.Row();
-            bars.pickingMode = PickingMode.Ignore;
-            for (int i = 0; i < 2; i++)
-                bars.Add(UIKit.El().St(s => { s.width = 4; s.height = 13; UIKit.Radius(s, 1); s.backgroundColor = Pal.Ink; s.marginLeft = 2; s.marginRight = 2; }));
-            pauseBtn.Add(bars);
-            wall.Add(pauseBtn);
-
-            // Skirting line where the wall meets the floor, beside the desk.
-            wall.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 0; s.height = 4; s.backgroundColor = Pal.H("#8C7C5E"); }));
 
             // Everything on the wall sits in one container so notch insets can push it down together.
             wallContent = UIKit.El("WallContent");
@@ -169,6 +144,24 @@ namespace TuitionTakkar
                 wallContent.Add(child);
             wall.Add(wallContent);
             Root.Add(wall);
+
+            // Pause: a round button just under the strip on the right (over the floor beside the desk's far end).
+            pauseBtn = UIKit.Btn("", () => gm.Pause(), Pal.Paper, Pal.Ink, UIKit.Body, 10f, 36f, 18f);
+            pauseBtn.style.width = 36;
+            UIKit.Pad(pauseBtn.style, 0);
+            pauseBtn.style.position = Position.Absolute;
+            pauseBtn.style.right = 10;
+            pauseBtn.style.top = PauseTop;
+            pauseBtn.style.alignItems = Align.Center;
+            pauseBtn.style.justifyContent = Justify.Center;
+            pauseBtn.style.borderBottomWidth = 3; pauseBtn.style.borderBottomColor = new Color(0f, 0f, 0f, 0.2f);
+            pauseBtn.tooltip = "Pause";
+            var bars = UIKit.Row();
+            bars.pickingMode = PickingMode.Ignore;
+            for (int i = 0; i < 2; i++)
+                bars.Add(UIKit.El().St(s => { s.width = 4; s.height = 13; UIKit.Radius(s, 1); s.backgroundColor = Pal.Ink; s.marginLeft = 2; s.marginRight = 2; }));
+            pauseBtn.Add(bars);
+            Root.Add(pauseBtn);
 
             // ----- quiet turn label on the desk -----
             tape = UIKit.Col().St(s =>
@@ -232,60 +225,53 @@ namespace TuitionTakkar
             wall.style.height = WallHeight + top;
             wallContent.style.top = top; // keep the board, round tag and clock below the notch
             tape.style.top = TapeTop + top;
+            pauseBtn.style.top = PauseTop + top;
         }
 
         // ---------- stickies ----------
 
-        Sticky MakeSticky(Color bg, float rot, Color pin)
+        static VisualElement Avatar(out Label initial, float size)
         {
-            var st = new Sticky();
-            st.root = UIKit.Col().St(s =>
-            {
-                s.width = StickyW; s.height = StickyH; s.backgroundColor = bg; UIKit.Pad(s, 10, 11, 9, 11);
-            });
-            UIKit.Rot(st.root, rot);
-            st.root.pickingMode = PickingMode.Ignore;
-            st.root.Add(UIKit.El().St(s =>
-            {
-                s.position = Position.Absolute; s.left = StickyW * 0.5f - 7f; s.top = -7; s.width = 14; s.height = 14;
-                UIKit.Radius(s, 6); s.backgroundColor = pin;
-                s.borderBottomWidth = 2; s.borderBottomColor = new Color(0f, 0f, 0f, 0.25f);
-            }));
-
-            var head = UIKit.Row();
-            head.pickingMode = PickingMode.Ignore;
             var av = UIKit.El().St(s =>
             {
-                s.width = 22; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Color.white;
+                s.width = size; s.height = size; UIKit.Radius(s, size * 0.5f); s.backgroundColor = Color.white;
                 UIKit.Border(s, 2f, Pal.Ink); s.alignItems = Align.Center; s.justifyContent = Justify.Center; s.flexShrink = 0;
             });
             av.pickingMode = PickingMode.Ignore;
-            st.initial = UIKit.Disp("Y", 12f, Pal.Ink, TextAnchor.MiddleCenter);
-            av.Add(st.initial);
-            st.name = UIKit.Strong("YOU", 12f, Pal.Ink).St(s => { s.letterSpacing = 0.6f; s.marginLeft = 6; });
-            head.Add(av, st.name);
+            initial = UIKit.Disp("Y", size * 0.5f, Pal.Ink, TextAnchor.MiddleCenter);
+            av.Add(initial);
+            return av;
+        }
 
-            st.score = UIKit.Disp("0", 48f, Pal.Ink).St(s => s.marginTop = 2);
+        /// <summary>C1 pill: avatar, name over round dots, big score, seconds badge; the border is the timer.</summary>
+        Sticky MakePill(Color bg, bool mirrored)
+        {
+            var st = new Sticky();
+            st.root = UIKit.Row().St(s =>
+            {
+                s.backgroundColor = bg; UIKit.Pad(s, 6, 9, 6, 9); UIKit.Radius(s, 4);
+                s.borderBottomWidth = 3; s.borderBottomColor = new Color(0f, 0f, 0f, 0.15f);
+                s.flexDirection = mirrored ? FlexDirection.RowReverse : FlexDirection.Row;
+            });
+            st.root.pickingMode = PickingMode.Ignore;
+            var av = Avatar(out st.initial, 26f);
+
+            var col = UIKit.Col().St(s => { s.marginLeft = mirrored ? 0 : 7; s.marginRight = mirrored ? 7 : 0; s.alignItems = mirrored ? Align.FlexEnd : Align.FlexStart; });
+            col.pickingMode = PickingMode.Ignore;
+            st.name = UIKit.Disp("YOU", 13f, Pal.Ink);
             var dots = UIKit.Row().St(s => s.marginTop = 3);
             for (int i = 0; i < st.dots.Length; i++)
             {
-                st.dots[i] = UIKit.Dot(14f, Pal.Green, false, Pal.Ink);
-                if (i > 0) st.dots[i].style.marginLeft = 4;
+                st.dots[i] = UIKit.Dot(9f, Pal.Green, false, Pal.Ink);
+                if (i > 0) st.dots[i].style.marginLeft = 3;
                 dots.Add(st.dots[i]);
             }
+            col.Add(st.name, dots);
 
-            // "turn!" with the seconds badge under it, top right of the card.
-            var corner = UIKit.Col().St(s => { s.position = Position.Absolute; s.right = 9; s.top = 10; s.alignItems = Align.FlexEnd; });
-            corner.pickingMode = PickingMode.Ignore;
-            st.turnTag = UIKit.Text("turn!", UIKit.HandBold, 14f, Pal.H("#B23A26"), TextAnchor.MiddleRight, false);
-            UIKit.Rot(st.turnTag, -6f);
-            st.turnTag.style.display = DisplayStyle.None;
+            st.score = UIKit.Disp("0", 30f, Pal.Ink).St(s => { s.marginLeft = 7; s.marginRight = 7; });
             st.secs = SecondsBadge();
-            st.secs.style.marginTop = 3;
-            corner.Add(st.turnTag, st.secs);
-
             st.timer = new BorderTimer();
-            st.root.Add(st.timer, head, st.score, dots, corner);
+            st.root.Add(st.timer, av, col, st.score, st.secs);
             return st;
         }
 
@@ -299,15 +285,15 @@ namespace TuitionTakkar
             {
                 bool on = i < score;
                 st.dots[i].style.backgroundColor = on ? Pal.Green : Color.clear;
-                UIKit.Border(st.dots[i].style, on ? 0f : 2.5f, Pal.Ink);
+                UIKit.Border(st.dots[i].style, on ? 0f : 2f, Pal.Ink);
             }
         }
 
-        /// <summary>"turn!" on the shooter's card; its border becomes the timer (when someone is on the clock).</summary>
+        /// <summary>The shooter's pill: its border becomes the timer (when someone is on the clock).</summary>
         void MarkTurn(Sticky st, bool active, bool timed)
         {
-            st.root.style.opacity = active ? 1f : 0.92f;
-            st.turnTag.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+            st.active = active;
+            st.root.style.opacity = active ? 1f : 0.85f;
             st.timer.Shown = active && timed;
             st.timer.Set(1f, Pal.Ink);
             st.secs.style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
@@ -333,11 +319,10 @@ namespace TuitionTakkar
 
         static readonly Color[] PartyColors = { Pal.Yellow, Pal.Pink, Pal.Sky, Pal.H("#C7E8B5") };
 
-        /// <summary>Mockup TP: one card per player (you in yellow), pen swatch, in play / turn! / OUT with a place.</summary>
+        /// <summary>C4: a mini card per player in the strip (you first, yellow): name, then in play / seconds / OUT · place.</summary>
         public void SetParty(MatchSetup s, bool[] alive, int[] place)
         {
-            left.root.style.display = DisplayStyle.None;
-            right.root.parent.style.display = DisplayStyle.None;
+            left.root.parent.style.display = DisplayStyle.None;
             partyRow.style.display = DisplayStyle.Flex;
             partyRow.Clear();
             partyCards.Clear();
@@ -346,78 +331,53 @@ namespace TuitionTakkar
             partyStatus.Clear();
             partyAlive = (bool[])alive.Clone();
             int n = s.Players;
-            const float gap = 8f;
-            float panelW = Root.layout.width > 1f ? Root.layout.width : 390f;
-            float inner = panelW - 28f - 14f - 12f; // board side margins, its border, a little air
-            float w = Mathf.Floor((inner - gap * (n - 1)) / n);
-            bool small = w < 100f;
             int pensLeft = 0;
-            // Your card first, then the others in seat order after you.
             for (int k = 0; k < n; k++)
             {
                 int i = (s.localIndex + k) % n;
                 if (alive[i]) pensLeft++;
                 bool me = i == s.localIndex;
-                var card = UIKit.Col().St(st =>
+                var card = UIKit.Row().St(st =>
                 {
-                    st.width = w; st.height = 120; st.backgroundColor = me ? Pal.Yellow : PartyColors[1 + (k - 1) % 3];
-                    UIKit.Pad(st, 10, small ? 7 : 9, 8, small ? 7 : 9);
-                    if (k > 0) st.marginLeft = gap;
+                    st.flexGrow = 1; st.flexBasis = 0; st.height = 50; UIKit.Radius(st, 4); UIKit.Pad(st, 0, 6, 0, 6);
+                    st.backgroundColor = me ? Pal.Yellow : PartyColors[1 + (k - 1) % 3];
+                    st.borderBottomWidth = 3; st.borderBottomColor = new Color(0f, 0f, 0f, 0.15f);
+                    if (k > 0) st.marginLeft = 6;
                 });
+                card.style.alignSelf = Align.Center;
                 card.pickingMode = PickingMode.Ignore;
-                UIKit.Rot(card, k % 2 == 0 ? -1.5f : 1.5f);
-                string name = DisplayName(s, i);
                 var timer = new BorderTimer();
                 card.Add(timer);
-                card.Add(UIKit.El().St(st =>
-                {
-                    st.position = Position.Absolute; st.left = w * 0.5f - 7f; st.top = -7; st.width = 14; st.height = 14;
-                    UIKit.Radius(st, 7); st.backgroundColor = me ? Pal.H("#D9472F") : Pal.Pouch;
-                    st.borderBottomWidth = 2; st.borderBottomColor = new Color(0f, 0f, 0f, 0.25f);
-                }));
-                var av = UIKit.El().St(st =>
-                {
-                    st.width = small ? 24 : 28; st.height = small ? 24 : 28; UIKit.Radius(st, small ? 12 : 14); st.backgroundColor = Color.white;
-                    UIKit.Border(st, 2f, Pal.Ink); st.alignItems = Align.Center; st.justifyContent = Justify.Center;
-                });
-                string initial = name.StartsWith("Player ") && name.Length > 7 ? name.Substring(7, 1) : name.Substring(0, 1);
-                av.Add(UIKit.Disp(initial.ToUpperInvariant(), small ? 11f : 13f, Pal.Ink, TextAnchor.MiddleCenter));
+                string name = DisplayName(s, i);
+                var av = Avatar(out var initial, 22f);
+                initial.text = (name.StartsWith("Player ") && name.Length > 7 ? name.Substring(7, 1) : name.Substring(0, 1)).ToUpperInvariant();
                 card.Add(av);
-                card.Add(UIKit.Disp((name.Length > 8 ? name.Substring(0, 8) : name).ToUpperInvariant(), small ? 13f : 15f, Pal.Ink).St(st => st.marginTop = 4));
-                var swatch = UIKit.El().St(st => { st.height = 14; st.marginTop = 3; st.overflow = Overflow.Hidden; });
-                swatch.Add(PenIcon.Build(s.pens[i], w - (small ? 14f : 18f)));
-                card.Add(swatch);
-                var status = UIKit.Text("", UIKit.HandBold, small ? 12f : 13f, Pal.Ink, TextAnchor.MiddleLeft, false).St(st => st.marginTop = 2);
-                card.Add(status);
+                var col = UIKit.Col().St(st => { st.marginLeft = 5; st.flexShrink = 1; st.overflow = Overflow.Hidden; });
+                col.pickingMode = PickingMode.Ignore;
+                col.Add(UIKit.Disp((name.Length > 7 ? name.Substring(0, 7) : name).ToUpperInvariant(), 11f, Pal.Ink));
+                var status = UIKit.Text("", UIKit.HandBold, 11f, Pal.Ink, TextAnchor.MiddleLeft, false);
                 var secs = SecondsBadge();
-                secs.style.position = Position.Absolute; secs.style.right = 5; secs.style.top = 8;
-                card.Add(secs);
+                secs.style.fontSize = 11; secs.style.height = 16; secs.style.minWidth = 22; secs.style.marginTop = 1;
+                col.Add(status, secs);
+                card.Add(col);
                 if (!alive[i])
                 {
-                    card.style.opacity = 0.55f;
+                    card.style.opacity = 0.5f;
                     status.text = place[i] == 1 ? "winner" : "OUT · " + Ordinal(place[i]);
                     status.style.color = Pal.Red;
-                    var box = UIKit.El().St(st =>
-                    {
-                        st.position = Position.Absolute; st.left = w * 0.5f - (small ? 24 : 30); st.top = 46;
-                        UIKit.Border(st, 3f, Pal.Red); UIKit.Radius(st, 6); UIKit.Pad(st, 0, 5, 0, 5);
-                        st.backgroundColor = new Color(1f, 0.99f, 0.96f, 0.6f);
-                    });
-                    box.Add(UIKit.Disp("OUT", small ? 15f : 18f, Pal.Red, TextAnchor.MiddleCenter));
-                    UIKit.Rot(box, -14f);
-                    if (place[i] != 1) card.Add(box);
                 }
                 partyRow.Add(card);
-                // Lists are indexed by player, not by position on the board.
                 while (partyCards.Count <= i) { partyCards.Add(null); partyTimers.Add(null); partySecs.Add(null); partyStatus.Add(null); }
                 partyCards[i] = card; partyTimers[i] = timer; partySecs[i] = secs; partyStatus[i] = status;
             }
             for (int i = 0; i < n; i++) if (alive[i]) { partyStatus[i].text = "in play"; partyStatus[i].style.color = new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f); }
-            roundLabel.text = pensLeft <= 2 && n > 2 ? "final two · last pen standing" : "last pen standing wins";
+            partyNote = pensLeft <= 2 && n > 2 ? "final two" : "last pen standing";
             UIKit.PassThrough(partyRow);
             if (shooterNow >= 0 && shooterNow < n) MarkPartyTurn(shooterNow, humanTurn);
             HideAim();
         }
+
+        string partyNote = "";
 
         void MarkPartyTurn(int shooter, bool timed)
         {
@@ -433,6 +393,7 @@ namespace TuitionTakkar
                 {
                     partyStatus[i].text = active ? "turn!" : "in play";
                     partyStatus[i].style.color = active ? Pal.H("#B23A26") : new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f);
+                    partyStatus[i].style.display = active && timed ? DisplayStyle.None : DisplayStyle.Flex;
                 }
             }
         }
@@ -462,6 +423,7 @@ namespace TuitionTakkar
         {
             left.root.style.display = DisplayStyle.Flex;
             right.root.parent.style.display = DisplayStyle.Flex;
+            left.root.style.display = DisplayStyle.Flex;
             partyRow.style.display = DisplayStyle.None;
             Color rightColor = s.mode == MatchMode.Ladder && s.rival != null ? s.rival.avatar
                 : s.mode == MatchMode.PassAndPlay ? Pal.Pink : Pal.Teal;
@@ -469,7 +431,7 @@ namespace TuitionTakkar
             int me = s.mode == MatchMode.Online ? s.localIndex : 0, them = 1 - me;
             SetSticky(left, DisplayName(s, me), score[me], Pal.Yellow);
             SetSticky(right, DisplayName(s, them), score[them], rightColor);
-            roundLabel.text = "round " + round + " · best of " + (GameConfig.RoundsToWin * 2 - 1);
+            roundLabel.text = "round " + round + "\nof " + (GameConfig.RoundsToWin * 2 - 1);
             HideAim();
         }
 
@@ -486,6 +448,7 @@ namespace TuitionTakkar
                 MarkTurn(right, shooter != me, humanTurn);
             }
             tapeText.text = s.mode != MatchMode.PassAndPlay && shooter == me ? "your turn" : who.ToLowerInvariant() + "'s turn";
+            if (s.IsParty && partyNote.Length > 0) tapeText.text += " · " + partyNote;
             StyleTape(TapeLook.Normal);
             HideAutoShot();
             float limit = s.mode == MatchMode.Online ? GameConfig.OnlineTurnTimeLimit : GameConfig.TurnTimeLimit;
@@ -517,7 +480,7 @@ namespace TuitionTakkar
                 { timer = partyTimers[shooterNow]; secs = partySecs[shooterNow]; card = partyCards[shooterNow]; }
                 return;
             }
-            var st = left.turnTag.style.display == DisplayStyle.Flex ? left : right;
+            var st = left.active ? left : right;
             timer = st.timer; secs = st.secs; card = st.root;
         }
 
