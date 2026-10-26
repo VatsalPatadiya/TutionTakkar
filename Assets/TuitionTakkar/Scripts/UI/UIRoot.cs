@@ -80,7 +80,7 @@ namespace TuitionTakkar
 
             float top = Hud.TopClearance;       // panel units covered at the top
             float bottom = Hud.BottomClearance; // panel units covered at the bottom
-            const float side = 8f;
+            const float side = 22f; // a strip of floor either side of the desk (reference look)
             var viewport = new Rect(side / size.x, bottom / size.y, 1f - 2f * side / size.x, 1f - (top + bottom) / size.y);
             if (gm != null && gm.World != null) gm.Rig.SetSafeArea(viewport);
         }

@@ -101,13 +101,13 @@ namespace TuitionTakkar
             wall = UIKit.El().St(s =>
             {
                 s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0;
-                s.backgroundColor = Pal.H("#40594A");
-                s.backgroundImage = new StyleBackground(ArtLib.Gradient(Pal.H("#46604C"), Pal.H("#3A5141")));
+                s.backgroundColor = Pal.H("#51614F");
+                s.backgroundImage = new StyleBackground(ArtLib.Gradient(Pal.H("#566655"), Pal.H("#4B5A4A")));
             });
             wall.Add(UIKit.El().St(s =>
             {
                 s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 0; s.height = 10;
-                s.backgroundColor = Pal.H("#2E3B32");
+                s.backgroundColor = Pal.H("#3A453A");
             }));
             Root.Add(wall);
 
@@ -121,11 +121,11 @@ namespace TuitionTakkar
             board = UIKit.El().St(s =>
             {
                 s.position = Position.Absolute; s.left = BoardSide; s.right = BoardSide; s.height = BoardHeight;
-                s.borderTopWidth = s.borderBottomWidth = s.borderLeftWidth = s.borderRightWidth = 9;
-                s.borderTopColor = Pal.H("#82603D"); s.borderLeftColor = Pal.H("#74532F");
-                s.borderRightColor = Pal.H("#5E4024"); s.borderBottomColor = Pal.H("#523720");
+                s.borderTopWidth = s.borderBottomWidth = s.borderLeftWidth = s.borderRightWidth = 7;
+                s.borderTopColor = Pal.H("#5A3E27"); s.borderLeftColor = Pal.H("#4E3522");
+                s.borderRightColor = Pal.H("#3F2A1A"); s.borderBottomColor = Pal.H("#362416");
                 UIKit.Radius(s, 3);
-                s.backgroundColor = Pal.H("#26392F");
+                s.backgroundColor = Pal.H("#1F2C26");
                 s.backgroundImage = new StyleBackground(ArtLib.Chalkboard);
                 s.overflow = Overflow.Hidden;
             });
@@ -134,7 +134,12 @@ namespace TuitionTakkar
             // Chalk notes left over from class, small in the bottom corners.
             var notesL = Sketch.Chalk("Std. 9-A", 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.left = 10; s.bottom = 3; });
             dateNote = Sketch.Chalk("Date: " + System.DateTime.Now.ToString("dd/MM"), 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.right = 10; s.bottom = 3; });
-            board.Add(notesL, dateNote);
+            // Leftover lesson, rubbed out but still faintly there.
+            var thought = Sketch.Chalk("\"practice makes a man perfect\"", 10f, new Color(1f, 1f, 1f, 0.32f), TextAnchor.MiddleCenter).St(s =>
+            {
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 3;
+            });
+            board.Add(thought, notesL, dateNote);
 
             // Centred heading: "PEN FIGHT · round 2 of 5" / "LAST PEN STANDING".
             title = Sketch.Chalk("PEN FIGHT", 13f, new Color(1f, 1f, 1f, 0.6f), TextAnchor.MiddleCenter).St(s =>

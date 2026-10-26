@@ -58,7 +58,7 @@ namespace TuitionTakkar
             floor.transform.SetParent(transform, false);
             floor.transform.localPosition = new Vector3(0f, -GameConfig.DeskHeight - 0.5f, 0f);
             floor.transform.localScale = new Vector3(60f, 1f, 60f);
-            floor.GetComponent<MeshRenderer>().sharedMaterial = ArtLib.LitTextured(ArtLib.FloorTiles, new Vector2(20f, 20f));
+            floor.GetComponent<MeshRenderer>().sharedMaterial = ArtLib.LitTextured(ArtLib.FloorTiles, new Vector2(36f, 36f));
             floor.GetComponent<Collider>().sharedMaterial = FloorMaterial;
             floor.AddComponent<Surface>().kind = SurfaceKind.Floor;
 
@@ -68,7 +68,7 @@ namespace TuitionTakkar
             lightGo.transform.rotation = Quaternion.Euler(70f, -25f, 0f);
             var l = lightGo.AddComponent<Light>();
             l.type = LightType.Directional;
-            l.color = Pal.H("#FFF6E6");
+            l.color = Pal.H("#FFF9F0");
             l.intensity = 0.62f;
             l.shadows = LightShadows.Soft;
             l.shadowStrength = 0.45f;
@@ -82,8 +82,8 @@ namespace TuitionTakkar
             camGo.transform.SetParent(transform, false);
             Cam = camGo.AddComponent<Camera>();
             Cam.clearFlags = CameraClearFlags.SolidColor;
-            Cam.backgroundColor = Pal.H("#D8D2C2");
-            Cam.fieldOfView = 30f; // a little more perspective: the desk reads as a trapezoid (K1)
+            Cam.backgroundColor = Pal.H("#E6E0D1");
+            Cam.fieldOfView = 40f; // a little more perspective: the desk reads as a trapezoid (K1)
             Cam.nearClipPlane = 0.1f;
             Cam.farClipPlane = 300f;
             camGo.tag = "MainCamera";
@@ -117,7 +117,7 @@ namespace TuitionTakkar
             top.transform.SetParent(deskRoot, false);
             top.transform.localPosition = new Vector3(0f, -t * 0.5f, 0f);
             top.transform.localScale = new Vector3(deskW, t, deskD);
-            int texW = PartyDesk ? 512 : 256, texH = 512;
+            int texW = PartyDesk ? 768 : 512, texH = PartyDesk ? 768 : 1024;
             top.GetComponent<MeshRenderer>().sharedMaterial =
                 ArtLib.LitTextured(ArtLib.DeskWood(texW, texH), Vector2.one);
             top.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -128,7 +128,7 @@ namespace TuitionTakkar
             // the floor. All visual only: the playable top stays exactly DeskWidth x DeskDepth.
             const float rim = RimSize;
             Visual(PrimitiveType.Cube, "Rim", new Vector3(0f, -t * 0.5f - 0.01f, 0f),
-                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#8A5326"));
+                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#7E5F3E"));
             // Front edge: on the near side only for the normal desk, on all four sides for the
             // square party desk (every player looks at it from a different side).
             int sides = PartyDesk ? 4 : 1;
@@ -139,8 +139,12 @@ namespace TuitionTakkar
                 float halfFar = across ? HalfW : HalfD;
                 float span = across ? deskD : deskW;
                 var edge = Visual(PrimitiveType.Cube, "FrontEdge", turn * new Vector3(0f, -t * 0.5f - 0.01f, -halfFar - rim - 0.005f),
-                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#7A4620"));
+                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#4E3620"));
                 edge.transform.localRotation = turn;
+                // A thicker slab under the top's edge, so the desk reads as a heavy wooden bench.
+                var slab = Visual(PrimitiveType.Cube, "Slab", turn * new Vector3(0f, -t - 0.11f, -halfFar - rim + 0.06f),
+                    new Vector3(span + rim * 2f, 0.22f, 0.12f), Pal.H("#3F2B19"));
+                slab.transform.localRotation = turn;
             }
 
             float legH = GameConfig.DeskHeight - t;

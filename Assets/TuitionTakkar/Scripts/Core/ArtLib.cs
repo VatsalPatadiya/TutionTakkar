@@ -146,14 +146,14 @@ namespace TuitionTakkar
                 if (floorTiles != null) return floorTiles;
                 const int n = 128;
                 floorTiles = new Texture2D(n, n, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "FloorTiles" };
-                var baseC = Pal.H("#D8D2C2");
-                var grout = Pal.H("#9C9282");
+                var baseC = Pal.H("#D9D3C4");
+                var grout = Pal.H("#5F5A4F");
                 var rng = new System.Random(21);
                 var px = new Color[n * n];
                 for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
                 {
-                    bool line = x < 3 || y < 3;
+                    bool line = x < 4 || y < 4;
                     float speck = (float)(rng.NextDouble() - 0.5) * 0.04f;
                     var c = line ? grout : baseC;
                     px[y * n + x] = new Color(c.r + speck, c.g + speck, c.b + speck, 1f);
@@ -265,15 +265,16 @@ namespace TuitionTakkar
                 if (board != null) return board;
                 const int w = 256, h = 160;
                 board = new Texture2D(w, h, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "Chalkboard" };
-                var baseC = Pal.H("#26392F");
+                var baseC = Pal.H("#1F2C26");
                 var rng = new System.Random(5);
                 var px = new Color[w * h];
                 for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
                 {
                     float u = x / (float)w, v = 1f - y / (float)h;
-                    float smudge = Mathf.Exp(-((u - 0.3f) * (u - 0.3f) / 0.09f + (v - 0.4f) * (v - 0.4f) / 0.12f)) * 0.07f;
-                    float rub = Mathf.PerlinNoise(x * 0.012f, y * 0.09f) * 0.05f;
+                    float smudge = Mathf.Exp(-((u - 0.3f) * (u - 0.3f) / 0.09f + (v - 0.4f) * (v - 0.4f) / 0.12f)) * 0.06f
+                        + Mathf.Exp(-((u - 0.75f) * (u - 0.75f) / 0.05f + (v - 0.6f) * (v - 0.6f) / 0.2f)) * 0.05f;
+                    float rub = Mathf.PerlinNoise(x * 0.012f, y * 0.09f) * 0.07f; // eraser swipes
                     float speck = rng.NextDouble() < 0.06 ? 0.05f : 0f;
                     float k = smudge + rub + speck;
                     px[y * w + x] = Color.Lerp(baseC, Color.white, k);
@@ -295,38 +296,62 @@ namespace TuitionTakkar
             var key = new Vector2Int(w, h);
             if (woodCache.TryGetValue(key, out var cached) && cached != null) return cached;
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "DeskWood" };
-            var baseC = Pal.H("#B57A43");
-            var dark = Pal.H("#50280A");
-            var light = Pal.H("#FFDCAA");
+            // Lighter, worn tan wood like a real classroom bench (reference: penfight.xyz).
+            var baseC = Pal.H("#8F7656");
+            var dark = Pal.H("#5A3A1C");
+            var light = Pal.H("#C2AC88");
             var rng = new System.Random(11);
             var px = new Color[w * h];
+            float k2 = w / 256f; // texture px per "design" px
             for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
                 float u = x / (float)w, v = y / (float)h;
-                // Grain runs along v; warp it gently so the lines wander like real planks.
-                float xw = x + 7f * Mathf.Sin(y * 0.011f + x * 0.006f) + 9f * Mathf.PerlinNoise(x * 0.015f, y * 0.0035f);
-                float f1 = Mathf.Repeat(xw, 10f), f2 = Mathf.Repeat(xw * 0.97f + 4f, 21f);
+                float gx = x / k2, gy = y / k2;
+                // Fine grain along v that wanders a little; low contrast.
+                float xw = gx + 6f * Mathf.Sin(gy * 0.011f + gx * 0.006f) + 8f * Mathf.PerlinNoise(gx * 0.015f, gy * 0.0035f);
+                float f1 = Mathf.Repeat(xw, 7f), f2 = Mathf.Repeat(xw * 0.97f + 4f, 19f);
                 var c = baseC;
-                if (f1 < 2f) c = Color.Lerp(c, dark, 0.12f);
-                if (f2 < 1f) c = Color.Lerp(c, light, 0.10f);
-                float tone = (Mathf.PerlinNoise(x * 0.008f + 3f, y * 0.0025f) - 0.5f) * 0.12f;
+                if (f1 < 1.2f) c = Color.Lerp(c, dark, 0.07f);
+                if (f2 < 0.8f) c = Color.Lerp(c, light, 0.08f);
+                float tone = (Mathf.PerlinNoise(gx * 0.008f + 3f, gy * 0.0025f) - 0.5f) * 0.14f;
                 c = Color.Lerp(c, tone > 0 ? light : dark, Mathf.Abs(tone));
-                float hl = Mathf.Exp(-((u - 0.45f) * (u - 0.45f) / 0.12f + (v - 0.72f) * (v - 0.72f) / 0.08f)) * 0.30f;
-                float sh = Mathf.Exp(-((u - 0.7f) * (u - 0.7f) / 0.1f + (v - 0.12f) * (v - 0.12f) / 0.06f)) * 0.22f;
-                c = Color.Lerp(Color.Lerp(c, light, hl), dark, sh);
-                float speck = (float)(rng.NextDouble() - 0.5) * 0.03f;
+                // Window light on the far half, a little grime near the edges.
+                float hl = Mathf.Exp(-((u - 0.5f) * (u - 0.5f) / 0.2f + (v - 0.7f) * (v - 0.7f) / 0.1f)) * 0.22f;
+                float edge = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+                float grime = Mathf.Clamp01(1f - edge / 0.06f) * 0.12f;
+                float near = Mathf.Clamp01(0.35f - v) * 0.25f;   // the near end sits in the room's shade
+                c = Color.Lerp(Color.Lerp(c, light, hl), dark, grime + near);
+                float speck = (float)(rng.NextDouble() - 0.5) * 0.025f;
                 px[y * w + x] = new Color(c.r + speck, c.g + speck, c.b + speck, 1f);
             }
 
-            // Cup ring, slightly squashed.
+            // Years of scratches: thin light lines, mostly running the same way, a few dark ones.
+            var scratchLight = Pal.H("#F2E0C2");
+            int count = Mathf.RoundToInt(150f * (w * (float)h) / (512f * 1024f));
+            for (int i = 0; i < count; i++)
+            {
+                var a0 = new Vector2((float)rng.NextDouble() * w, (float)rng.NextDouble() * h);
+                float ang = (rng.NextDouble() < 0.8 ? 70f + (float)(rng.NextDouble() - 0.5) * 50f : (float)rng.NextDouble() * 180f) * Mathf.Deg2Rad;
+                float len = (12f + (float)rng.NextDouble() * 80f) * k2;
+                var b0 = a0 + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * len;
+                bool darkLine = rng.NextDouble() < 0.12;
+                Segment(px, w, h, a0, b0, 0.9f + (float)rng.NextDouble() * 0.7f,
+                    darkLine ? dark : scratchLight, darkLine ? 0.12f : 0.08f + (float)rng.NextDouble() * 0.14f);
+            }
+
+            // Cup ring and a little ink blot.
             float s = w / 342f; // mockup px -> texture px
-            Ring(px, w, h, new Vector2(0.38f * w, 0.84f * h), 19f * s, 12f * s, 1.6f * s, 0.25f);
-            // Carvings, like the mockup: positions as (u, v) with v = 1 the far end.
-            Carve(px, w, h, "#", new Vector2(0.18f, 0.80f), 15f * s, -4f);
-            Carve(px, w, h, "LAST BENCH", new Vector2(0.86f, 0.62f), 10f * s, -84f);
-            Carve(px, w, h, "RAJU", new Vector2(0.10f, 0.45f), 11f * s, 80f);
-            Carve(px, w, h, "AJ", new Vector2(0.80f, 0.18f), 22f * s, 24f);
+            Ring(px, w, h, new Vector2(0.62f * w, 0.84f * h), 19f * s, 12f * s, 1.6f * s, 0.28f);
+            var ink = Pal.H("#3A2618");
+            Ring(px, w, h, new Vector2(0.74f * w, 0.33f * h), 2.5f * s, 3f * s, 2.5f * s, 0.55f);
+            Ring(px, w, h, new Vector2(0.765f * w, 0.35f * h), 1.2f * s, 1.2f * s, 1.5f * s, 0.5f);
+            // Carvings: positions as (u, v) with v = 1 the far end.
+            Carve(px, w, h, "#", new Vector2(0.20f, 0.86f), 15f * s, -4f);
+            Carve(px, w, h, "LAST BENCH", new Vector2(0.86f, 0.70f), 10f * s, -84f);
+            Carve(px, w, h, "GOLU", new Vector2(0.14f, 0.62f), 8f * s, 80f);
+            Carve(px, w, h, "RAJU", new Vector2(0.24f, 0.32f), 12f * s, 78f);
+            Carve(px, w, h, "AJ", new Vector2(0.80f, 0.16f), 22f * s, 24f);
 
             // The cube's top face shows the texture turned half way round, so turn it back
             // (far end of the desk = top of the picture, carvings read the right way up).
@@ -367,6 +392,8 @@ namespace TuitionTakkar
             ['S'] = new[] { new float[] { 4, 5.5f, 3, 6, 1, 6, 0, 5, 0, 4, 1, 3, 3, 3, 4, 2, 4, 1, 3, 0, 1, 0, 0, 0.5f } },
             ['T'] = new[] { new float[] { 0, 6, 4, 6 }, new float[] { 2, 6, 2, 0 } },
             ['U'] = new[] { new float[] { 0, 6, 0, 1, 1, 0, 3, 0, 4, 1, 4, 6 } },
+            ['G'] = new[] { new float[] { 4, 5, 3, 6, 1, 6, 0, 5, 0, 1, 1, 0, 3, 0, 4, 1, 4, 3, 2, 3 } },
+            ['O'] = new[] { new float[] { 1, 0, 0, 1, 0, 5, 1, 6, 3, 6, 4, 5, 4, 1, 3, 0, 1, 0 } },
             ['#'] = new[] { new float[] { 1.3f, 0, 1.8f, 6 }, new float[] { 2.8f, 0, 3.3f, 6 }, new float[] { 0, 2, 4.6f, 2.2f }, new float[] { 0, 4, 4.6f, 4.2f } },
         };
 
