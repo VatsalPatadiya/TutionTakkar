@@ -5,11 +5,11 @@ using UnityEngine.UIElements;
 namespace TuitionTakkar
 {
     /// <summary>
-    /// In-match HUD laid out like "D · Tuition desk, front view": a classroom wall strip
-    /// at the top (tube light, a wide cork board with two big score sticky notes and a
-    /// round tag, and a live wall clock you tap to pause), a turn tape on the desk, a
-    /// 15 cm ruler power gauge with soft / good / smash zones ("P1"), a power ring at your finger,
-    /// a hint beside your pen and "edge!" warnings.
+    /// In-match HUD (mockups TE / TP): a centred cork board at the top with the players' cards
+    /// and a pause badge pinned to its corner; the turn timer is the active card's border,
+    /// draining clockwise (red in the last 10 seconds, with the desk edge glowing). A quiet
+    /// "your turn" label on the desk, a power ring at your finger, a hint beside your pen and
+    /// "edge!" warnings. No wall clock and no power ruler.
     /// </summary>
     public class HudView
     {
@@ -17,14 +17,12 @@ namespace TuitionTakkar
         readonly GameManager gm;
 
         // Layout (panel units, the 390 x 844 reference).
-        const float WallHeight = 150f;       // desk top starts just under this
-        const float TapeTop = 168f;
-        const float RulerBottom = 10f;
-        const float RulerHeight = 54f;
-        const float GaugeLeft = 70f;        // ruler space taken by the POWER badge
-        const float GaugeRight = 8f;
-        const float SoftZone = 0.4f, GoodZone = 0.8f;
-        const float DeskNearEdgeGap = 84f;   // room kept under the desk top for its front edge + ruler
+        const float BoardTop = 12f;
+        const float BoardHeight = 142f;
+        const float WallHeight = BoardTop + BoardHeight + 14f; // board centred in the wall strip
+        const float TapeTop = WallHeight + 12f;                // "your turn" label on the desk
+        const float DeskNearEdgeGap = 26f;                     // just the desk's front edge (no ruler any more)
+        const float StickyW = 150f, StickyH = 114f;
 
         float topInset, bottomInset;
         public float TopClearance => WallHeight + topInset;
@@ -34,21 +32,12 @@ namespace TuitionTakkar
         readonly VisualElement wallContent;
         readonly Sticky left, right;
         readonly Label roundLabel;
-        readonly VisualElement tape;      // whole turn-tape block (tape + timer bar)
-        readonly VisualElement tapeRow;   // the strip of masking tape itself
+        readonly VisualElement tape;      // quiet "your turn" label on the desk
         readonly Label tapeText;
-        readonly VisualElement timerGroup;
-        readonly TimerIcon timerIcon;
-        readonly Label timerText;
-        readonly VisualElement timerTrack;
-        readonly VisualElement timerFill;
-        readonly VisualElement urgentRing;
+        readonly VisualElement deskGlow;  // red edge round the desk in the last 10 seconds
         readonly Label autoChip;
         bool humanTurn;
-        readonly VisualElement ruler;       // frame (not clipped) holding the gauge + marker
-        readonly VisualElement powerFill;
-        readonly VisualElement powerMarker;
-        readonly Label powerPct;
+        int shooterNow = -1;
         readonly PowerRing ring;
         readonly Label penHint;
         readonly EdgeWarning[] edges = new EdgeWarning[4];
@@ -57,8 +46,21 @@ namespace TuitionTakkar
         class Sticky
         {
             public VisualElement root;
-            public Label name, score, initial, turnTag;
+            public Label name, score, initial, turnTag, secs;
+            public BorderTimer timer;
             public VisualElement[] dots = new VisualElement[GameConfig.RoundsToWin];
+        }
+
+        /// <summary>The seconds badge under "turn!" on the active card.</summary>
+        static Label SecondsBadge()
+        {
+            var l = UIKit.Disp("", 13f, Color.white, TextAnchor.MiddleCenter).St(s =>
+            {
+                s.minWidth = 28; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Ink;
+                UIKit.Pad(s, 0, 5, 0, 5); s.display = DisplayStyle.None;
+            });
+            l.pickingMode = PickingMode.Ignore;
+            return l;
         }
 
         class EdgeWarning
@@ -97,59 +99,64 @@ namespace TuitionTakkar
             });
             wall.pickingMode = PickingMode.Ignore;
 
-            // Wide cork notice board with the two big score sticky notes pinned on it.
+            // Centred cork notice board: two big score cards (or one small card per player in 3–4 player games).
             var cork = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = 12; s.top = 18; s.width = 284; s.height = 128;
-                UIKit.Border(s, 6f, Pal.H("#7A4E26"));
+                s.position = Position.Absolute; s.left = 14; s.right = 14; s.top = BoardTop; s.height = BoardHeight;
+                UIKit.Border(s, 7f, Pal.H("#7A4E26"));
                 s.backgroundColor = Pal.H("#C99A61");
                 s.backgroundImage = new StyleBackground(ArtLib.Cork);
                 s.backgroundRepeat = new BackgroundRepeat(Repeat.Repeat, Repeat.Repeat);
                 s.backgroundSize = new BackgroundSize(new Length(32f), new Length(32f));
             });
             cork.pickingMode = PickingMode.Ignore;
-            left = MakeSticky(Pal.Yellow, -3f, Pal.H("#D9472F"));
-            UIKit.Abs(left.root, 6, 6);
-            right = MakeSticky(Pal.Teal, 2.5f, Pal.Pouch);
-            UIKit.Abs(right.root, 142, 6);
-            cork.Add(left.root, right.root);
-            // 3–4 player online: one small card per player instead of the two big notes.
-            partyRow = UIKit.Row(Align.Stretch).St(s =>
+            var pair = UIKit.Row().St(s =>
             {
-                s.position = Position.Absolute; s.left = 4; s.right = 4; s.top = 6; s.bottom = 10;
-                s.justifyContent = Justify.SpaceBetween; s.display = DisplayStyle.None;
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
+                s.justifyContent = Justify.Center;
+            });
+            pair.pickingMode = PickingMode.Ignore;
+            left = MakeSticky(Pal.Yellow, -1.5f, Pal.H("#D9472F"));
+            right = MakeSticky(Pal.Teal, 1.5f, Pal.Pouch);
+            right.root.style.marginLeft = 16;
+            pair.Add(left.root, right.root);
+            cork.Add(pair);
+            // 3–4 player online: one small card per player instead of the two big notes.
+            partyRow = UIKit.Row().St(s =>
+            {
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
+                s.justifyContent = Justify.Center; s.display = DisplayStyle.None;
             });
             partyRow.pickingMode = PickingMode.Ignore;
             cork.Add(partyRow);
             wall.Add(cork);
 
-            // Paper tag hanging off the bottom of the board.
+            // Paper tag hanging off the bottom of the board, centred.
             roundLabel = UIKit.Text("round 1 · best of 5", UIKit.HandBold, 12f, Pal.H("#3A230E"), TextAnchor.MiddleCenter, false).St(s =>
             {
-                s.position = Position.Absolute; s.left = 92; s.top = 124; s.width = 124;
+                s.position = Position.Absolute; s.left = Length.Percent(50); s.width = 170; s.marginLeft = -85; s.top = BoardTop + BoardHeight - 8;
                 s.backgroundColor = Pal.H("#FBF8EF"); UIKit.Border(s, 1.5f, Pal.H("#B9A57A")); UIKit.Pad(s, 1, 6, 1, 6);
             });
-            UIKit.Rot(roundLabel, -1f);
             roundLabel.pickingMode = PickingMode.Ignore;
             wall.Add(roundLabel);
 
-            // Live wall clock = pause button.
-            var clockBtn = UIKit.Btn("", () => gm.Pause(), Color.clear, Pal.Ink, UIKit.Body, 10f, 74f, 37f);
-            clockBtn.style.width = 74;
-            UIKit.Pad(clockBtn.style, 0);
-            clockBtn.style.position = Position.Absolute;
-            clockBtn.style.right = 12;
-            clockBtn.style.top = 22;
-            clockBtn.style.alignItems = Align.Center;
-            clockBtn.style.justifyContent = Justify.Center;
-            clockBtn.tooltip = "Pause";
-            clockBtn.Add(new ClockFace(74f));
-            wall.Add(clockBtn);
-            var pauseLabel = UIKit.Strong("TAP TO PAUSE", 9f, Pal.H("#5A4A30"), TextAnchor.MiddleCenter).St(s => s.letterSpacing = 0.6f);
-            UIKit.Abs(pauseLabel, null, 102, 8);
-            pauseLabel.style.width = 82;
-            pauseLabel.pickingMode = PickingMode.Ignore;
-            wall.Add(pauseLabel);
+            // Pause: a round badge pinned to the board's top-right corner.
+            var pauseBtn = UIKit.Btn("", () => gm.Pause(), Pal.Paper, Pal.Ink, UIKit.Body, 10f, 36f, 18f);
+            pauseBtn.style.width = 36;
+            UIKit.Pad(pauseBtn.style, 0);
+            UIKit.Border(pauseBtn.style, 3f, Pal.H("#7A4E26"));
+            pauseBtn.style.position = Position.Absolute;
+            pauseBtn.style.right = 6;
+            pauseBtn.style.top = BoardTop - 8;
+            pauseBtn.style.alignItems = Align.Center;
+            pauseBtn.style.justifyContent = Justify.Center;
+            pauseBtn.tooltip = "Pause";
+            var bars = UIKit.Row();
+            bars.pickingMode = PickingMode.Ignore;
+            for (int i = 0; i < 2; i++)
+                bars.Add(UIKit.El().St(s => { s.width = 4; s.height = 13; UIKit.Radius(s, 1); s.backgroundColor = Pal.Ink; s.marginLeft = 2; s.marginRight = 2; }));
+            pauseBtn.Add(bars);
+            wall.Add(pauseBtn);
 
             // Skirting line where the wall meets the floor, beside the desk.
             wall.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 0; s.height = 4; s.backgroundColor = Pal.H("#8C7C5E"); }));
@@ -163,49 +170,24 @@ namespace TuitionTakkar
             wall.Add(wallContent);
             Root.Add(wall);
 
-            // ----- turn tape on the desk, with the 60-second turn timer (T1-T3) -----
+            // ----- quiet turn label on the desk -----
             tape = UIKit.Col().St(s =>
             {
-                s.position = Position.Absolute; s.top = TapeTop; s.left = Length.Percent(50);
-                s.width = 200; s.marginLeft = -100;
+                s.position = Position.Absolute; s.top = TapeTop; s.left = 0; s.right = 0; s.alignItems = Align.Center;
             });
             tape.pickingMode = PickingMode.Ignore;
-            UIKit.Rot(tape, -2f);
+            tapeText = UIKit.Text("your turn", UIKit.HandBold, 17f, new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.65f), TextAnchor.MiddleCenter, false);
+            tape.Add(tapeText);
+            Root.Add(tape);
 
-            urgentRing = UIKit.El().St(s =>
+            // Red glow round the desk edge in the last 10 seconds (placed over the desk each update).
+            deskGlow = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = -12; s.right = -12; s.top = -8; s.bottom = -6;
-                UIKit.Border(s, 3f, new Color(0.85f, 0.28f, 0.18f, 0.45f)); UIKit.Radius(s, 10);
+                s.position = Position.Absolute; UIKit.Border(s, 4f, new Color(0.85f, 0.28f, 0.18f, 0.6f)); UIKit.Radius(s, 6);
                 s.display = DisplayStyle.None;
             });
-            urgentRing.pickingMode = PickingMode.Ignore;
-
-            tapeRow = UIKit.Row().St(s =>
-            {
-                s.height = 36; s.justifyContent = Justify.SpaceBetween; UIKit.Pad(s, 0, 12, 0, 12);
-                s.backgroundColor = new Color(Pal.Tape.r, Pal.Tape.g, Pal.Tape.b, 0.96f);
-            });
-            tapeRow.pickingMode = PickingMode.Ignore;
-            tapeText = UIKit.Text("your turn", UIKit.HandBold, 18f, Pal.Ink, TextAnchor.MiddleLeft, false);
-            timerGroup = UIKit.Row();
-            timerGroup.pickingMode = PickingMode.Ignore;
-            timerIcon = new TimerIcon();
-            timerText = UIKit.Disp("1:00", 22f, Pal.Ink, TextAnchor.MiddleRight);
-            timerText.style.marginLeft = 5;
-            timerGroup.Add(timerIcon, timerText);
-            tapeRow.Add(tapeText, timerGroup);
-
-            timerTrack = UIKit.El().St(s =>
-            {
-                s.height = 6; s.marginTop = 5; UIKit.Radius(s, 3); s.overflow = Overflow.Hidden;
-                s.backgroundColor = new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.18f);
-            });
-            timerTrack.pickingMode = PickingMode.Ignore;
-            timerFill = UIKit.El().St(s => { s.height = 6; s.width = Length.Percent(100); UIKit.Radius(s, 3); s.backgroundColor = Pal.Ink; });
-            timerTrack.Add(timerFill);
-
-            tape.Add(urgentRing, tapeRow, timerTrack);
-            Root.Add(tape);
+            deskGlow.pickingMode = PickingMode.Ignore;
+            Root.Add(deskGlow);
 
             autoChip = UIKit.Strong("AUTO SHOT", 12f, Color.white, TextAnchor.MiddleCenter).St(s =>
             {
@@ -216,86 +198,6 @@ namespace TuitionTakkar
             UIKit.Rot(autoChip, -3f);
             Root.Add(autoChip);
 
-            // ----- 15 cm ruler power gauge: POWER badge, soft / good / smash zones -----
-            ruler = UIKit.El("PowerRuler").St(s =>
-            {
-                s.position = Position.Absolute; s.left = 12; s.right = 12; s.bottom = RulerBottom; s.height = RulerHeight;
-            });
-            ruler.pickingMode = PickingMode.Ignore;
-
-            var body = UIKit.El().St(s =>
-            {
-                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
-                s.backgroundColor = Pal.H("#F1DFB0"); UIKit.Radius(s, 4); s.overflow = Overflow.Hidden;
-                s.borderBottomWidth = 3; s.borderBottomColor = Pal.H("#A88A55");
-            });
-            body.pickingMode = PickingMode.Ignore;
-
-            // Faint zone colours behind the fill.
-            var zones = UIKit.Row(Align.Stretch).St(s =>
-            {
-                s.position = Position.Absolute; s.left = GaugeLeft; s.right = GaugeRight; s.top = 20; s.height = 16;
-                UIKit.Radius(s, 8); s.overflow = Overflow.Hidden; s.opacity = 0.3f;
-            });
-            zones.pickingMode = PickingMode.Ignore;
-            zones.Add(Zone(SoftZone, "#7BC47F"), Zone(GoodZone - SoftZone, "#FFD23F"), Zone(1f - GoodZone, "#E8563A"));
-
-            var fillTrack = UIKit.El().St(s =>
-            {
-                s.position = Position.Absolute; s.left = GaugeLeft; s.right = GaugeRight; s.top = 20; s.height = 16;
-            });
-            fillTrack.pickingMode = PickingMode.Ignore;
-            powerFill = UIKit.El().St(s =>
-            {
-                s.position = Position.Absolute; s.left = 0; s.top = 0; s.bottom = 0; s.width = Length.Percent(0);
-                UIKit.Radius(s, 8); s.backgroundColor = PowerColor(0f);
-            });
-            powerFill.pickingMode = PickingMode.Ignore;
-            fillTrack.Add(powerFill);
-
-            var ticks = new RulerTicks();
-            UIKit.Abs(ticks, GaugeLeft, 0, GaugeRight, null);
-            ticks.style.height = 13;
-
-            var zoneLabels = UIKit.Row().St(s =>
-            {
-                s.position = Position.Absolute; s.left = GaugeLeft; s.right = GaugeRight; s.bottom = 2;
-            });
-            zoneLabels.pickingMode = PickingMode.Ignore;
-            zoneLabels.Add(ZoneLabel("SOFT", SoftZone, Pal.H("#6B4A22")),
-                           ZoneLabel("GOOD", GoodZone - SoftZone, Pal.H("#6B4A22")),
-                           ZoneLabel("SMASH", 1f - GoodZone, Pal.Red));
-
-            var badge = UIKit.Col().St(s =>
-            {
-                s.position = Position.Absolute; s.left = 6; s.top = 5; s.width = 56; s.height = 44;
-                UIKit.Radius(s, 6); s.backgroundColor = Pal.Ink;
-                s.alignItems = Align.Center; s.justifyContent = Justify.Center;
-            });
-            badge.pickingMode = PickingMode.Ignore;
-            badge.Add(UIKit.Strong("POWER", 8f, Pal.H("#BFD3CB"), TextAnchor.MiddleCenter).St(s => s.letterSpacing = 0.8f));
-            powerPct = UIKit.Disp("0%", 22f, Pal.Yellow, TextAnchor.MiddleCenter);
-            badge.Add(powerPct);
-
-            body.Add(zones, fillTrack, ticks, zoneLabels, badge);
-
-            // Little arrow above the ruler pointing at the current power.
-            var markerTrack = UIKit.El().St(s =>
-            {
-                s.position = Position.Absolute; s.left = GaugeLeft; s.right = GaugeRight; s.top = -9; s.height = 10;
-            });
-            markerTrack.pickingMode = PickingMode.Ignore;
-            powerMarker = new PowerArrow();
-            powerMarker.style.position = Position.Absolute;
-            powerMarker.style.left = Length.Percent(0);
-            powerMarker.style.marginLeft = -8;
-            powerMarker.style.top = 0;
-            powerMarker.style.display = DisplayStyle.None;
-            markerTrack.Add(powerMarker);
-
-            ruler.Add(body, markerTrack);
-            Root.Add(ruler);
-
             // Development builds: a small readout of the last shot (power, how far each pen moved,
             // distance to the edge) so tuning can be done from a mirrored phone without logcat.
             if (Debug.isDebugBuild)
@@ -303,7 +205,7 @@ namespace TuitionTakkar
                 debugShot = UIKit.Text("", UIKit.BodyBold, 10f, Color.white, TextAnchor.UpperLeft, true).St(s =>
                 {
                     s.position = Position.Absolute; s.left = 8; s.right = 8;
-                    s.bottom = RulerBottom + RulerHeight + 10;
+                    s.bottom = DeskNearEdgeGap + 40;
                     s.backgroundColor = new Color(0.06f, 0.1f, 0.12f, 0.72f);
                     UIKit.Pad(s, 4, 6, 4, 6); UIKit.Radius(s, 4);
                     s.display = DisplayStyle.None;
@@ -312,38 +214,12 @@ namespace TuitionTakkar
                 Root.Add(debugShot);
             }
 
-            // Your finger can drag down over the ruler: keep the ring and hint on top of it.
+            // Keep the ring and hint on top of everything.
             ring.BringToFront();
             penHint.BringToFront();
 
-            // Nothing on the HUD may swallow a touch meant for a pen (only the pause clock is a button).
+            // Nothing on the HUD may swallow a touch meant for a pen (only the pause badge is a button).
             UIKit.PassThrough(Root);
-        }
-
-        static VisualElement Zone(float share, string hex)
-        {
-            var z = UIKit.El().St(s => { s.flexGrow = share; s.flexBasis = 0; s.backgroundColor = Pal.H(hex); });
-            z.pickingMode = PickingMode.Ignore;
-            return z;
-        }
-
-        static VisualElement ZoneLabel(string text, float share, Color c)
-        {
-            var l = UIKit.Strong(text, 9f, c).St(s => { s.flexGrow = share; s.flexBasis = 0; s.letterSpacing = 0.6f; });
-            l.pickingMode = PickingMode.Ignore;
-            return l;
-        }
-
-        /// <summary>Green (soft) → yellow (good) → orange-red (smash).</summary>
-        static Color PowerColor(float p)
-        {
-            var green = Pal.H("#5DAE62");
-            var yellow = Pal.H("#F2C230");
-            var orange = Pal.H("#F08A2E");
-            var red = Pal.H("#E8563A");
-            if (p <= SoftZone) return Color.Lerp(green, Color.Lerp(green, yellow, 0.5f), p / SoftZone);
-            if (p <= GoodZone) return Color.Lerp(Color.Lerp(green, yellow, 0.5f), orange, (p - SoftZone) / (GoodZone - SoftZone));
-            return Color.Lerp(orange, red, (p - GoodZone) / (1f - GoodZone));
         }
 
         // ---------- layout ----------
@@ -356,7 +232,6 @@ namespace TuitionTakkar
             wall.style.height = WallHeight + top;
             wallContent.style.top = top; // keep the board, round tag and clock below the notch
             tape.style.top = TapeTop + top;
-            ruler.style.bottom = RulerBottom + bottom;
         }
 
         // ---------- stickies ----------
@@ -366,13 +241,13 @@ namespace TuitionTakkar
             var st = new Sticky();
             st.root = UIKit.Col().St(s =>
             {
-                s.width = 126; s.height = 100; s.backgroundColor = bg; UIKit.Pad(s, 9, 10, 9, 10);
+                s.width = StickyW; s.height = StickyH; s.backgroundColor = bg; UIKit.Pad(s, 10, 11, 9, 11);
             });
             UIKit.Rot(st.root, rot);
             st.root.pickingMode = PickingMode.Ignore;
             st.root.Add(UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = 57; s.top = -6; s.width = 12; s.height = 12;
+                s.position = Position.Absolute; s.left = StickyW * 0.5f - 7f; s.top = -7; s.width = 14; s.height = 14;
                 UIKit.Radius(s, 6); s.backgroundColor = pin;
                 s.borderBottomWidth = 2; s.borderBottomColor = new Color(0f, 0f, 0f, 0.25f);
             }));
@@ -390,7 +265,7 @@ namespace TuitionTakkar
             st.name = UIKit.Strong("YOU", 12f, Pal.Ink).St(s => { s.letterSpacing = 0.6f; s.marginLeft = 6; });
             head.Add(av, st.name);
 
-            st.score = UIKit.Disp("0", 44f, Pal.Ink).St(s => s.marginTop = 2);
+            st.score = UIKit.Disp("0", 48f, Pal.Ink).St(s => s.marginTop = 2);
             var dots = UIKit.Row().St(s => s.marginTop = 3);
             for (int i = 0; i < st.dots.Length; i++)
             {
@@ -399,12 +274,18 @@ namespace TuitionTakkar
                 dots.Add(st.dots[i]);
             }
 
-            st.turnTag = UIKit.Text("turn!", UIKit.HandBold, 12f, Pal.H("#B23A26"), TextAnchor.MiddleRight, false);
-            UIKit.Abs(st.turnTag, null, 6, 8);
+            // "turn!" with the seconds badge under it, top right of the card.
+            var corner = UIKit.Col().St(s => { s.position = Position.Absolute; s.right = 9; s.top = 10; s.alignItems = Align.FlexEnd; });
+            corner.pickingMode = PickingMode.Ignore;
+            st.turnTag = UIKit.Text("turn!", UIKit.HandBold, 14f, Pal.H("#B23A26"), TextAnchor.MiddleRight, false);
             UIKit.Rot(st.turnTag, -6f);
             st.turnTag.style.display = DisplayStyle.None;
+            st.secs = SecondsBadge();
+            st.secs.style.marginTop = 3;
+            corner.Add(st.turnTag, st.secs);
 
-            st.root.Add(head, st.score, dots, st.turnTag);
+            st.timer = new BorderTimer();
+            st.root.Add(st.timer, head, st.score, dots, corner);
             return st;
         }
 
@@ -422,12 +303,15 @@ namespace TuitionTakkar
             }
         }
 
-        /// <summary>White outline + "turn!" on the shooter's note; the other one fades a little.</summary>
-        void MarkTurn(Sticky st, bool active)
+        /// <summary>"turn!" on the shooter's card; its border becomes the timer (when someone is on the clock).</summary>
+        void MarkTurn(Sticky st, bool active, bool timed)
         {
-            UIKit.Border(st.root.style, active ? 3f : 0f, Color.white);
             st.root.style.opacity = active ? 1f : 0.92f;
             st.turnTag.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+            st.timer.Shown = active && timed;
+            st.timer.Set(1f, Pal.Ink);
+            st.secs.style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
+            st.secs.style.backgroundColor = Pal.Ink;
         }
 
         public static string DisplayName(MatchSetup s, int i)
@@ -441,51 +325,116 @@ namespace TuitionTakkar
 
         readonly VisualElement partyRow;
         readonly List<VisualElement> partyCards = new List<VisualElement>();
+        readonly List<BorderTimer> partyTimers = new List<BorderTimer>();
+        readonly List<Label> partySecs = new List<Label>();
+        readonly List<Label> partyStatus = new List<Label>();
+        bool[] partyAlive;
         Label eliminated;
 
-        /// <summary>Mockup O7: a small card per player, yellow for you, dimmed with a place once out.</summary>
+        static readonly Color[] PartyColors = { Pal.Yellow, Pal.Pink, Pal.Sky, Pal.H("#C7E8B5") };
+
+        /// <summary>Mockup TP: one card per player (you in yellow), pen swatch, in play / turn! / OUT with a place.</summary>
         public void SetParty(MatchSetup s, bool[] alive, int[] place)
         {
             left.root.style.display = DisplayStyle.None;
-            right.root.style.display = DisplayStyle.None;
+            right.root.parent.style.display = DisplayStyle.None;
             partyRow.style.display = DisplayStyle.Flex;
             partyRow.Clear();
             partyCards.Clear();
-            var colors = new[] { Pal.Yellow, Pal.Pink, Pal.Sky, Pal.Teal };
-            int left2 = 0;
-            for (int i = 0; i < s.Players; i++)
+            partyTimers.Clear();
+            partySecs.Clear();
+            partyStatus.Clear();
+            partyAlive = (bool[])alive.Clone();
+            int n = s.Players;
+            const float gap = 8f;
+            float panelW = Root.layout.width > 1f ? Root.layout.width : 390f;
+            float inner = panelW - 28f - 14f - 12f; // board side margins, its border, a little air
+            float w = Mathf.Floor((inner - gap * (n - 1)) / n);
+            bool small = w < 100f;
+            int pensLeft = 0;
+            // Your card first, then the others in seat order after you.
+            for (int k = 0; k < n; k++)
             {
-                if (alive[i]) left2++;
+                int i = (s.localIndex + k) % n;
+                if (alive[i]) pensLeft++;
                 bool me = i == s.localIndex;
                 var card = UIKit.Col().St(st =>
                 {
-                    st.width = Length.Percent(100f / s.Players - 2f); st.backgroundColor = me ? Pal.Yellow : Pal.Paper;
-                    UIKit.Pad(st, 6, 5, 5, 5); st.alignItems = Align.Center;
-                    st.borderBottomWidth = 3; st.borderBottomColor = new Color(0, 0, 0, 0.18f);
-                    st.opacity = alive[i] ? 1f : 0.55f;
+                    st.width = w; st.height = 120; st.backgroundColor = me ? Pal.Yellow : PartyColors[1 + (k - 1) % 3];
+                    UIKit.Pad(st, 10, small ? 7 : 9, 8, small ? 7 : 9);
+                    if (k > 0) st.marginLeft = gap;
                 });
                 card.pickingMode = PickingMode.Ignore;
-                UIKit.Rot(card, i % 2 == 0 ? -2f : 2f);
+                UIKit.Rot(card, k % 2 == 0 ? -1.5f : 1.5f);
                 string name = DisplayName(s, i);
+                var timer = new BorderTimer();
+                card.Add(timer);
+                card.Add(UIKit.El().St(st =>
+                {
+                    st.position = Position.Absolute; st.left = w * 0.5f - 7f; st.top = -7; st.width = 14; st.height = 14;
+                    UIKit.Radius(st, 7); st.backgroundColor = me ? Pal.H("#D9472F") : Pal.Pouch;
+                    st.borderBottomWidth = 2; st.borderBottomColor = new Color(0f, 0f, 0f, 0.25f);
+                }));
                 var av = UIKit.El().St(st =>
                 {
-                    st.width = 24; st.height = 24; UIKit.Radius(st, 12); st.backgroundColor = colors[i % colors.Length];
+                    st.width = small ? 24 : 28; st.height = small ? 24 : 28; UIKit.Radius(st, small ? 12 : 14); st.backgroundColor = Color.white;
                     UIKit.Border(st, 2f, Pal.Ink); st.alignItems = Align.Center; st.justifyContent = Justify.Center;
                 });
-                av.pickingMode = PickingMode.Ignore;
-                av.Add(UIKit.Disp(name.Substring(0, 1).ToUpperInvariant(), 12f, Pal.Ink, TextAnchor.MiddleCenter));
+                string initial = name.StartsWith("Player ") && name.Length > 7 ? name.Substring(7, 1) : name.Substring(0, 1);
+                av.Add(UIKit.Disp(initial.ToUpperInvariant(), small ? 11f : 13f, Pal.Ink, TextAnchor.MiddleCenter));
                 card.Add(av);
-                card.Add(UIKit.Strong(name.Length > 9 ? name.Substring(0, 9) : name, 10f, Pal.Ink, TextAnchor.MiddleCenter).St(st => st.marginTop = 2));
-                string status = alive[i] ? "in" : "out · " + Ordinal(place[i]);
-                if (!alive[i] && place[i] == 1) status = "winner";
-                card.Add(UIKit.Text(status, UIKit.HandBold, 13f, alive[i] ? Pal.Green : Pal.Red, TextAnchor.MiddleCenter, false));
+                card.Add(UIKit.Disp((name.Length > 8 ? name.Substring(0, 8) : name).ToUpperInvariant(), small ? 13f : 15f, Pal.Ink).St(st => st.marginTop = 4));
+                var swatch = UIKit.El().St(st => { st.height = 14; st.marginTop = 3; st.overflow = Overflow.Hidden; });
+                swatch.Add(PenIcon.Build(s.pens[i], w - (small ? 14f : 18f)));
+                card.Add(swatch);
+                var status = UIKit.Text("", UIKit.HandBold, small ? 12f : 13f, Pal.Ink, TextAnchor.MiddleLeft, false).St(st => st.marginTop = 2);
+                card.Add(status);
+                var secs = SecondsBadge();
+                secs.style.position = Position.Absolute; secs.style.right = 5; secs.style.top = 8;
+                card.Add(secs);
+                if (!alive[i])
+                {
+                    card.style.opacity = 0.55f;
+                    status.text = place[i] == 1 ? "winner" : "OUT · " + Ordinal(place[i]);
+                    status.style.color = Pal.Red;
+                    var box = UIKit.El().St(st =>
+                    {
+                        st.position = Position.Absolute; st.left = w * 0.5f - (small ? 24 : 30); st.top = 46;
+                        UIKit.Border(st, 3f, Pal.Red); UIKit.Radius(st, 6); UIKit.Pad(st, 0, 5, 0, 5);
+                        st.backgroundColor = new Color(1f, 0.99f, 0.96f, 0.6f);
+                    });
+                    box.Add(UIKit.Disp("OUT", small ? 15f : 18f, Pal.Red, TextAnchor.MiddleCenter));
+                    UIKit.Rot(box, -14f);
+                    if (place[i] != 1) card.Add(box);
+                }
                 partyRow.Add(card);
-                partyCards.Add(card);
+                // Lists are indexed by player, not by position on the board.
+                while (partyCards.Count <= i) { partyCards.Add(null); partyTimers.Add(null); partySecs.Add(null); partyStatus.Add(null); }
+                partyCards[i] = card; partyTimers[i] = timer; partySecs[i] = secs; partyStatus[i] = status;
             }
-            roundLabel.text = left2 + " pens left · last one wins";
+            for (int i = 0; i < n; i++) if (alive[i]) { partyStatus[i].text = "in play"; partyStatus[i].style.color = new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f); }
+            roundLabel.text = pensLeft <= 2 && n > 2 ? "final two · last pen standing" : "last pen standing wins";
             UIKit.PassThrough(partyRow);
-            SetPower(0f, 0f);
+            if (shooterNow >= 0 && shooterNow < n) MarkPartyTurn(shooterNow, humanTurn);
             HideAim();
+        }
+
+        void MarkPartyTurn(int shooter, bool timed)
+        {
+            for (int i = 0; i < partyCards.Count; i++)
+            {
+                if (partyCards[i] == null) continue;
+                bool active = i == shooter && (partyAlive == null || partyAlive[i]);
+                partyTimers[i].Shown = active && timed;
+                partyTimers[i].Set(1f, Pal.Ink);
+                partySecs[i].style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
+                partySecs[i].style.backgroundColor = Pal.Ink;
+                if (partyAlive == null || partyAlive[i])
+                {
+                    partyStatus[i].text = active ? "turn!" : "in play";
+                    partyStatus[i].style.color = active ? Pal.H("#B23A26") : new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f);
+                }
+            }
         }
 
         public static string Ordinal(int n) => n == 1 ? "1st" : n == 2 ? "2nd" : n == 3 ? "3rd" : n + "th";
@@ -512,16 +461,15 @@ namespace TuitionTakkar
         public void SetMatch(MatchSetup s, int[] score, int round)
         {
             left.root.style.display = DisplayStyle.Flex;
-            right.root.style.display = DisplayStyle.Flex;
+            right.root.parent.style.display = DisplayStyle.Flex;
             partyRow.style.display = DisplayStyle.None;
             Color rightColor = s.mode == MatchMode.Ladder && s.rival != null ? s.rival.avatar
                 : s.mode == MatchMode.PassAndPlay ? Pal.Pink : Pal.Teal;
-            // Left sticky is always this phone's player (online player 1 included).
+            // Left card is always this phone's player (online player 1 included).
             int me = s.mode == MatchMode.Online ? s.localIndex : 0, them = 1 - me;
             SetSticky(left, DisplayName(s, me), score[me], Pal.Yellow);
             SetSticky(right, DisplayName(s, them), score[them], rightColor);
             roundLabel.text = "round " + round + " · best of " + (GameConfig.RoundsToWin * 2 - 1);
-            SetPower(0f, 0f);
             HideAim();
         }
 
@@ -529,24 +477,23 @@ namespace TuitionTakkar
         {
             string who = DisplayName(s, shooter);
             humanTurn = !s.isBot[shooter];
+            shooterNow = shooter;
             int me = s.mode == MatchMode.Online ? s.localIndex : 0;
-            MarkTurn(left, shooter == me);
-            MarkTurn(right, shooter != me);
-            for (int i = 0; i < partyCards.Count; i++)
-                UIKit.Border(partyCards[i].style, i == shooter ? 3f : 0f, Color.white);
+            if (s.IsParty) MarkPartyTurn(shooter, humanTurn);
+            else
+            {
+                MarkTurn(left, shooter == me, humanTurn);
+                MarkTurn(right, shooter != me, humanTurn);
+            }
             tapeText.text = s.mode != MatchMode.PassAndPlay && shooter == me ? "your turn" : who.ToLowerInvariant() + "'s turn";
-            UIKit.Rot(tape, shooter == me ? -2f : 2f);
             StyleTape(TapeLook.Normal);
-            timerGroup.style.display = humanTurn ? DisplayStyle.Flex : DisplayStyle.None;
-            timerTrack.style.display = humanTurn ? DisplayStyle.Flex : DisplayStyle.None;
-            tapeRow.style.justifyContent = humanTurn ? Justify.SpaceBetween : Justify.Center;
             HideAutoShot();
             float limit = s.mode == MatchMode.Online ? GameConfig.OnlineTurnTimeLimit : GameConfig.TurnTimeLimit;
             if (humanTurn) SetTimer(limit, limit);
             UIRoot.PopIn(tape);
         }
 
-        // ---------- turn timer ----------
+        // ---------- turn timer: the active card's border ----------
 
         enum TapeLook { Normal, Urgent, TimeUp }
         TapeLook look = TapeLook.Normal;
@@ -556,32 +503,47 @@ namespace TuitionTakkar
         {
             if (l == TapeLook.Normal) normalLabel = tapeText.text;
             look = l;
-            var bg = l == TapeLook.Urgent ? Pal.H("#FFE1D8") : l == TapeLook.TimeUp ? Pal.Ink : new Color(Pal.Tape.r, Pal.Tape.g, Pal.Tape.b, 0.96f);
-            var fg = l == TapeLook.Urgent ? Pal.Red : l == TapeLook.TimeUp ? Color.white : Pal.Ink;
-            var accent = l == TapeLook.Urgent ? Pal.Red : l == TapeLook.TimeUp ? Pal.Yellow : Pal.Ink;
-            tapeRow.style.backgroundColor = bg;
-            UIKit.Border(tapeRow.style, l == TapeLook.Urgent ? 2f : 0f, Pal.H("#D9472F"));
-            tapeText.style.color = fg;
-            timerText.style.color = accent;
-            timerIcon.Set(l == TapeLook.TimeUp, accent);
-            timerFill.style.backgroundColor = l == TapeLook.Normal ? Pal.Ink : Pal.H("#D9472F");
-            urgentRing.style.display = l == TapeLook.Urgent ? DisplayStyle.Flex : DisplayStyle.None;
+            tapeText.style.color = l == TapeLook.Normal ? new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.65f) : Pal.Red;
+            tapeText.style.fontSize = l == TapeLook.Normal ? 17f : 20f;
+            if (l != TapeLook.Urgent) deskGlow.style.display = DisplayStyle.None;
         }
 
-        /// <summary>T1 / T2: time left on the tape and the shrinking bar.</summary>
+        void ActiveTimer(out BorderTimer timer, out Label secs, out VisualElement card)
+        {
+            timer = null; secs = null; card = null;
+            if (partyRow.style.display == DisplayStyle.Flex)
+            {
+                if (shooterNow >= 0 && shooterNow < partyTimers.Count && partyTimers[shooterNow] != null)
+                { timer = partyTimers[shooterNow]; secs = partySecs[shooterNow]; card = partyCards[shooterNow]; }
+                return;
+            }
+            var st = left.turnTag.style.display == DisplayStyle.Flex ? left : right;
+            timer = st.timer; secs = st.secs; card = st.root;
+        }
+
+        /// <summary>Drains the active card's border; red, a pulse and a glowing desk edge in the last 10 seconds.</summary>
         public void SetTimer(float secondsLeft, float limit)
         {
             if (!humanTurn) return;
-            int whole = Mathf.CeilToInt(secondsLeft);
-            timerText.text = (whole / 60) + ":" + (whole % 60).ToString("00");
-            timerFill.style.width = Length.Percent(Mathf.Clamp01(secondsLeft / limit) * 100f);
-
+            ActiveTimer(out var timer, out var secs, out var card);
             bool urgent = secondsLeft <= GameConfig.TurnTimeUrgent;
+            var col = urgent ? Pal.H("#D9472F") : Pal.Ink;
+            if (timer != null)
+            {
+                timer.Shown = true;
+                timer.Set(secondsLeft / Mathf.Max(0.01f, limit), col);
+            }
+            if (secs != null)
+            {
+                secs.style.display = DisplayStyle.Flex;
+                secs.text = Mathf.CeilToInt(secondsLeft).ToString();
+                secs.style.backgroundColor = col;
+            }
+
             if (urgent && look != TapeLook.Urgent)
             {
                 StyleTape(TapeLook.Urgent);
                 tapeText.text = "hurry!";
-                UIKit.Rot(tape, -3f);
             }
             else if (!urgent && look != TapeLook.Normal)
             {
@@ -590,19 +552,39 @@ namespace TuitionTakkar
             }
             if (urgent)
             {
-                // Pulse the red outline once a second.
+                // Pulse once a second: the card swells a little, the desk edge glows.
                 float frac = secondsLeft - Mathf.Floor(secondsLeft);
-                urgentRing.style.opacity = 0.35f + 0.65f * frac;
+                if (card != null) card.style.scale = new Scale(Vector3.one * (1f + 0.05f * frac));
+                PlaceDeskGlow();
+                deskGlow.style.opacity = 0.35f + 0.65f * frac;
             }
+            else if (card != null) card.style.scale = new Scale(Vector3.one);
         }
 
-        /// <summary>T3: time's up, the game is about to shoot for you.</summary>
+        void PlaceDeskGlow()
+        {
+            var cam = gm.World != null ? gm.World.Cam : null;
+            if (cam == null || Root.layout.width < 1f) return;
+            float hw = BenchWorld.HalfW, hd = BenchWorld.HalfD;
+            var a = ToPanel(cam, new Vector3(-hw, 0f, hd));
+            var b = ToPanel(cam, new Vector3(hw, 0f, hd));
+            var c = ToPanel(cam, new Vector3(-hw, 0f, -hd));
+            var d = ToPanel(cam, new Vector3(hw, 0f, -hd));
+            float x0 = Mathf.Min(a.x, c.x), x1 = Mathf.Max(b.x, d.x), y0 = Mathf.Min(a.y, b.y), y1 = Mathf.Max(c.y, d.y);
+            var st = deskGlow.style;
+            st.left = x0; st.top = y0; st.width = x1 - x0; st.height = y1 - y0;
+            st.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Time's up: the game is about to shoot for you.</summary>
         public void SetTimeUp()
         {
             StyleTape(TapeLook.TimeUp);
             tapeText.text = "time's up!";
-            timerText.text = "";
-            timerFill.style.width = Length.Percent(0);
+            ActiveTimer(out var timer, out var secs, out var card);
+            if (timer != null) timer.Set(0f, Pal.H("#D9472F"));
+            if (secs != null) secs.style.display = DisplayStyle.None;
+            if (card != null) card.style.scale = new Scale(Vector3.one);
             UIRoot.PopIn(tape);
         }
 
@@ -625,16 +607,8 @@ namespace TuitionTakkar
 
         // ---------- power + aim ----------
 
-        public void SetPower(float power, float strikeT)
-        {
-            int pct = Mathf.RoundToInt(power * 100f);
-            powerFill.style.width = Length.Percent(pct);
-            powerFill.style.backgroundColor = PowerColor(Mathf.Clamp01(power));
-            powerPct.text = pct + "%";
-            powerPct.style.color = power > GoodZone ? Pal.H("#FF8A6B") : Pal.Yellow;
-            powerMarker.style.display = pct > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-            powerMarker.style.left = Length.Percent(pct);
-        }
+        /// <summary>Power now lives only in the ring at your finger (no ruler); kept for callers.</summary>
+        public void SetPower(float power, float strikeT) { }
 
         /// <summary>Human aiming: ring at the finger, hint beside the pen.</summary>
         public void SetAim(AimInfo a)

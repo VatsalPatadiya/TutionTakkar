@@ -114,10 +114,14 @@ namespace TuitionTakkar
             HitFloor = false;
         }
 
+        float hitAt = -99f;
+
         void FixedUpdate()
         {
             PenFactory.ReleaseIfOverEdge(Rb, Def);
             PenFactory.KeepOnDesk(Rb, Def);
+            if (Time.fixedTime - hitAt < GameConfig.SpinAssistSeconds)
+                PenFactory.SpinAssist(Rb, Def, GameConfig.SpinAssist);
         }
 
         public PenState Snapshot() => new PenState { pos = Rb.position, rot = Rb.rotation };
@@ -151,6 +155,7 @@ namespace TuitionTakkar
             var other = c.collider.GetComponentInParent<PenBody>();
             if (other != null)
             {
+                hitAt = Time.fixedTime;
                 if (Index < other.Index) GameEvents.RaisePenHitPen(s); // report once per pair
                 return;
             }

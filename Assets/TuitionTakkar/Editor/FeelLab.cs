@@ -143,6 +143,88 @@ namespace TuitionTakkar.EditorTools
             File.WriteAllText("Builds/feel-sweep.txt", sb.ToString());
         }
 
+        // ---------------------------------------------------------------- hit sweep
+
+        static void Tune(Rigidbody rb, float bounce, float angDamp)
+        {
+            foreach (var col in rb.GetComponents<Collider>())
+            {
+                var m = new PhysicsMaterial(col.sharedMaterial.name + "_sweep")
+                {
+                    dynamicFriction = col.sharedMaterial.dynamicFriction,
+                    staticFriction = col.sharedMaterial.staticFriction,
+                    bounciness = bounce,
+                    frictionCombine = col.sharedMaterial.frictionCombine,
+                    bounceCombine = col.sharedMaterial.bounceCombine
+                };
+                col.sharedMaterial = m;
+            }
+            rb.angularDamping = angDamp;
+        }
+
+        /// <summary>Pen-on-pen bounce x spin damping: how much speed the hit passes on, and how long the hit pen spins.</summary>
+        [MenuItem("Tuition Takkar/Feel Lab Hit Sweep")]
+        static void HitSweep()
+        {
+            var g = Physics.gravity; int it = Physics.defaultSolverIterations, vit = Physics.defaultSolverVelocityIterations;
+            float off = Physics.defaultContactOffset, bt = Physics.bounceThreshold;
+            Physics.gravity = GameConfig.Gravity;
+            Physics.defaultSolverIterations = 12;
+            Physics.defaultSolverVelocityIterations = 4;
+            Physics.defaultContactOffset = 0.002f;
+            Physics.bounceThreshold = 0.6f;
+            var sb = new StringBuilder();
+            var pen = Catalog.Pen(Catalog.StarterId);
+            try
+            {
+                foreach (float bounce in new[] { 0.23f, 0.5f, 0.7f, 0.9f })
+                foreach (float ad in new[] { 0.8f, 0.4f, 0.15f })
+                {
+                    sb.AppendLine(string.Format("pen bounce {0:0.00}  spin damping {1:0.00}", bounce, ad));
+                    foreach (float offX in new[] { 0f, 0.045f })
+                    foreach (float p in new[] { 0.6f, 1f })
+                    {
+                        using (var w = new World())
+                        {
+                            var target = w.Pen(pen, new Vector3(offX * W, 0f, 0f), 0f);
+                            var shooter = w.Pen(pen, new Vector3(0f, 0f, -0.07f * W), 0f);
+                            Tune(target, bounce, ad);
+                            Tune(shooter, bounce, ad);
+                            for (int i = 0; i < 10; i++) w.Step();
+                            Flick.Apply(shooter, pen, new Shot { dir = Vector3.forward, power = p, strikeT = 0f });
+                            Vector3 sAt = shooter.position;
+                            bool hit = false;
+                            float spinT = 0f, lastSpin = 0f;
+                            var tr = Follow(w, target, 240 * 5, () =>
+                            {
+                                if (!hit && target.linearVelocity.magnitude > 0.01f * W) { hit = true; sAt = shooter.position; }
+                                if (hit) { spinT += GameConfig.FixedDt; if (target.angularVelocity.magnitude > 0.6f) lastSpin = spinT; }
+                                return shooter.linearVelocity.magnitude > 0.002f * W || shooter.angularVelocity.magnitude > 0.05f;
+                            });
+                            sb.AppendLine(string.Format("    {0} {1,4:0%}: shooter carries on {2,4:0.0} cm | target {3,5:0.0} cm, turns {4,4:0}°, spins for {5:0.00} s, still at {6:0.00} s",
+                                offX == 0f ? "straight " : "off-centre", p, Cm(Vector3.Distance(Flat(shooter.position), Flat(sAt))), tr.dist, tr.yaw, lastSpin, tr.stopT));
+                        }
+                    }
+                    using (var w = new World())
+                    {
+                        var rb = w.Pen(pen, Vector3.zero, 0f);
+                        Tune(rb, bounce, ad);
+                        for (int i = 0; i < 10; i++) w.Step();
+                        Flick.Apply(rb, pen, new Shot { dir = Vector3.forward, power = 0.6f, strikeT = 0.85f });
+                        var tr = Follow(w, rb);
+                        sb.AppendLine(string.Format("    solo end-flick 60%: slides {0,5:0.0} cm, turns {1,4:0}°, still at {2:0.00} s", tr.dist, tr.yaw, tr.stopT));
+                    }
+                }
+            }
+            finally
+            {
+                Physics.gravity = g; Physics.defaultSolverIterations = it; Physics.defaultSolverVelocityIterations = vit;
+                Physics.defaultContactOffset = off; Physics.bounceThreshold = bt;
+            }
+            Directory.CreateDirectory("Builds");
+            File.WriteAllText("Builds/feel-hits.txt", sb.ToString());
+        }
+
         // ---------------------------------------------------------------- world
 
         class World : IDisposable
@@ -255,17 +337,27 @@ namespace TuitionTakkar.EditorTools
                 Flick.Apply(shooter, d, new Shot { dir = Vector3.forward, power = power, strikeT = 0f });
 
                 // Time of first contact: when the target starts moving.
-                float contactT = -1f;
+                float contactT = -1f, spinFor = 0f;
                 Vector3 sAtContact = s0;
                 var tr = Follow(w, target, 240 * 5, () =>
                 {
                     if (contactT < 0f && target.linearVelocity.magnitude > 0.01f * W) { contactT = 0f; sAtContact = shooter.position; }
+                    if (contactT >= 0f)
+                    {
+                        contactT += GameConfig.FixedDt;
+                        if (contactT < GameConfig.SpinAssistSeconds)
+                        {
+                            PenFactory.SpinAssist(target, d, GameConfig.SpinAssist);
+                            PenFactory.SpinAssist(shooter, d, GameConfig.SpinAssist);
+                        }
+                        if (target.angularVelocity.magnitude > 0.6f) spinFor = contactT;
+                    }
                     return shooter.linearVelocity.magnitude > 0.002f * W || shooter.angularVelocity.magnitude > 0.05f;
                 });
                 float shooterAfter = Cm(Vector3.Distance(Flat(shooter.position), Flat(sAtContact)));
                 float gap = GapCm(d, shooter, target);
-                sb.AppendLine(string.Format("power {0,4:0%}: target moves {1,5:0.0} cm, turns {2,4:0}°, stops {3:0.00} s | shooter carries on {4,4:0.0} cm after contact | end gap {5,4:0.0} cm",
-                    power, tr.dist, tr.yaw, tr.stopT, shooterAfter, gap));
+                sb.AppendLine(string.Format("power {0,4:0%}: target moves {1,5:0.0} cm, turns {2,4:0}° (spinning for {6:0.00} s), stops {3:0.00} s | shooter carries on {4,4:0.0} cm after contact | end gap {5,4:0.0} cm",
+                    power, tr.dist, tr.yaw, tr.stopT, shooterAfter, gap, spinFor));
             }
         }
 

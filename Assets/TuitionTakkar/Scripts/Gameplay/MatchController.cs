@@ -154,6 +154,10 @@ namespace TuitionTakkar
         }
 
         Coroutine turnTimer;
+#if UNITY_EDITOR
+        /// <summary>Editor test menu: set the running turn clock to this many seconds.</summary>
+        public static float DevSetSeconds;
+#endif
 
         /// <summary>
         /// 60 seconds to shoot. Last 10: red "hurry!", a tick and a buzz each second.
@@ -170,6 +174,9 @@ namespace TuitionTakkar
                 yield return null;
                 if (gm.Paused && !Online) continue;
                 left -= Time.unscaledDeltaTime;
+#if UNITY_EDITOR
+                if (DevSetSeconds > 0f) { left = DevSetSeconds; DevSetSeconds = 0f; } // editor test menu: set the clock
+#endif
                 gm.UI.Hud.SetTimer(Mathf.Max(0f, left), TurnLimit);
                 int whole = Mathf.CeilToInt(left);
                 if (whole != lastWhole)

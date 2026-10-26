@@ -69,7 +69,12 @@ namespace TuitionTakkar
         /// to ~0.2. With no bounce at all the push never passed on (pens moved as a glued pair);
         /// springy pens made hits look like jumps. This sits in between.
         /// </summary>
-        public const float PenBounceScale = 0.6f;
+        public const float PenBounceScale = 2f; // starter 0.38 -> 0.76: a straight hit stops your pen (~0.5 cm) and the other takes the speed, like real footage
+        /// <summary>After a pen-on-pen hit, this share of the desk's turning friction is pushed back for a while, so the hit pen keeps spinning as it slides.</summary>
+        public const float SpinAssist = 0.9f;
+        public const float SpinAssistSeconds = 0.8f;
+        /// <summary>Forward roll given to a pen as it goes over the edge (rad/s per unit of speed), so the fall is visible from above.</summary>
+        public const float EdgeTumble = 0.5f;
         /// <summary>
         /// Extra grip added to every pen: pens rubbing against each other turn each other,
         /// so contacts curve and spin naturally instead of sliding apart in straight lines.

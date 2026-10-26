@@ -97,7 +97,31 @@ namespace TuitionTakkar
             {
                 rb.constraints = RigidbodyConstraints.None;
                 rb.WakeUp();
+                // Tumble over the edge like a real pen (penfight.xyz): roll forward about the
+                // axis across its travel, so the fall reads clearly from above.
+                var v = rb.linearVelocity;
+                v.y = 0f;
+                if (v.sqrMagnitude > 1e-4f)
+                {
+                    var across = Vector3.Cross(Vector3.up, v.normalized);
+                    rb.angularVelocity += across * Mathf.Clamp(v.magnitude * GameConfig.EdgeTumble, 0f, 14f);
+                }
             }
+        }
+
+        /// <summary>
+        /// A pen that was just hit keeps spinning longer while it slides (real footage: the hit pen
+        /// turns smoothly as it slows). Pushes back part of the desk's turning friction
+        /// (about mu*m*g*L/4 for a rod spinning flat) for a short while after the hit.
+        /// </summary>
+        public static void SpinAssist(Rigidbody rb, PenDef d, float strength)
+        {
+            if (strength <= 0f || rb.constraints != Flat) return;
+            float w = rb.angularVelocity.y;
+            if (Mathf.Abs(w) < 0.4f) return;
+            float mu = GameConfig.DeskFriction * (d.friction + GameConfig.PenGripBoost) * 2f; // measured: contacts brake ~2x nominal
+            float torque = strength * mu * d.mass * -Physics.gravity.y * ScaledLength(d) * 0.25f;
+            rb.AddTorque(Vector3.up * Mathf.Sign(w) * torque, ForceMode.Force);
         }
 
         /// <summary>
