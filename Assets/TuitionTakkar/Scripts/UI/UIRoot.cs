@@ -106,15 +106,28 @@ namespace TuitionTakkar
 
         public void ShowScreen(VisualElement screen)
         {
+            // Rebuilding the screen already showing (pouch tabs, shop filters): swap it in place.
+            // Fading it in from transparent let the light 3D room behind flash through.
+            bool same = screen != null && !string.IsNullOrEmpty(screen.name) && ScreenLayer.childCount > 0
+                        && ScreenLayer[ScreenLayer.childCount - 1].name == screen.name;
             OverlayLayer.Clear();
-            ScreenLayer.Clear();
             Hud.Root.style.display = DisplayStyle.None;
-            if (screen != null)
+            if (screen == null || same || ScreenLayer.childCount == 0)
             {
+                ScreenLayer.Clear();
+                if (screen == null) return;
                 UIKit.Fill(screen);
                 ScreenLayer.Add(screen);
-                FadeIn(screen);
+                if (!same) FadeIn(screen);
+                return;
             }
+            // A different screen: fade it in over the old one (not over the empty room), then drop the old one.
+            var old = new List<VisualElement>(ScreenLayer.Children());
+            foreach (var o in old) o.pickingMode = PickingMode.Ignore;
+            UIKit.Fill(screen);
+            ScreenLayer.Add(screen);
+            FadeIn(screen);
+            screen.schedule.Execute(() => { foreach (var o in old) o.RemoveFromHierarchy(); }).StartingIn(200);
         }
 
         public void ShowHud()

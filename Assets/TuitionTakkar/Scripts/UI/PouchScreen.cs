@@ -14,6 +14,7 @@ namespace TuitionTakkar
         {
             var save = gm.Save;
             var root = UIKit.Col();
+            root.name = "Pouch";   // same name: tab switches swap in place, no fade
             UIKit.Laminate(root);
             root.pickingMode = PickingMode.Position;
 
@@ -44,6 +45,19 @@ namespace TuitionTakkar
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             var body = UIKit.Col().St(s => UIKit.Pad(s, 16, 16, 24, 16));
+
+            // Shop filters keep your place; a new page jumps to the top of the list; a new tab starts at the top.
+            var keep = pendingScroll;
+            pendingScroll = ScrollTo.Top;
+            float keepY = shopScrollY;
+            scroll.verticalScroller.valueChanged += v => { if (tab == 1) shopScrollY = v; };
+            if (tab == 1 && keep != ScrollTo.Top)
+                scroll.RegisterCallback<GeometryChangedEvent>(_ =>
+                {
+                    if (keep == ScrollTo.Keep) scroll.scrollOffset = new Vector2(0f, keepY);
+                    else if (keep == ScrollTo.AllPens && allPensHeader != null) scroll.ScrollTo(allPensHeader);
+                    keep = ScrollTo.Top;
+                });
 
             if (tab == 2)
             {
@@ -110,6 +124,17 @@ namespace TuitionTakkar
         static int shopType = -1, shopRarity = -1, shopPage;
         const int PerPage = 20;
 
+        enum ScrollTo { Top, Keep, AllPens }
+        static ScrollTo pendingScroll = ScrollTo.Top;
+        static float shopScrollY;
+        static VisualElement allPensHeader;
+
+        /// <summary>Filter change: rebuild the shop where you are.</summary>
+        static void Refilter(GameManager gm) { pendingScroll = ScrollTo.Keep; gm.ShowPouch(1); }
+
+        /// <summary>Page change: rebuild with the "All pens" heading at the top.</summary>
+        static void Repage(GameManager gm) { pendingScroll = ScrollTo.AllPens; gm.ShowPouch(1); }
+
         static VisualElement AllPens(GameManager gm)
         {
             var box = UIKit.Col();
@@ -124,22 +149,23 @@ namespace TuitionTakkar
             int pages = Mathf.Max(1, (list.Count + PerPage - 1) / PerPage);
             shopPage = Mathf.Clamp(shopPage, 0, pages - 1);
 
-            box.Add(Section("ALL PENS · " + PenParts.GeneratedCount, list.Count + " match · cheapest first"));
+            allPensHeader = Section("ALL PENS · " + PenParts.GeneratedCount, list.Count + " match · cheapest first");
+            box.Add(allPensHeader);
 
             var types = UIKit.Row().St(s => { s.flexWrap = Wrap.Wrap; s.marginBottom = 6; });
-            types.Add(FilterChip("All types", shopType < 0, () => { shopType = -1; shopPage = 0; gm.ShowPouch(1); }));
+            types.Add(FilterChip("All types", shopType < 0, () => { shopType = -1; shopPage = 0; Refilter(gm); }));
             for (int t = 0; t < PenParts.Types.Length; t++)
             {
                 int tt = t;
-                types.Add(FilterChip(PenParts.Types[t].key, shopType == t, () => { shopType = tt; shopPage = 0; gm.ShowPouch(1); }));
+                types.Add(FilterChip(PenParts.Types[t].key, shopType == t, () => { shopType = tt; shopPage = 0; Refilter(gm); }));
             }
             box.Add(types);
             var rar = UIKit.Row().St(s => { s.flexWrap = Wrap.Wrap; s.marginBottom = 12; });
-            rar.Add(FilterChip("Any", shopRarity < 0, () => { shopRarity = -1; shopPage = 0; gm.ShowPouch(1); }));
+            rar.Add(FilterChip("Any", shopRarity < 0, () => { shopRarity = -1; shopPage = 0; Refilter(gm); }));
             for (int r = 0; r < 4; r++)
             {
                 int rr = r;
-                rar.Add(FilterChip(PenParts.RarityName((PenRarity)r), shopRarity == r, () => { shopRarity = rr; shopPage = 0; gm.ShowPouch(1); },
+                rar.Add(FilterChip(PenParts.RarityName((PenRarity)r), shopRarity == r, () => { shopRarity = rr; shopPage = 0; Refilter(gm); },
                     PenParts.RarityColour((PenRarity)r)));
             }
             box.Add(rar);
@@ -147,10 +173,10 @@ namespace TuitionTakkar
             box.Add(Grid(gm, list.GetRange(shopPage * PerPage, Mathf.Min(PerPage, list.Count - shopPage * PerPage)), false));
 
             var pager = UIKit.Row().St(s => { s.justifyContent = Justify.SpaceBetween; s.marginTop = 4; });
-            pager.Add(UIKit.Btn("‹ Prev", shopPage > 0 ? () => { shopPage--; gm.ShowPouch(1); } : (System.Action)null,
+            pager.Add(UIKit.Btn("‹ Prev", shopPage > 0 ? () => { shopPage--; Repage(gm); } : (System.Action)null,
                 shopPage > 0 ? Pal.Paper : Pal.H("#E9E2D0"), Pal.Ink, UIKit.BodyBold, 14f, 40f, 10f, null, Pal.Ink).St(s => s.width = 96));
             pager.Add(UIKit.Strong("page " + (shopPage + 1) + " of " + pages, 14f, Pal.Ink));
-            pager.Add(UIKit.Btn("Next ›", shopPage < pages - 1 ? () => { shopPage++; gm.ShowPouch(1); } : (System.Action)null,
+            pager.Add(UIKit.Btn("Next ›", shopPage < pages - 1 ? () => { shopPage++; Repage(gm); } : (System.Action)null,
                 shopPage < pages - 1 ? Pal.Paper : Pal.H("#E9E2D0"), Pal.Ink, UIKit.BodyBold, 14f, 40f, 10f, null, Pal.Ink).St(s => s.width = 96));
             box.Add(pager);
             return box;
