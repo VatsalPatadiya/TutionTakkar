@@ -4,12 +4,12 @@ using UnityEngine.UIElements;
 namespace TuitionTakkar
 {
     /// <summary>
-    /// The ring that follows your finger while aiming: translucent disc, grey track,
-    /// orange arc filled to the current power, and the % in the middle.
+    /// The ring that follows your finger while aiming, drawn in pencil (K1): a paper disc with a
+    /// wobbly graphite outline, a red-pen arc filled to the current power, and the % in the middle.
     /// </summary>
     public class PowerRing : VisualElement
     {
-        public const float Size = 76f;
+        public const float Size = 72f;
         float value;
         readonly Label label;
 
@@ -23,7 +23,7 @@ namespace TuitionTakkar
             style.justifyContent = Justify.Center;
             generateVisualContent += Draw;
 
-            label = UIKit.Disp("0%", 19f, Pal.Ink, TextAnchor.MiddleCenter);
+            label = UIKit.Text("0%", UIKit.Marker, 16f, Sketch.Graphite, TextAnchor.MiddleCenter, false);
             label.pickingMode = PickingMode.Ignore;
             Add(label);
         }
@@ -54,35 +54,44 @@ namespace TuitionTakkar
         {
             var p = ctx.painter2D;
             var c = new Vector2(Size * 0.5f, Size * 0.5f);
-            const float disc = 29f, ring = 34f;
+            const float r = 29f;
 
-            p.fillColor = new Color(1f, 1f, 1f, 0.6f);
-            p.BeginPath();
-            p.Arc(c, disc, Deg(0f), Deg(360f));
-            p.ClosePath();
-            p.Fill();
+            // Soft pencil shadow, then the paper disc.
+            p.fillColor = new Color(0f, 0f, 0f, 0.16f);
+            p.BeginPath(); p.Arc(c + new Vector2(2.5f, 3.5f), r, Deg(0f), Deg(360f)); p.ClosePath(); p.Fill();
+            p.fillColor = Sketch.PaperC;
+            p.BeginPath(); p.Arc(c, r, Deg(0f), Deg(360f)); p.ClosePath(); p.Fill();
 
-            p.lineWidth = 2f;
-            p.strokeColor = Pal.Ink;
-            p.BeginPath();
-            p.Arc(c, disc, Deg(0f), Deg(360f));
-            p.ClosePath();
-            p.Stroke();
-
-            p.lineWidth = 7f;
-            p.strokeColor = new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.18f);
-            p.BeginPath();
-            p.Arc(c, ring, Deg(0f), Deg(360f));
-            p.Stroke();
+            // Wobbly graphite outline: two slightly offset loose circles.
+            p.lineJoin = LineJoin.Round;
+            p.strokeColor = Sketch.Graphite; p.lineWidth = 2.6f;
+            Wobbly(p, c, r, 0, 0.9f);
+            p.strokeColor = Sketch.A(Sketch.Graphite, 0.4f); p.lineWidth = 1f;
+            Wobbly(p, c + new Vector2(1f, 0.6f), r - 1.5f, 40, 1.1f);
 
             if (value > 0.005f)
             {
-                p.strokeColor = Pal.Orange;
+                p.strokeColor = Sketch.RedPen;
+                p.lineWidth = 6f;
                 p.lineCap = LineCap.Round;
                 p.BeginPath();
-                p.Arc(c, ring, Deg(-90f), Deg(-90f + 360f * Mathf.Min(value, 0.999f)));
+                p.Arc(c, r, Deg(-90f), Deg(-90f + 360f * Mathf.Min(value, 0.999f)));
                 p.Stroke();
             }
+        }
+
+        static void Wobbly(Painter2D p, Vector2 c, float r, int seed, float wob)
+        {
+            const int n = 28;
+            p.BeginPath();
+            for (int i = 0; i <= n; i++)
+            {
+                float a = i / (float)n * Mathf.PI * 2f;
+                float rr = r + Sketch.Wob(seed + (i % n), wob);
+                var pt = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rr;
+                if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.Stroke();
         }
     }
 }

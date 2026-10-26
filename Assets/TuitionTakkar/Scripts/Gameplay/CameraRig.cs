@@ -12,7 +12,8 @@ namespace TuitionTakkar
     {
         /// <summary>Viewport rect (0..1, y up) the bench must fit inside. Set by the UI.</summary>
         public Rect safeArea = new Rect(0.036f, 0.12f, 0.928f, 0.70f);
-        public float pitch = 68f;
+        /// <summary>Tilt: K1 shows the desk from the front at an angle, so the top reads as a trapezoid.</summary>
+        public float pitch = 54f;
         /// <summary>0 = player 0 at the bottom of the screen. Online player 1 looks from the other side (180).</summary>
         public float yaw;
 

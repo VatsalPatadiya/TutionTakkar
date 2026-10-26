@@ -68,12 +68,12 @@ namespace TuitionTakkar
             lightGo.transform.rotation = Quaternion.Euler(70f, -25f, 0f);
             var l = lightGo.AddComponent<Light>();
             l.type = LightType.Directional;
-            l.color = Pal.H("#F4FBF7");
+            l.color = Pal.H("#FFF6E6");
             l.intensity = 0.62f;
             l.shadows = LightShadows.Soft;
             l.shadowStrength = 0.45f;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = Pal.H("#5E6E68");
+            RenderSettings.ambientLight = Pal.H("#6E675C");
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.reflectionIntensity = 0f;
 
@@ -82,8 +82,8 @@ namespace TuitionTakkar
             camGo.transform.SetParent(transform, false);
             Cam = camGo.AddComponent<Camera>();
             Cam.clearFlags = CameraClearFlags.SolidColor;
-            Cam.backgroundColor = Pal.H("#C9BFA8");
-            Cam.fieldOfView = 24f;
+            Cam.backgroundColor = Pal.H("#D8D2C2");
+            Cam.fieldOfView = 30f; // a little more perspective: the desk reads as a trapezoid (K1)
             Cam.nearClipPlane = 0.1f;
             Cam.farClipPlane = 300f;
             camGo.tag = "MainCamera";
@@ -110,26 +110,27 @@ namespace TuitionTakkar
 
             float t = GameConfig.DeskThickness;
 
-            // Desk top (the only surface pens play on).
+            // Desk top (the only surface pens play on): an old wooden school desk, carved by past
+            // students (mockup K1). One texture covers the whole top.
             var top = GameObject.CreatePrimitive(PrimitiveType.Cube);
             top.name = "DeskTop";
             top.transform.SetParent(deskRoot, false);
             top.transform.localPosition = new Vector3(0f, -t * 0.5f, 0f);
             top.transform.localScale = new Vector3(deskW, t, deskD);
+            int texW = PartyDesk ? 512 : 256, texH = 512;
             top.GetComponent<MeshRenderer>().sharedMaterial =
-                ArtLib.LitTextured(ArtLib.Laminate, new Vector2(deskW / 1.6f, deskD / 1.6f));
+                ArtLib.LitTextured(ArtLib.DeskWood(texW, texH), Vector2.one);
             top.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             top.GetComponent<Collider>().sharedMaterial = DeskMaterial;
             top.AddComponent<Surface>().kind = SurfaceKind.Desk;
 
-            // Rim around the laminate, the darker front edge, the front panel and steel legs,
-            // like "D · Tuition desk, front view". All visual only: the playable top stays
-            // exactly DeskWidth x DeskDepth.
+            // A thin darker wood rim, the thick front edge, black steel legs and a soft shadow on
+            // the floor. All visual only: the playable top stays exactly DeskWidth x DeskDepth.
             const float rim = RimSize;
             Visual(PrimitiveType.Cube, "Rim", new Vector3(0f, -t * 0.5f - 0.01f, 0f),
-                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#9DBBA9"));
-            // Front edge + panels: on the near side only for the normal desk, on all four sides
-            // for the square party desk (every player looks at it from a different side).
+                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#8A5326"));
+            // Front edge: on the near side only for the normal desk, on all four sides for the
+            // square party desk (every player looks at it from a different side).
             int sides = PartyDesk ? 4 : 1;
             for (int k = 0; k < sides; k++)
             {
@@ -138,26 +139,27 @@ namespace TuitionTakkar
                 float halfFar = across ? HalfW : HalfD;
                 float span = across ? deskD : deskW;
                 var edge = Visual(PrimitiveType.Cube, "FrontEdge", turn * new Vector3(0f, -t * 0.5f - 0.01f, -halfFar - rim - 0.005f),
-                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#7FA08C"));
+                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#7A4620"));
                 edge.transform.localRotation = turn;
-                var panel = Visual(PrimitiveType.Cube, "FrontPanel", turn * new Vector3(0f, -t - ApronHeight * 0.5f, -halfFar + 0.06f),
-                    new Vector3(span - 0.14f, ApronHeight, 0.06f), Pal.LaminateShadow);
-                panel.transform.localRotation = turn;
-            }
-            if (!PartyDesk)
-            {
-                Visual(PrimitiveType.Cube, "SidePanelL", new Vector3(-HalfW + 0.08f, -t - ApronHeight * 0.5f, 0f),
-                    new Vector3(0.05f, ApronHeight, deskD - 0.2f), Pal.LaminateShadow);
-                Visual(PrimitiveType.Cube, "SidePanelR", new Vector3(HalfW - 0.08f, -t - ApronHeight * 0.5f, 0f),
-                    new Vector3(0.05f, ApronHeight, deskD - 0.2f), Pal.LaminateShadow);
             }
 
             float legH = GameConfig.DeskHeight - t;
-            float lx = HalfW - 0.12f, lz = HalfD - 0.12f;
+            float lx = HalfW - 0.16f, lz = HalfD - 0.16f;
             foreach (var p in new[] { new Vector2(lx, lz), new Vector2(-lx, lz), new Vector2(lx, -lz), new Vector2(-lx, -lz) })
                 Visual(PrimitiveType.Cube, "Leg", new Vector3(p.x, -t - legH * 0.5f, p.y),
-                    new Vector3(0.12f, legH, 0.12f), Pal.H("#8A949B"));
+                    new Vector3(0.14f, legH, 0.14f), Pal.H("#1E1E1E"));
 
+            var shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            shadow.name = "DeskShadow";
+            Destroy(shadow.GetComponent<Collider>());
+            shadow.transform.SetParent(deskRoot, false);
+            shadow.transform.localPosition = new Vector3(0.25f, -GameConfig.DeskHeight + 0.02f, -0.35f);
+            shadow.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            shadow.transform.localScale = new Vector3(deskW * 1.45f, deskD * 1.25f, 1f);
+            var sr = shadow.GetComponent<MeshRenderer>();
+            sr.sharedMaterial = ArtLib.Transparent(ArtLib.Blob, new Color(0f, 0f, 0f, 0.38f));
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
         }
 
         GameObject Visual(PrimitiveType t, string n, Vector3 pos, Vector3 scale, Color c)

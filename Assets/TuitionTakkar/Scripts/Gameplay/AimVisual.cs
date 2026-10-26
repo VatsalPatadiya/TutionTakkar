@@ -17,9 +17,9 @@ namespace TuitionTakkar
             var go = new GameObject("AimVisual");
             go.transform.SetParent(parent, false);
             var a = go.AddComponent<AimVisual>();
-            a.band = a.MakeLine("Band", Pal.Ink, 0.035f, 6f);
-            a.path = a.MakeLine("Path", Color.white, 0.055f, 5f);
-            a.head = a.MakeLine("Head", Color.white, 0.055f, 0f);
+            a.band = a.MakeLine("Band", Sketch.Graphite, 0.035f, 6f);   // pencil dashes to your finger
+            a.path = a.MakeLine("Path", Sketch.PaperC, 0.06f, 5f);      // paper-white dashed aim (K1)
+            a.head = a.MakeLine("Head", Sketch.PaperC, 0.06f, 0f);
             a.head.textureMode = LineTextureMode.Stretch;
             a.head.material.mainTexture = null;
 

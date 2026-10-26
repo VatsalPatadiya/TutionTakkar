@@ -5,32 +5,39 @@ using UnityEngine.UIElements;
 namespace TuitionTakkar
 {
     /// <summary>
-    /// In-match HUD (mockups TE / TP): a centred cork board at the top with the players' cards
-    /// and a pause badge pinned to its corner; the turn timer is the active card's border,
-    /// draining clockwise (red in the last 10 seconds, with the desk edge glowing). A quiet
-    /// "your turn" label on the desk, a power ring at your finger, a hint beside your pen and
-    /// "edge!" warnings. No wall clock and no power ruler.
+    /// In-match HUD (mockup K9): a classroom wall with a compact blackboard, both players chalked
+    /// side by side ("vs"), an arrow and a chalk circle timer by whoever is shooting, yellow boxes
+    /// for rounds won (3–4 players: a 2 x 2 grid of names, out pens crossed off), a
+    /// chalk ledge, a torn paper chit with "your turn" in blue ballpoint, a sketched paper pause
+    /// button, a pencil power ring at your finger, a hint beside your pen and "edge!" warnings.
+    /// The desk glows red at the edge in the last 10 seconds.
     /// </summary>
     public class HudView
     {
         public VisualElement Root { get; }
         readonly GameManager gm;
 
-        // Layout (panel units, the 390 x 844 reference).
-        const float WallHeight = 66f;               // C1: one slim cork strip (was a 168 tall board)
-        const float TapeTop = WallHeight + 18f;     // "your turn" label at the far end of the desk
-        const float PauseTop = WallHeight + 8f;     // pause button just under the strip, right side
-        const float DeskNearEdgeGap = 26f;                     // just the desk's front edge (no ruler any more)
+        // Layout (panel units, the 390 x 844 reference), as in K9: a short board leaves the desk more room.
+        const float BoardTopMin = 44f;     // blackboard top without a notch
+        const float BoardHeight = 128f;
+        const float BoardSide = 14f;
+        const float WallBelowBoard = 42f;  // ledge + a strip of wall under the board
+        const float PauseTopMin = 12f;
+        const float DeskNearEdgeGap = 26f; // just the desk's front edge (legs may run off the bottom)
 
         float topInset, bottomInset;
-        public float TopClearance => WallHeight + 12f + topInset;
+        float boardTop = BoardTopMin;
+        float WallHeight => boardTop + BoardHeight + WallBelowBoard;
+        public float TopClearance => WallHeight + 22f;
         public float BottomClearance => DeskNearEdgeGap + bottomInset;
 
-        readonly VisualElement wall;
-        readonly VisualElement wallContent;
-        readonly Sticky left, right;
-        readonly Label roundLabel;
-        readonly VisualElement tape;      // quiet "your turn" label on the desk
+        readonly VisualElement wall, wallShade, board, boardShadow, ledge;
+        readonly VisualElement duoBox, partyBox;
+        readonly Label title, dateNote;
+        readonly ChalkRow left, right;
+        readonly VisualElement chitRow;
+        readonly PaperChit chit;
+        readonly SketchArrow chitArrow;
         readonly Label tapeText;
         readonly VisualElement deskGlow;  // red edge round the desk in the last 10 seconds
         readonly Label autoChip;
@@ -42,25 +49,16 @@ namespace TuitionTakkar
         readonly EdgeWarning[] edges = new EdgeWarning[4];
         Label debugShot;   // development builds only: last shot's numbers, for tuning from a mirrored phone
 
-        class Sticky
+        /// <summary>One chalked line on the board: arrow (whose turn), name, score, round boxes, timer.</summary>
+        class ChalkRow
         {
             public VisualElement root;
-            public Label name, score, initial, secs;
+            public SketchArrow arrow;
+            public Label name, score;
+            public VisualElement strike;
+            public ChalkBox[] boxes;
+            public ChalkTimer timer;
             public bool active;
-            public BorderTimer timer;
-            public VisualElement[] dots = new VisualElement[GameConfig.RoundsToWin];
-        }
-
-        /// <summary>The seconds badge under "turn!" on the active card.</summary>
-        static Label SecondsBadge()
-        {
-            var l = UIKit.Disp("", 13f, Color.white, TextAnchor.MiddleCenter).St(s =>
-            {
-                s.minWidth = 28; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Ink;
-                UIKit.Pad(s, 0, 5, 0, 5); s.display = DisplayStyle.None;
-            });
-            l.pickingMode = PickingMode.Ignore;
-            return l;
         }
 
         class EdgeWarning
@@ -77,10 +75,10 @@ namespace TuitionTakkar
             UIKit.Fill(Root);
             Root.pickingMode = PickingMode.Ignore;
 
-            // ----- aim layer (behind the bars) -----
+            // ----- aim layer (behind the wall) -----
             for (int i = 0; i < edges.Length; i++) edges[i] = MakeEdgeWarning();
 
-            penHint = UIKit.Text("grab near the cap = spin", UIKit.HandBold, 16f, Pal.Ink, TextAnchor.MiddleLeft, false);
+            penHint = UIKit.Text("grab near the cap = spin", UIKit.HandBold, 16f, Sketch.Ballpoint, TextAnchor.MiddleLeft, false);
             penHint.style.position = Position.Absolute;
             penHint.pickingMode = PickingMode.Ignore;
             penHint.style.display = DisplayStyle.None;
@@ -91,100 +89,129 @@ namespace TuitionTakkar
             ring.style.display = DisplayStyle.None;
             Root.Add(ring);
 
-            // ----- classroom wall strip -----
+            // ----- classroom wall -----
+            wallShade = UIKit.El().St(s =>
+            {
+                // The wall's shadow falling on the floor tiles.
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.height = 120;
+                s.backgroundImage = new StyleBackground(ArtLib.Gradient(new Color(0f, 0f, 0f, 0.2f), new Color(0f, 0f, 0f, 0f)));
+            });
+            Root.Add(wallShade);
+
             wall = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.height = WallHeight;
-                s.backgroundColor = Pal.H("#E8E0CB");
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0;
+                s.backgroundColor = Pal.H("#40594A");
+                s.backgroundImage = new StyleBackground(ArtLib.Gradient(Pal.H("#46604C"), Pal.H("#3A5141")));
             });
-            wall.pickingMode = PickingMode.Ignore;
-
-            // C1: one slim cork strip across the top: your pill on the left, theirs on the right, the round
-            // tag in the middle (3–4 players: a mini card each).
-            var cork = UIKit.El().St(s =>
+            wall.Add(UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 0; s.bottom = 0;
-                s.borderBottomWidth = 5; s.borderBottomColor = Pal.H("#7A4E26");
-                s.backgroundColor = Pal.H("#C99A61");
-                s.backgroundImage = new StyleBackground(ArtLib.Cork);
-                s.backgroundRepeat = new BackgroundRepeat(Repeat.Repeat, Repeat.Repeat);
-                s.backgroundSize = new BackgroundSize(new Length(32f), new Length(32f));
-            });
-            cork.pickingMode = PickingMode.Ignore;
-            var pair = UIKit.Row().St(s =>
-            {
-                s.position = Position.Absolute; s.left = 10; s.right = 10; s.top = 0; s.bottom = 0;
-                s.justifyContent = Justify.SpaceBetween;
-            });
-            pair.pickingMode = PickingMode.Ignore;
-            left = MakePill(Pal.Yellow, false);
-            right = MakePill(Pal.Teal, true);
-            roundLabel = UIKit.Text("round 1\nof 5", UIKit.HandBold, 12f, Pal.H("#3A230E"), TextAnchor.MiddleCenter, false).St(s =>
-            {
-                s.backgroundColor = Pal.H("#FBF8EF"); UIKit.Pad(s, 2, 7, 2, 7); s.whiteSpace = WhiteSpace.Normal;
-            });
-            roundLabel.pickingMode = PickingMode.Ignore;
-            pair.Add(left.root, roundLabel, right.root);
-            cork.Add(pair);
-            partyRow = UIKit.Row().St(s =>
-            {
-                s.position = Position.Absolute; s.left = 8; s.right = 8; s.top = 0; s.bottom = 0;
-                s.display = DisplayStyle.None;
-            });
-            partyRow.pickingMode = PickingMode.Ignore;
-            cork.Add(partyRow);
-            wall.Add(cork);
-
-
-            // Everything on the wall sits in one container so notch insets can push it down together.
-            wallContent = UIKit.El("WallContent");
-            UIKit.Fill(wallContent);
-            wallContent.pickingMode = PickingMode.Ignore;
-            foreach (var child in new System.Collections.Generic.List<VisualElement>(wall.Children()))
-                wallContent.Add(child);
-            wall.Add(wallContent);
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 0; s.height = 10;
+                s.backgroundColor = Pal.H("#2E3B32");
+            }));
             Root.Add(wall);
 
-            // Pause: a round button just under the strip on the right (over the floor beside the desk's far end).
-            pauseBtn = UIKit.Btn("", () => gm.Pause(), Pal.Paper, Pal.Ink, UIKit.Body, 10f, 36f, 18f);
-            pauseBtn.style.width = 36;
-            UIKit.Pad(pauseBtn.style, 0);
-            pauseBtn.style.position = Position.Absolute;
-            pauseBtn.style.right = 10;
-            pauseBtn.style.top = PauseTop;
-            pauseBtn.style.alignItems = Align.Center;
-            pauseBtn.style.justifyContent = Justify.Center;
-            pauseBtn.style.borderBottomWidth = 3; pauseBtn.style.borderBottomColor = new Color(0f, 0f, 0f, 0.2f);
-            pauseBtn.tooltip = "Pause";
-            var bars = UIKit.Row();
-            bars.pickingMode = PickingMode.Ignore;
-            for (int i = 0; i < 2; i++)
-                bars.Add(UIKit.El().St(s => { s.width = 4; s.height = 13; UIKit.Radius(s, 1); s.backgroundColor = Pal.Ink; s.marginLeft = 2; s.marginRight = 2; }));
-            pauseBtn.Add(bars);
-            Root.Add(pauseBtn);
-
-            // ----- quiet turn label on the desk -----
-            tape = UIKit.Col().St(s =>
+            // Blackboard: wooden frame lit from above (lighter top, darker bottom), a drop shadow, green slate.
+            boardShadow = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; s.top = TapeTop; s.left = 0; s.right = 0; s.alignItems = Align.Center;
+                s.position = Position.Absolute; s.left = BoardSide + 2; s.right = BoardSide - 2; s.height = BoardHeight;
+                s.backgroundColor = new Color(0f, 0f, 0f, 0.28f); UIKit.Radius(s, 4);
             });
-            tape.pickingMode = PickingMode.Ignore;
-            tapeText = UIKit.Text("your turn", UIKit.HandBold, 17f, new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.65f), TextAnchor.MiddleCenter, false);
-            tape.Add(tapeText);
-            Root.Add(tape);
-
-            // Red glow round the desk edge in the last 10 seconds (placed over the desk each update).
-            deskGlow = UIKit.El().St(s =>
+            Root.Add(boardShadow);
+            board = UIKit.El().St(s =>
             {
-                s.position = Position.Absolute; UIKit.Border(s, 4f, new Color(0.85f, 0.28f, 0.18f, 0.6f)); UIKit.Radius(s, 6);
+                s.position = Position.Absolute; s.left = BoardSide; s.right = BoardSide; s.height = BoardHeight;
+                s.borderTopWidth = s.borderBottomWidth = s.borderLeftWidth = s.borderRightWidth = 9;
+                s.borderTopColor = Pal.H("#82603D"); s.borderLeftColor = Pal.H("#74532F");
+                s.borderRightColor = Pal.H("#5E4024"); s.borderBottomColor = Pal.H("#523720");
+                UIKit.Radius(s, 3);
+                s.backgroundColor = Pal.H("#26392F");
+                s.backgroundImage = new StyleBackground(ArtLib.Chalkboard);
+                s.overflow = Overflow.Hidden;
+            });
+            Root.Add(board);
+
+            // Chalk notes left over from class, small in the bottom corners.
+            var notesL = Sketch.Chalk("Std. 9-A", 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.left = 10; s.bottom = 3; });
+            dateNote = Sketch.Chalk("Date: " + System.DateTime.Now.ToString("dd/MM"), 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.right = 10; s.bottom = 3; });
+            board.Add(notesL, dateNote);
+
+            // Centred heading: "PEN FIGHT · round 2 of 5" / "LAST PEN STANDING".
+            title = Sketch.Chalk("PEN FIGHT", 13f, new Color(1f, 1f, 1f, 0.6f), TextAnchor.MiddleCenter).St(s =>
+            {
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = 4;
+            });
+            board.Add(title);
+
+            // 2 players: you on the left, them on the right, "vs" between.
+            duoBox = UIKit.Row(Align.FlexStart).St(s =>
+            {
+                s.position = Position.Absolute; s.left = 14; s.right = 14; s.top = 24; s.justifyContent = Justify.SpaceBetween;
+            });
+            left = MakeColumn(false);
+            right = MakeColumn(true);
+            var vs = Sketch.Chalk("vs", 26f, new Color(1f, 1f, 1f, 0.55f), TextAnchor.MiddleCenter).St(s => s.marginTop = 16);
+            duoBox.Add(left.root, vs, right.root);
+            board.Add(duoBox);
+
+            // 3–4 players: a 2 x 2 grid of names (filled by SetParty).
+            partyBox = UIKit.Row().St(s =>
+            {
+                s.position = Position.Absolute; s.left = 12; s.right = 12; s.top = 26; s.flexWrap = Wrap.Wrap;
                 s.display = DisplayStyle.None;
             });
+            board.Add(partyBox);
+
+            // Chalk ledge under the board, with two sticks of chalk.
+            ledge = UIKit.El().St(s =>
+            {
+                s.position = Position.Absolute; s.left = 50; s.right = 50; s.height = 8;
+                s.backgroundColor = Pal.H("#8A6440"); s.borderBottomWidth = 2; s.borderBottomColor = Pal.H("#5E4024");
+            });
+            ledge.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 60; s.top = -5; s.width = 20; s.height = 5; UIKit.Radius(s, 2); s.backgroundColor = Sketch.ChalkWhite; }));
+            ledge.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 90; s.top = -4; s.width = 14; s.height = 5; UIKit.Radius(s, 2); s.backgroundColor = Sketch.ChalkYellow; }));
+            Root.Add(ledge);
+
+            // Pause: a sketched paper square, top right (just over the board's frame).
+            pauseBtn = new Button(() => gm.Pause()) { tooltip = "Pause" };
+            pauseBtn.style.position = Position.Absolute;
+            pauseBtn.style.right = 18;
+            pauseBtn.style.width = 44; pauseBtn.style.height = 44;
+            pauseBtn.style.backgroundColor = Color.clear;
+            UIKit.Border(pauseBtn.style, 0f, Color.clear);
+            UIKit.Pad(pauseBtn.style, 0);
+            pauseBtn.style.marginLeft = pauseBtn.style.marginRight = pauseBtn.style.marginTop = pauseBtn.style.marginBottom = 0;
+            pauseBtn.style.alignItems = Align.FlexStart; pauseBtn.style.justifyContent = Justify.FlexStart;
+            var sq = new SketchSquare(38f);
+            sq.pickingMode = PickingMode.Ignore;
+            sq.Add(new PencilPause());
+            pauseBtn.Add(sq);
+            Root.Add(pauseBtn);
+
+            // ----- the torn paper chit under the board: "your turn" -----
+            chitRow = UIKit.Row().St(s =>
+            {
+                s.position = Position.Absolute; s.left = 0; s.right = 0; s.justifyContent = Justify.Center;
+            });
+            chit = new PaperChit("your turn", 20f);
+            chitArrow = new SketchArrow(Sketch.Ballpoint, 20f, 14f, 2.6f).St(s => s.marginRight = 6);
+            chit.Insert(0, chitArrow);
+            tapeText = chit.label;
+            UIKit.Rot(chit, -2f);
+            chitRow.Add(chit);
+            Root.Add(chitRow);
+
+            // Red-pen outline round the desk in the last 10 seconds (K11), traced over the desk's
+            // real (tilted) corners each update.
+            deskGlow = UIKit.El().St(s => s.display = DisplayStyle.None);
+            UIKit.Fill(deskGlow);
             deskGlow.pickingMode = PickingMode.Ignore;
+            deskGlow.generateVisualContent += DrawDeskOutline;
             Root.Add(deskGlow);
 
             autoChip = UIKit.Strong("AUTO SHOT", 12f, Color.white, TextAnchor.MiddleCenter).St(s =>
             {
-                s.position = Position.Absolute; s.backgroundColor = Pal.Ink; UIKit.Pad(s, 6, 10, 6, 10); UIKit.Radius(s, 14);
+                s.position = Position.Absolute; s.backgroundColor = Sketch.Graphite; UIKit.Pad(s, 6, 10, 6, 10); UIKit.Radius(s, 14);
                 s.letterSpacing = 0.4f; s.display = DisplayStyle.None;
             });
             autoChip.pickingMode = PickingMode.Ignore;
@@ -211,93 +238,102 @@ namespace TuitionTakkar
             ring.BringToFront();
             penHint.BringToFront();
 
-            // Nothing on the HUD may swallow a touch meant for a pen (only the pause badge is a button).
+            Layout();
+            // Nothing on the HUD may swallow a touch meant for a pen (only the pause button is a button).
             UIKit.PassThrough(Root);
         }
 
         // ---------- layout ----------
 
-        /// <summary>Push the bars clear of notches / home indicators (panel units).</summary>
+        /// <summary>Push the wall clear of notches / home indicators (panel units).</summary>
         public void ApplyInsets(float top, float bottom)
         {
             topInset = top;
             bottomInset = bottom;
-            wall.style.height = WallHeight + top;
-            wallContent.style.top = top; // keep the board, round tag and clock below the notch
-            tape.style.top = TapeTop + top;
-            pauseBtn.style.top = PauseTop + top;
+            Layout();
         }
 
-        // ---------- stickies ----------
-
-        static VisualElement Avatar(out Label initial, float size)
+        void Layout()
         {
-            var av = UIKit.El().St(s =>
-            {
-                s.width = size; s.height = size; UIKit.Radius(s, size * 0.5f); s.backgroundColor = Color.white;
-                UIKit.Border(s, 2f, Pal.Ink); s.alignItems = Align.Center; s.justifyContent = Justify.Center; s.flexShrink = 0;
-            });
-            av.pickingMode = PickingMode.Ignore;
-            initial = UIKit.Disp("Y", size * 0.5f, Pal.Ink, TextAnchor.MiddleCenter);
-            av.Add(initial);
-            return av;
+            float pauseTop = Mathf.Max(PauseTopMin, topInset + 4f);
+            boardTop = Mathf.Max(BoardTopMin, pauseTop + 26f);   // the pause button overlaps the frame a little
+            float wallH = WallHeight;
+            wall.style.height = wallH;
+            wallShade.style.top = wallH;
+            board.style.top = boardTop;
+            boardShadow.style.top = boardTop + 7f;
+            ledge.style.top = boardTop + BoardHeight - 2f;
+            chitRow.style.top = boardTop + BoardHeight + 14f;
+            pauseBtn.style.top = pauseTop;
         }
 
-        /// <summary>C1 pill: avatar, name over round dots, big score, seconds badge; the border is the timer.</summary>
-        Sticky MakePill(Color bg, bool mirrored)
-        {
-            var st = new Sticky();
-            st.root = UIKit.Row().St(s =>
-            {
-                s.backgroundColor = bg; UIKit.Pad(s, 6, 9, 6, 9); UIKit.Radius(s, 4);
-                s.borderBottomWidth = 3; s.borderBottomColor = new Color(0f, 0f, 0f, 0.15f);
-                s.flexDirection = mirrored ? FlexDirection.RowReverse : FlexDirection.Row;
-            });
-            st.root.pickingMode = PickingMode.Ignore;
-            var av = Avatar(out st.initial, 26f);
+        // ---------- chalk rows ----------
 
-            var col = UIKit.Col().St(s => { s.marginLeft = mirrored ? 0 : 7; s.marginRight = mirrored ? 7 : 0; s.alignItems = mirrored ? Align.FlexEnd : Align.FlexStart; });
-            col.pickingMode = PickingMode.Ignore;
-            st.name = UIKit.Disp("YOU", 13f, Pal.Ink);
-            var dots = UIKit.Row().St(s => s.marginTop = 3);
-            for (int i = 0; i < st.dots.Length; i++)
+        /// <summary>K9 column: (arrow) name (timer) over a big score and the round boxes. Mirrored = right side.</summary>
+        ChalkRow MakeColumn(bool mirrored)
+        {
+            var r = new ChalkRow();
+            var align = mirrored ? Align.FlexEnd : Align.FlexStart;
+            r.root = UIKit.Col().St(s => s.alignItems = align);
+            var top = UIKit.Row().St(s => s.height = 28);
+            r.arrow = new SketchArrow(Sketch.ChalkYellow, 18f, 14f, 2.8f).St(s => { s.marginRight = 5; s.display = DisplayStyle.None; });
+            r.name = Sketch.Chalk("", 22f, Color.white);
+            r.strike = UIKit.El();
+            r.timer = new ChalkTimer(26f).St(s => { s.marginLeft = 6; s.display = DisplayStyle.None; });
+            top.Add(r.arrow, r.name, r.timer);
+            var bottom = UIKit.Row().St(s => { s.marginTop = 2; s.flexDirection = mirrored ? FlexDirection.RowReverse : FlexDirection.Row; });
+            r.score = Sketch.Chalk("", 34f, Color.white);
+            var boxes = UIKit.Row().St(s => { s.marginLeft = mirrored ? 0 : 8; s.marginRight = mirrored ? 8 : 0; });
+            r.boxes = new ChalkBox[GameConfig.RoundsToWin];
+            for (int i = 0; i < r.boxes.Length; i++)
             {
-                st.dots[i] = UIKit.Dot(9f, Pal.Green, false, Pal.Ink);
-                if (i > 0) st.dots[i].style.marginLeft = 3;
-                dots.Add(st.dots[i]);
+                r.boxes[i] = new ChalkBox();
+                if (i > 0) r.boxes[i].style.marginLeft = 4;
+                boxes.Add(r.boxes[i]);
             }
-            col.Add(st.name, dots);
-
-            st.score = UIKit.Disp("0", 30f, Pal.Ink).St(s => { s.marginLeft = 7; s.marginRight = 7; });
-            st.secs = SecondsBadge();
-            st.timer = new BorderTimer();
-            st.root.Add(st.timer, av, col, st.score, st.secs);
-            return st;
+            bottom.Add(r.score, boxes);
+            r.root.Add(top, bottom);
+            return r;
         }
 
-        void SetSticky(Sticky st, string name, int score, Color bg)
+        /// <summary>3–4 players: one cell of the 2 x 2 grid: (arrow) name (timer), or the name crossed off with its place.</summary>
+        ChalkRow MakeCell()
         {
-            st.root.style.backgroundColor = bg;
-            st.name.text = name.ToUpperInvariant();
-            st.initial.text = name.Length > 0 ? name.Substring(name.StartsWith("Player ") ? 7 : 0, 1).ToUpperInvariant() : "?";
-            st.score.text = score.ToString();
-            for (int i = 0; i < st.dots.Length; i++)
+            var r = new ChalkRow { boxes = new ChalkBox[0] };
+            r.root = UIKit.Row().St(s => { s.width = Length.Percent(50); s.height = 40; });
+            r.arrow = new SketchArrow(Sketch.ChalkYellow, 16f, 13f, 2.6f).St(s => { s.marginRight = 4; s.display = DisplayStyle.None; });
+            var nameBox = UIKit.El().St(s => s.justifyContent = Justify.Center);
+            r.name = Sketch.Chalk("", 21f, Color.white);
+            r.strike = UIKit.El().St(s =>
             {
-                bool on = i < score;
-                st.dots[i].style.backgroundColor = on ? Pal.Green : Color.clear;
-                UIKit.Border(st.dots[i].style, on ? 0f : 2f, Pal.Ink);
-            }
+                s.position = Position.Absolute; s.left = -2; s.top = 13; s.height = 2; s.width = 60;
+                s.backgroundColor = new Color(1f, 1f, 1f, 0.85f); s.display = DisplayStyle.None;
+            });
+            UIKit.Rot(r.strike, -3f);
+            nameBox.Add(r.name, r.strike);
+            r.score = Sketch.Chalk("", 14f, Sketch.ChalkRed).St(s => s.marginLeft = 5);
+            r.timer = new ChalkTimer(26f).St(s => { s.marginLeft = 6; s.display = DisplayStyle.None; });
+            r.root.Add(r.arrow, nameBox, r.score, r.timer);
+            return r;
         }
 
-        /// <summary>The shooter's pill: its border becomes the timer (when someone is on the clock).</summary>
-        void MarkTurn(Sticky st, bool active, bool timed)
+        static string Short(string name, int max) => name.Length > max ? name.Substring(0, max) : name;
+
+        void SetRow(ChalkRow r, string name, Color chalk, int score, bool showScore)
         {
-            st.active = active;
-            st.root.style.opacity = active ? 1f : 0.85f;
-            st.timer.Shown = active && timed;
-            st.timer.Set(1f, Pal.Ink);
-            st.secs.style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
-            st.secs.style.backgroundColor = Pal.Ink;
+            r.name.text = Short(name, 8);
+            r.name.style.color = chalk;
+            r.score.text = showScore ? score.ToString() : "";
+            for (int i = 0; i < r.boxes.Length; i++) r.boxes[i].Won = i < score;
+        }
+
+        /// <summary>The shooter's row gets the arrow (and the chalk timer when someone is on the clock).</summary>
+        void MarkTurn(ChalkRow r, bool active, bool timed)
+        {
+            r.active = active;
+            r.arrow.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+            r.timer.style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
+            r.timer.style.scale = new Scale(Vector3.one);
         }
 
         public static string DisplayName(MatchSetup s, int i)
@@ -307,94 +343,63 @@ namespace TuitionTakkar
             return i == 0 ? "You" : s.names[1];
         }
 
-        // ---------- 3–4 player cards ----------
+        /// <summary>Chalk name: "P1" style for pass and play so it fits the board.</summary>
+        static string ChalkName(MatchSetup s, int i)
+        {
+            string n = DisplayName(s, i);
+            return n.StartsWith("Player ") ? "player " + n.Substring(7) : n;
+        }
 
-        readonly VisualElement partyRow;
-        readonly List<VisualElement> partyCards = new List<VisualElement>();
-        readonly List<BorderTimer> partyTimers = new List<BorderTimer>();
-        readonly List<Label> partySecs = new List<Label>();
-        readonly List<Label> partyStatus = new List<Label>();
+        // ---------- 3–4 players ----------
+
+        readonly List<ChalkRow> partyRows = new List<ChalkRow>();
         bool[] partyAlive;
+        bool partyMode;
         Label eliminated;
 
-        static readonly Color[] PartyColors = { Pal.Yellow, Pal.Pink, Pal.Sky, Pal.H("#C7E8B5") };
+        static readonly Color[] PartyChalk = { Sketch.ChalkYellow, Sketch.ChalkPink, Sketch.ChalkBlue, Sketch.ChalkGreen };
 
-        /// <summary>C4: a mini card per player in the strip (you first, yellow): name, then in play / seconds / OUT · place.</summary>
+        /// <summary>K2: LAST PEN STANDING, a row per player (you first, yellow); out pens crossed out with their place.</summary>
         public void SetParty(MatchSetup s, bool[] alive, int[] place)
         {
-            left.root.parent.style.display = DisplayStyle.None;
-            partyRow.style.display = DisplayStyle.Flex;
-            partyRow.Clear();
-            partyCards.Clear();
-            partyTimers.Clear();
-            partySecs.Clear();
-            partyStatus.Clear();
+            partyMode = true;
+            duoBox.style.display = DisplayStyle.None;
+            partyBox.style.display = DisplayStyle.Flex;
+            partyBox.Clear();
+            partyRows.Clear();
             partyAlive = (bool[])alive.Clone();
             int n = s.Players;
             int pensLeft = 0;
+            for (int i = 0; i < n; i++) if (alive[i]) pensLeft++;
+            title.text = pensLeft <= 2 && n > 2 ? "FINAL TWO" : "LAST PEN STANDING · " + n + " pens";
+            for (int i = 0; i < n; i++) partyRows.Add(null);
             for (int k = 0; k < n; k++)
             {
                 int i = (s.localIndex + k) % n;
-                if (alive[i]) pensLeft++;
-                bool me = i == s.localIndex;
-                var card = UIKit.Row().St(st =>
-                {
-                    st.flexGrow = 1; st.flexBasis = 0; st.height = 50; UIKit.Radius(st, 4); UIKit.Pad(st, 0, 6, 0, 6);
-                    st.backgroundColor = me ? Pal.Yellow : PartyColors[1 + (k - 1) % 3];
-                    st.borderBottomWidth = 3; st.borderBottomColor = new Color(0f, 0f, 0f, 0.15f);
-                    if (k > 0) st.marginLeft = 6;
-                });
-                card.style.alignSelf = Align.Center;
-                card.pickingMode = PickingMode.Ignore;
-                var timer = new BorderTimer();
-                card.Add(timer);
-                string name = DisplayName(s, i);
-                var av = Avatar(out var initial, 22f);
-                initial.text = (name.StartsWith("Player ") && name.Length > 7 ? name.Substring(7, 1) : name.Substring(0, 1)).ToUpperInvariant();
-                card.Add(av);
-                var col = UIKit.Col().St(st => { st.marginLeft = 5; st.flexShrink = 1; st.overflow = Overflow.Hidden; });
-                col.pickingMode = PickingMode.Ignore;
-                col.Add(UIKit.Disp((name.Length > 7 ? name.Substring(0, 7) : name).ToUpperInvariant(), 11f, Pal.Ink));
-                var status = UIKit.Text("", UIKit.HandBold, 11f, Pal.Ink, TextAnchor.MiddleLeft, false);
-                var secs = SecondsBadge();
-                secs.style.fontSize = 11; secs.style.height = 16; secs.style.minWidth = 22; secs.style.marginTop = 1;
-                col.Add(status, secs);
-                card.Add(col);
+                var r = MakeCell();
+                SetRow(r, ChalkName(s, i), PartyChalk[k % PartyChalk.Length], 0, false);
                 if (!alive[i])
                 {
-                    card.style.opacity = 0.5f;
-                    status.text = place[i] == 1 ? "winner" : "OUT · " + Ordinal(place[i]);
-                    status.style.color = Pal.Red;
+                    r.name.style.opacity = 0.55f;
+                    r.strike.style.display = DisplayStyle.Flex;
+                    r.strike.style.width = Mathf.Min(90f, 10f * r.name.text.Length);
+                    r.score.text = place[i] == 1 ? "1st!" : Ordinal(place[i]);
                 }
-                partyRow.Add(card);
-                while (partyCards.Count <= i) { partyCards.Add(null); partyTimers.Add(null); partySecs.Add(null); partyStatus.Add(null); }
-                partyCards[i] = card; partyTimers[i] = timer; partySecs[i] = secs; partyStatus[i] = status;
+                partyRows[i] = r;
+                partyBox.Add(r.root);
             }
-            for (int i = 0; i < n; i++) if (alive[i]) { partyStatus[i].text = "in play"; partyStatus[i].style.color = new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f); }
-            partyNote = pensLeft <= 2 && n > 2 ? "final two" : "last pen standing";
-            UIKit.PassThrough(partyRow);
+            UIKit.PassThrough(partyBox);
             if (shooterNow >= 0 && shooterNow < n) MarkPartyTurn(shooterNow, humanTurn);
             HideAim();
         }
 
-        string partyNote = "";
-
         void MarkPartyTurn(int shooter, bool timed)
         {
-            for (int i = 0; i < partyCards.Count; i++)
+            for (int i = 0; i < partyRows.Count; i++)
             {
-                if (partyCards[i] == null) continue;
+                if (partyRows[i] == null) continue;
                 bool active = i == shooter && (partyAlive == null || partyAlive[i]);
-                partyTimers[i].Shown = active && timed;
-                partyTimers[i].Set(1f, Pal.Ink);
-                partySecs[i].style.display = active && timed ? DisplayStyle.Flex : DisplayStyle.None;
-                partySecs[i].style.backgroundColor = Pal.Ink;
-                if (partyAlive == null || partyAlive[i])
-                {
-                    partyStatus[i].text = active ? "turn!" : "in play";
-                    partyStatus[i].style.color = active ? Pal.H("#B23A26") : new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.7f);
-                    partyStatus[i].style.display = active && timed ? DisplayStyle.None : DisplayStyle.Flex;
-                }
+                MarkTurn(partyRows[i], active, timed);
             }
         }
 
@@ -404,12 +409,12 @@ namespace TuitionTakkar
         public void ShowEliminated(string name, int place, bool me)
         {
             eliminated?.RemoveFromHierarchy();
-            eliminated = UIKit.Disp(me ? "YOU'RE OUT! (" + Ordinal(place) + ")" : name.ToUpperInvariant() + " IS OUT! (" + Ordinal(place) + ")",
-                26f, me ? Pal.Red : Pal.Ink, TextAnchor.MiddleCenter).St(st =>
+            eliminated = UIKit.Text(me ? "YOU'RE OUT! (" + Ordinal(place) + ")" : name.ToUpperInvariant() + " IS OUT! (" + Ordinal(place) + ")",
+                UIKit.Marker, 24f, me ? Sketch.RedPen : Sketch.Graphite, TextAnchor.MiddleCenter, true).St(st =>
             {
-                st.position = Position.Absolute; st.left = 20; st.right = 20; st.top = Length.Percent(42);
-                st.backgroundColor = Pal.Paper; UIKit.Pad(st, 10, 12, 10, 12); UIKit.Radius(st, 10);
-                UIKit.Border(st, 3f, me ? Pal.Red : Pal.Ink);
+                st.position = Position.Absolute; st.left = 24; st.right = 24; st.top = Length.Percent(46);
+                st.backgroundColor = Sketch.PaperC; UIKit.Pad(st, 10, 12, 10, 12); UIKit.Radius(st, 4);
+                UIKit.Border(st, 2.6f, me ? Sketch.RedPen : Sketch.Graphite);
             });
             eliminated.pickingMode = PickingMode.Ignore;
             UIKit.Rot(eliminated, -3f);
@@ -421,23 +426,22 @@ namespace TuitionTakkar
 
         public void SetMatch(MatchSetup s, int[] score, int round)
         {
-            left.root.style.display = DisplayStyle.Flex;
-            right.root.parent.style.display = DisplayStyle.Flex;
-            left.root.style.display = DisplayStyle.Flex;
-            partyRow.style.display = DisplayStyle.None;
-            Color rightColor = s.mode == MatchMode.Ladder && s.rival != null ? s.rival.avatar
-                : s.mode == MatchMode.PassAndPlay ? Pal.Pink : Pal.Teal;
-            // Left card is always this phone's player (online player 1 included).
+            partyMode = false;
+            duoBox.style.display = DisplayStyle.Flex;
+            partyBox.style.display = DisplayStyle.None;
+            Color theirChalk = s.mode == MatchMode.PassAndPlay ? Sketch.ChalkPink
+                : s.mode == MatchMode.Ladder && s.rival != null ? Color.Lerp(s.rival.avatar, Color.white, 0.35f) : Sketch.ChalkPink;
+            // The top row is always this phone's player (online player 1 included).
             int me = s.mode == MatchMode.Online ? s.localIndex : 0, them = 1 - me;
-            SetSticky(left, DisplayName(s, me), score[me], Pal.Yellow);
-            SetSticky(right, DisplayName(s, them), score[them], rightColor);
-            roundLabel.text = "round " + round + "\nof " + (GameConfig.RoundsToWin * 2 - 1);
+            SetRow(left, ChalkName(s, me), Sketch.ChalkYellow, score[me], true);
+            SetRow(right, ChalkName(s, them), theirChalk, score[them], true);
+            title.text = "PEN FIGHT · round " + round + " of " + (GameConfig.RoundsToWin * 2 - 1);
             HideAim();
         }
 
         public void SetTurn(MatchSetup s, int shooter)
         {
-            string who = DisplayName(s, shooter);
+            string who = ChalkName(s, shooter);
             humanTurn = !s.isBot[shooter];
             shooterNow = shooter;
             int me = s.mode == MatchMode.Online ? s.localIndex : 0;
@@ -447,60 +451,52 @@ namespace TuitionTakkar
                 MarkTurn(left, shooter == me, humanTurn);
                 MarkTurn(right, shooter != me, humanTurn);
             }
-            tapeText.text = s.mode != MatchMode.PassAndPlay && shooter == me ? "your turn" : who.ToLowerInvariant() + "'s turn";
-            if (s.IsParty && partyNote.Length > 0) tapeText.text += " · " + partyNote;
+            bool mine = s.mode != MatchMode.PassAndPlay && shooter == me;
+            tapeText.text = mine ? "your turn" : who.ToLowerInvariant() + "'s turn";
+            chitArrow.style.display = mine ? DisplayStyle.Flex : DisplayStyle.None;
+            normalLabel = tapeText.text;
+            normalArrow = mine;
+            UIKit.Rot(chit, shooter % 2 == 0 ? -2f : 1.5f);
             StyleTape(TapeLook.Normal);
             HideAutoShot();
             float limit = s.mode == MatchMode.Online ? GameConfig.OnlineTurnTimeLimit : GameConfig.TurnTimeLimit;
             if (humanTurn) SetTimer(limit, limit);
-            UIRoot.PopIn(tape);
+            UIRoot.PopIn(chit);
         }
 
-        // ---------- turn timer: the active card's border ----------
+        // ---------- turn timer: the chalk circle by the shooter's name ----------
 
         enum TapeLook { Normal, Urgent, TimeUp }
         TapeLook look = TapeLook.Normal;
         string normalLabel = "your turn";
+        bool normalArrow;
 
         void StyleTape(TapeLook l)
         {
-            if (l == TapeLook.Normal) normalLabel = tapeText.text;
             look = l;
-            tapeText.style.color = l == TapeLook.Normal ? new Color(Pal.Ink.r, Pal.Ink.g, Pal.Ink.b, 0.65f) : Pal.Red;
-            tapeText.style.fontSize = l == TapeLook.Normal ? 17f : 20f;
+            tapeText.style.color = l == TapeLook.Normal ? Sketch.Ballpoint : Sketch.RedPen;
+            if (l != TapeLook.Normal) chitArrow.style.display = DisplayStyle.None;
             if (l != TapeLook.Urgent) deskGlow.style.display = DisplayStyle.None;
         }
 
-        void ActiveTimer(out BorderTimer timer, out Label secs, out VisualElement card)
+        ChalkRow ActiveRow()
         {
-            timer = null; secs = null; card = null;
-            if (partyRow.style.display == DisplayStyle.Flex)
-            {
-                if (shooterNow >= 0 && shooterNow < partyTimers.Count && partyTimers[shooterNow] != null)
-                { timer = partyTimers[shooterNow]; secs = partySecs[shooterNow]; card = partyCards[shooterNow]; }
-                return;
-            }
-            var st = left.active ? left : right;
-            timer = st.timer; secs = st.secs; card = st.root;
+            if (partyMode)
+                return shooterNow >= 0 && shooterNow < partyRows.Count ? partyRows[shooterNow] : null;
+            return left.active ? left : right.active ? right : null;
         }
 
-        /// <summary>Drains the active card's border; red, a pulse and a glowing desk edge in the last 10 seconds.</summary>
+        /// <summary>Drains the chalk circle; red chalk, a pulse and a glowing desk edge in the last 10 seconds.</summary>
         public void SetTimer(float secondsLeft, float limit)
         {
             if (!humanTurn) return;
-            ActiveTimer(out var timer, out var secs, out var card);
+            var row = ActiveRow();
             bool urgent = secondsLeft <= GameConfig.TurnTimeUrgent;
-            var col = urgent ? Pal.H("#D9472F") : Pal.Ink;
-            if (timer != null)
+            var col = urgent ? Sketch.ChalkRed : Sketch.ChalkYellow;
+            if (row != null)
             {
-                timer.Shown = true;
-                timer.Set(secondsLeft / Mathf.Max(0.01f, limit), col);
-            }
-            if (secs != null)
-            {
-                secs.style.display = DisplayStyle.Flex;
-                secs.text = Mathf.CeilToInt(secondsLeft).ToString();
-                secs.style.backgroundColor = col;
+                row.timer.style.display = DisplayStyle.Flex;
+                row.timer.Set(secondsLeft / Mathf.Max(0.01f, limit), Mathf.CeilToInt(secondsLeft), col);
             }
 
             if (urgent && look != TapeLook.Urgent)
@@ -512,31 +508,57 @@ namespace TuitionTakkar
             {
                 tapeText.text = normalLabel;
                 StyleTape(TapeLook.Normal);
+                chitArrow.style.display = normalArrow ? DisplayStyle.Flex : DisplayStyle.None;
             }
             if (urgent)
             {
-                // Pulse once a second: the card swells a little, the desk edge glows.
+                // Pulse once a second: the chalk circle swells a little, the desk edge glows.
                 float frac = secondsLeft - Mathf.Floor(secondsLeft);
-                if (card != null) card.style.scale = new Scale(Vector3.one * (1f + 0.05f * frac));
+                if (row != null) row.timer.style.scale = new Scale(Vector3.one * (1f + 0.12f * frac));
                 PlaceDeskGlow();
-                deskGlow.style.opacity = 0.35f + 0.65f * frac;
+                deskGlow.style.opacity = 0.55f + 0.45f * frac;
             }
-            else if (card != null) card.style.scale = new Scale(Vector3.one);
+            else if (row != null) row.timer.style.scale = new Scale(Vector3.one);
         }
+
+        readonly Vector2[] deskCorners = new Vector2[4];
 
         void PlaceDeskGlow()
         {
             var cam = gm.World != null ? gm.World.Cam : null;
             if (cam == null || Root.layout.width < 1f) return;
-            float hw = BenchWorld.HalfW, hd = BenchWorld.HalfD;
-            var a = ToPanel(cam, new Vector3(-hw, 0f, hd));
-            var b = ToPanel(cam, new Vector3(hw, 0f, hd));
-            var c = ToPanel(cam, new Vector3(-hw, 0f, -hd));
-            var d = ToPanel(cam, new Vector3(hw, 0f, -hd));
-            float x0 = Mathf.Min(a.x, c.x), x1 = Mathf.Max(b.x, d.x), y0 = Mathf.Min(a.y, b.y), y1 = Mathf.Max(c.y, d.y);
-            var st = deskGlow.style;
-            st.left = x0; st.top = y0; st.width = x1 - x0; st.height = y1 - y0;
-            st.display = DisplayStyle.Flex;
+            float hw = BenchWorld.HalfW + BenchWorld.RimSize, hd = BenchWorld.HalfD + BenchWorld.RimSize;
+            deskCorners[0] = ToPanel(cam, new Vector3(-hw, 0f, hd));
+            deskCorners[1] = ToPanel(cam, new Vector3(hw, 0f, hd));
+            deskCorners[2] = ToPanel(cam, new Vector3(hw, 0f, -hd));
+            deskCorners[3] = ToPanel(cam, new Vector3(-hw, 0f, -hd));
+            deskGlow.style.display = DisplayStyle.Flex;
+            deskGlow.MarkDirtyRepaint();
+        }
+
+        /// <summary>Dashed red-pen line along the desk's four edges.</summary>
+        void DrawDeskOutline(MeshGenerationContext ctx)
+        {
+            var p = ctx.painter2D;
+            p.strokeColor = Sketch.A(Sketch.RedPen, 0.9f);
+            p.lineWidth = 3.5f;
+            p.lineCap = LineCap.Round;
+            const float dash = 11f, gap = 7f;
+            for (int e = 0; e < 4; e++)
+            {
+                var a = deskCorners[e];
+                var b = deskCorners[(e + 1) % 4];
+                float len = Vector2.Distance(a, b);
+                if (len < 1f) continue;
+                var dir = (b - a) / len;
+                for (float t = 0f; t < len; t += dash + gap)
+                {
+                    p.BeginPath();
+                    p.MoveTo(a + dir * t);
+                    p.LineTo(a + dir * Mathf.Min(len, t + dash));
+                    p.Stroke();
+                }
+            }
         }
 
         /// <summary>Time's up: the game is about to shoot for you.</summary>
@@ -544,11 +566,13 @@ namespace TuitionTakkar
         {
             StyleTape(TapeLook.TimeUp);
             tapeText.text = "time's up!";
-            ActiveTimer(out var timer, out var secs, out var card);
-            if (timer != null) timer.Set(0f, Pal.H("#D9472F"));
-            if (secs != null) secs.style.display = DisplayStyle.None;
-            if (card != null) card.style.scale = new Scale(Vector3.one);
-            UIRoot.PopIn(tape);
+            var row = ActiveRow();
+            if (row != null)
+            {
+                row.timer.Set(0f, 0, Sketch.ChalkRed);
+                row.timer.style.scale = new Scale(Vector3.one);
+            }
+            UIRoot.PopIn(chit);
         }
 
         /// <summary>Navy "AUTO SHOT · 55%" chip beside your pen while the auto shot aims.</summary>

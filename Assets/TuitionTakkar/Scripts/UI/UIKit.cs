@@ -8,6 +8,8 @@ namespace TuitionTakkar
     public static class UIKit
     {
         public static Font Display, Hand, HandBold, Body, BodyBold;
+        /// <summary>Game screen sketch look: chalk on the blackboard, marker titles, pencil handwriting.</summary>
+        public static Font Chalk, Marker, Pencil;
 
         public static void LoadFonts()
         {
@@ -16,6 +18,9 @@ namespace TuitionTakkar
             HandBold = Resources.Load<Font>("TT/Fonts/Kalam-Bold");
             Body = Resources.Load<Font>("TT/Fonts/Nunito-Bold");
             BodyBold = Resources.Load<Font>("TT/Fonts/Nunito-ExtraBold");
+            Chalk = Resources.Load<Font>("TT/Fonts/GochiHand-Regular") ?? Hand;
+            Marker = Resources.Load<Font>("TT/Fonts/PermanentMarker-Regular") ?? Display;
+            Pencil = Resources.Load<Font>("TT/Fonts/PatrickHand-Regular") ?? Hand;
         }
 
         // ---------- generic ----------
