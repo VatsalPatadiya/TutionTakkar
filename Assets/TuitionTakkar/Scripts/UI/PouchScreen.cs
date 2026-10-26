@@ -4,8 +4,9 @@ using UnityEngine.UIElements;
 namespace TuitionTakkar
 {
     /// <summary>
-    /// Pencil pouch with two tabs: "My pens" (equip, ink left, refill) and the
-    /// "Tuck shop" (buy pens with marks). Mockups S2–S4 on the design canvas.
+    /// Pencil pouch with three tabs: "My pens" (equip, ink left, refill), the "Tuck shop"
+    /// (today's pens, the classic pens and all 600 shop pens with filters) and the
+    /// "Workshop" (design your own pen from parts and pay marks to make it).
     /// </summary>
     public static class PouchScreen
     {
@@ -28,7 +29,7 @@ namespace TuitionTakkar
             row.Add(MarksChip(save.marks, true));
             head.Add(row);
             head.Add(UIKit.Disp("MY PENCIL POUCH", 34f, Color.white).St(s => s.marginTop = 8));
-            head.Add(UIKit.HandText(tab == 0 ? "win a match, keep their pen." : "win matches, earn marks, buy pens.", 16f, Pal.PouchText).St(s => s.marginTop = 2));
+            head.Add(UIKit.HandText(tab == 0 ? "win a match, keep their pen." : tab == 1 ? "win matches, earn marks, buy pens." : "pick the parts, see the power, make it yours.", 16f, Pal.PouchText).St(s => s.marginTop = 2));
 
             var tabs = UIKit.Row(Align.Stretch).St(s =>
             {
@@ -36,12 +37,23 @@ namespace TuitionTakkar
             });
             tabs.Add(Tab("My pens · " + save.owned.Count, tab == 0, () => gm.ShowPouch(0)));
             tabs.Add(Tab("Tuck shop", tab == 1, () => gm.ShowPouch(1)));
+            tabs.Add(Tab("Workshop", tab == 2, () => gm.ShowPouch(2)));
             head.Add(tabs);
             root.Add(head);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             var body = UIKit.Col().St(s => UIKit.Pad(s, 16, 16, 24, 16));
+
+            if (tab == 2)
+            {
+                var ws = new WorkshopScreen(gm);
+                body.Add(ws.Body);
+                scroll.Add(body);
+                root.Add(scroll);
+                root.Add(ws.Footer);
+                return root;
+            }
 
             if (tab == 1)
             {
@@ -50,27 +62,116 @@ namespace TuitionTakkar
                 var earn = UIKit.Btn("How to earn ›", () => gm.UI.ShowOverlay(EarnSheet(gm)), Color.clear, Pal.Red, UIKit.BodyBold, 13f, 32f, 8f);
                 hint.Add(earn);
                 body.Add(hint);
-            }
 
-            var grid = UIKit.Row(Align.Stretch).St(s => { s.flexWrap = Wrap.Wrap; s.justifyContent = Justify.SpaceBetween; });
-            int i = 0;
-            foreach (var pen in Catalog.Pens)
+                body.Add(Section("TODAY'S PENS", "new ones every day"));
+                body.Add(Grid(gm, PenParts.TodaysPens(), false));
+
+                body.Add(Section("CLASSIC PENS", "win them in the Batch Ladder, or buy"));
+                var classics = new System.Collections.Generic.List<PenDef>();
+                foreach (var pen in Catalog.Pens) if (pen.id != Catalog.StarterId) classics.Add(pen);
+                body.Add(Grid(gm, classics, false));
+
+                body.Add(AllPens(gm));
+            }
+            else
             {
-                bool owned = save.Owns(pen.id);
-                if (tab == 0 && !owned) continue;
-                if (tab == 1 && pen.id == Catalog.StarterId) continue;
-                grid.Add(tab == 0 ? OwnedCard(gm, pen, i) : ShopCard(gm, pen, i));
-                i++;
+                var mine = new System.Collections.Generic.List<PenDef>();
+                foreach (var id in save.owned) mine.Add(Catalog.Pen(id));
+                body.Add(Grid(gm, mine, true));
+                var more = UIKit.Row().St(s => { s.marginTop = 6; s.justifyContent = Justify.SpaceBetween; });
+                more.Add(UIKit.Btn("Tuck shop ›", () => gm.ShowPouch(1), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 15f, 48f, 12f, null, Pal.Ink).St(s => s.width = Length.Percent(48)));
+                more.Add(UIKit.Btn("Make a pen ›", () => gm.ShowPouch(2), Pal.Pouch, Color.white, UIKit.BodyBold, 15f, 48f, 12f).St(s => s.width = Length.Percent(48)));
+                body.Add(more);
             }
-            body.Add(grid);
-
-            if (tab == 0)
-                body.Add(UIKit.Btn("Tuck shop: buy more pens ›", () => gm.ShowPouch(1), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 15f, 48f, 12f, null, Pal.Ink)
-                    .St(s => s.marginTop = 6));
 
             scroll.Add(body);
             root.Add(scroll);
             return root;
+        }
+
+        static VisualElement Grid(GameManager gm, System.Collections.Generic.IEnumerable<PenDef> pens, bool owned)
+        {
+            var grid = UIKit.Row(Align.Stretch).St(s => { s.flexWrap = Wrap.Wrap; s.justifyContent = Justify.SpaceBetween; });
+            int i = 0;
+            foreach (var pen in pens) grid.Add(owned ? OwnedCard(gm, pen, i++) : ShopCard(gm, pen, i++));
+            return grid;
+        }
+
+        static VisualElement Section(string title, string sub)
+        {
+            var c = UIKit.Col().St(s => { s.marginTop = 10; s.marginBottom = 10; });
+            c.Add(UIKit.Disp(title, 22f, Pal.Ink));
+            c.Add(UIKit.HandText(sub, 15f, Pal.BenchText));
+            return c;
+        }
+
+        // ---------- all 600 shop pens: filters + pages ----------
+
+        static int shopType = -1, shopRarity = -1, shopPage;
+        const int PerPage = 20;
+
+        static VisualElement AllPens(GameManager gm)
+        {
+            var box = UIKit.Col();
+            var list = new System.Collections.Generic.List<PenDef>();
+            foreach (var p in PenParts.Generated)
+            {
+                if (shopType >= 0 && p.spec.type != shopType) continue;
+                if (shopRarity >= 0 && (int)p.rarity != shopRarity) continue;
+                list.Add(p);
+            }
+            list.Sort((a, b) => a.price != b.price ? a.price.CompareTo(b.price) : string.CompareOrdinal(a.id, b.id));
+            int pages = Mathf.Max(1, (list.Count + PerPage - 1) / PerPage);
+            shopPage = Mathf.Clamp(shopPage, 0, pages - 1);
+
+            box.Add(Section("ALL PENS · " + PenParts.GeneratedCount, list.Count + " match · cheapest first"));
+
+            var types = UIKit.Row().St(s => { s.flexWrap = Wrap.Wrap; s.marginBottom = 6; });
+            types.Add(FilterChip("All types", shopType < 0, () => { shopType = -1; shopPage = 0; gm.ShowPouch(1); }));
+            for (int t = 0; t < PenParts.Types.Length; t++)
+            {
+                int tt = t;
+                types.Add(FilterChip(PenParts.Types[t].key, shopType == t, () => { shopType = tt; shopPage = 0; gm.ShowPouch(1); }));
+            }
+            box.Add(types);
+            var rar = UIKit.Row().St(s => { s.flexWrap = Wrap.Wrap; s.marginBottom = 12; });
+            rar.Add(FilterChip("Any", shopRarity < 0, () => { shopRarity = -1; shopPage = 0; gm.ShowPouch(1); }));
+            for (int r = 0; r < 4; r++)
+            {
+                int rr = r;
+                rar.Add(FilterChip(PenParts.RarityName((PenRarity)r), shopRarity == r, () => { shopRarity = rr; shopPage = 0; gm.ShowPouch(1); },
+                    PenParts.RarityColour((PenRarity)r)));
+            }
+            box.Add(rar);
+
+            box.Add(Grid(gm, list.GetRange(shopPage * PerPage, Mathf.Min(PerPage, list.Count - shopPage * PerPage)), false));
+
+            var pager = UIKit.Row().St(s => { s.justifyContent = Justify.SpaceBetween; s.marginTop = 4; });
+            pager.Add(UIKit.Btn("‹ Prev", shopPage > 0 ? () => { shopPage--; gm.ShowPouch(1); } : (System.Action)null,
+                shopPage > 0 ? Pal.Paper : Pal.H("#E9E2D0"), Pal.Ink, UIKit.BodyBold, 14f, 40f, 10f, null, Pal.Ink).St(s => s.width = 96));
+            pager.Add(UIKit.Strong("page " + (shopPage + 1) + " of " + pages, 14f, Pal.Ink));
+            pager.Add(UIKit.Btn("Next ›", shopPage < pages - 1 ? () => { shopPage++; gm.ShowPouch(1); } : (System.Action)null,
+                shopPage < pages - 1 ? Pal.Paper : Pal.H("#E9E2D0"), Pal.Ink, UIKit.BodyBold, 14f, 40f, 10f, null, Pal.Ink).St(s => s.width = 96));
+            box.Add(pager);
+            return box;
+        }
+
+        static Button FilterChip(string text, bool on, System.Action go, Color? dot = null)
+        {
+            var b = UIKit.Btn(text, on ? null : go, on ? Pal.Ink : Pal.Paper, on ? Color.white : (dot ?? Pal.Ink), UIKit.BodyBold, 12f, 30f, 15f, null, on ? (Color?)null : Pal.Ink);
+            b.style.marginRight = 6; b.style.marginBottom = 6;
+            UIKit.Pad(b.style, 0, 10, 0, 10);
+            return b;
+        }
+
+        /// <summary>Rarity tag and pen type for pens built from parts.</summary>
+        static VisualElement RarityRow(PenDef pen)
+        {
+            var r = UIKit.Row().St(s => s.marginTop = 4);
+            if (!pen.FromParts) return r;
+            r.Add(UIKit.Strong(pen.custom ? "MY DESIGN" : PenParts.RarityName(pen.rarity).ToUpperInvariant(), 10f, Color.white, TextAnchor.MiddleCenter)
+                .St(s => { s.backgroundColor = pen.custom ? Pal.Pouch : PenParts.RarityColour(pen.rarity); UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 4); s.letterSpacing = 0.4f; }));
+            return r;
         }
 
         // ---------- shared bits ----------
@@ -120,6 +221,7 @@ namespace TuitionTakkar
             if (equipped) UIKit.Border(c.style, 3f, Pal.Ink);
             c.Add(PenIcon.Build(pen, 140f));
             c.Add(UIKit.Disp(pen.name.ToUpperInvariant(), 18f, Pal.Ink).St(s => s.marginTop = 8));
+            c.Add(RarityRow(pen));
             c.Add(UIKit.Plain(pen.traits, 12f, Pal.InkSoft).St(s => s.marginTop = 2));
 
             if (usesInk)
@@ -157,8 +259,10 @@ namespace TuitionTakkar
             bool afford = save.marks >= price;
 
             var c = Card(owned ? Pal.Paper : forSale ? Color.white : Pal.H("#F3E7C2"), i);
+            if (pen.FromParts) { c.style.borderTopWidth = 5; c.style.borderTopColor = PenParts.RarityColour(pen.rarity); }
             c.Add(PenIcon.Build(pen, 140f));
             c.Add(UIKit.Disp(pen.name.ToUpperInvariant(), 18f, Pal.Ink).St(s => s.marginTop = 8));
+            c.Add(RarityRow(pen));
             c.Add(UIKit.Plain(pen.traits, 12f, Pal.InkSoft).St(s => s.marginTop = 2));
             c.Add(UIKit.Grow());
 
@@ -188,7 +292,7 @@ namespace TuitionTakkar
 
         // ---------- sheets ----------
 
-        static VisualElement Sheet(GameManager gm, out VisualElement panel)
+        internal static VisualElement Sheet(GameManager gm, out VisualElement panel)
         {
             var o = UIKit.El().St(s => s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.6f));
             o.pickingMode = PickingMode.Position;
@@ -219,7 +323,7 @@ namespace TuitionTakkar
             return r;
         }
 
-        static VisualElement Ledger(int before, int cost, string what)
+        internal static VisualElement Ledger(int before, int cost, string what)
         {
             var box = UIKit.Col().St(s =>
             {
@@ -231,7 +335,7 @@ namespace TuitionTakkar
             return box;
         }
 
-        static VisualElement SheetButtons(GameManager gm, string action, bool enabled, System.Action onConfirm)
+        internal static VisualElement SheetButtons(GameManager gm, string action, bool enabled, System.Action onConfirm)
         {
             var row = UIKit.Row().St(s => { s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; });
             var later = UIKit.Btn("LATER", () => gm.UI.HideOverlay(), Color.clear, Pal.Ink, UIKit.Display, 18f, 56f, 16f, null, Pal.Ink);

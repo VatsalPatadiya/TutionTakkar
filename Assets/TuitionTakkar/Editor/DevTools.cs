@@ -51,6 +51,44 @@ namespace TuitionTakkar
                 .Invoke(gv, new object[] { index, null });
         }
 
+        /// <summary>Play mode: a 2-player desk with two fancy shop pens (finishes, patterns) to check how they look.</summary>
+        [MenuItem("Tuition Takkar/Dev: 2-player desk, fancy pens")]
+        static void FancyPens()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            PenDef a = null, b = null;
+            foreach (var p in PenParts.Generated)
+            {
+                if (a == null && p.finish == PenFinish.Glitter && p.pattern == PenPattern.Stars) a = p;
+                if (b == null && p.finish == PenFinish.Gold && p.shape == PenShape.Round) b = p;
+            }
+            var s = new MatchSetup(2) { mode = MatchMode.PassAndPlay };
+            s.pens[0] = a ?? PenParts.Generated[0];
+            s.pens[1] = b ?? PenParts.Generated[1];
+            s.names[0] = "Player 1"; s.names[1] = "Player 2";
+            gm.StartMatch(s);
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Open tuck shop")]
+        static void Shop() { if (!Application.isPlaying || GameManager.I == null) return; Application.runInBackground = true; GameManager.I.ShowPouch(1); }
+
+        [MenuItem("Tuition Takkar/Dev: Open pen workshop")]
+        static void Workshop() { if (!Application.isPlaying || GameManager.I == null) return; Application.runInBackground = true; GameManager.I.ShowPouch(2); }
+
+        [MenuItem("Tuition Takkar/Dev: Open my pens")]
+        static void MyPens() { if (!Application.isPlaying || GameManager.I == null) return; Application.runInBackground = true; GameManager.I.ShowPouch(0); }
+
+        /// <summary>Editor only: 5000 test marks, to try buying and making pens.</summary>
+        [MenuItem("Tuition Takkar/Dev: Add 5000 test marks")]
+        static void Marks()
+        {
+            if (!Application.isPlaying || GameManager.I == null) return;
+            GameManager.I.Save.marks += 5000;
+            GameManager.I.Save.Save();
+        }
+
         [MenuItem("Tuition Takkar/Dev: Save game view screenshot")]
         static void Shot()
         {

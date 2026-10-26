@@ -447,5 +447,104 @@ namespace TuitionTakkar
                 if (m > 0f) px[y * w + x] = Color.Lerp(px[y * w + x], c, m * alpha);
             }
         }
+
+        // ---------- pen looks: finishes and patterns ----------
+
+        static readonly Dictionary<string, Texture2D> barrelCache = new Dictionary<string, Texture2D>();
+        static readonly Dictionary<string, Material> penMatCache = new Dictionary<string, Material>();
+
+        /// <summary>
+        /// The barrel picture of a pen: its colour with the pattern and finish painted in.
+        /// u runs along the pen (tip to cap), v around it. Menus show the same picture flat.
+        /// </summary>
+        public static Texture2D PenBarrel(Color c, PenFinish f, PenPattern pat)
+        {
+            string key = ColorUtility.ToHtmlStringRGB(c) + f + pat;
+            if (barrelCache.TryGetValue(key, out var t) && t != null) return t;
+            const int w = 192, h = 48;
+            t = new Texture2D(w, h, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "PenBarrel", filterMode = FilterMode.Bilinear };
+            var px = new Color[w * h];
+            var rng = new System.Random(key.GetHashCode());
+            // A second colour for patterns: light on dark pens, dark on light ones.
+            float lum = c.r * .3f + c.g * .59f + c.b * .11f;
+            Color ink = lum > .55f ? Color.Lerp(c, Color.black, .45f) : Color.Lerp(c, Color.white, .6f);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                var col = c;
+                float u = x / (float)w, v = y / (float)h;
+                switch (pat)
+                {
+                    case PenPattern.Stripes:
+                        if (Mathf.Repeat(x + y * 1.2f, 24f) < 9f) col = ink;
+                        break;
+                    case PenPattern.Dots:
+                    {
+                        float cx = Mathf.Repeat(x, 16f) - 8f, cy = Mathf.Repeat(y + (Mathf.Floor(x / 16f) % 2) * 8f, 16f) - 8f;
+                        if (cx * cx + cy * cy < 12f) col = ink;
+                        break;
+                    }
+                    case PenPattern.Checks:
+                        if (((x / 12) + (y / 12)) % 2 == 0) col = Color.Lerp(c, ink, .8f);
+                        break;
+                    case PenPattern.Stars:
+                    {
+                        float cx = Mathf.Repeat(x, 24f) - 12f, cy = Mathf.Repeat(y + (Mathf.Floor(x / 24f) % 2) * 12f, 24f) - 12f;
+                        float a = Mathf.Atan2(cy, cx), r = Mathf.Sqrt(cx * cx + cy * cy);
+                        float edge = 3.2f + 2.6f * Mathf.Cos(5f * a);
+                        if (r < edge) col = Pal.H("#FFE07A");
+                        break;
+                    }
+                    case PenPattern.Camo:
+                    {
+                        float n1 = Mathf.PerlinNoise(x * .045f, y * .09f), n2 = Mathf.PerlinNoise(x * .05f + 30f, y * .1f + 9f);
+                        if (n1 > .58f) col = Color.Lerp(c, Pal.H("#2F3B1F"), .65f);
+                        else if (n2 > .6f) col = Color.Lerp(c, Pal.H("#6B5B33"), .6f);
+                        break;
+                    }
+                }
+                if (f == PenFinish.Holo)
+                {
+                    float hue = Mathf.Repeat(u * 1.5f + v * .3f, 1f);
+                    col = Color.Lerp(col, Color.HSVToRGB(hue, .45f, 1f), .5f);
+                }
+                if (f == PenFinish.Glitter && rng.NextDouble() < .05)
+                    col = Color.Lerp(col, Color.white, .5f + (float)rng.NextDouble() * .5f);
+                if (f == PenFinish.Matte)
+                    col = Color.Lerp(col, Color.gray, .08f);
+                px[y * w + x] = new Color(col.r, col.g, col.b, 1f);
+            }
+            t.SetPixels(px);
+            t.Apply(true);
+            barrelCache[key] = t;
+            return t;
+        }
+
+        /// <summary>Barrel material for a pen's finish (plain glossy pens keep the shared colour material).</summary>
+        public static Material PenMaterial(PenDef d)
+        {
+            if (d.finish == PenFinish.Glossy && d.pattern == PenPattern.None) return Lit(d.color);
+            string key = ColorUtility.ToHtmlStringRGB(d.color) + d.finish + d.pattern;
+            if (penMatCache.TryGetValue(key, out var m) && m != null) return m;
+            var tex = PenBarrel(d.color, d.finish, d.pattern);
+            m = new Material(LitBase) { color = Color.white };
+            SetTex(m, "_MainTex", tex, Vector2.one);
+            SetTex(m, "_BaseMap", tex, Vector2.one);
+            float smooth = .45f, metal = 0f;
+            switch (d.finish)
+            {
+                case PenFinish.Matte: smooth = .06f; break;
+                case PenFinish.Frost: smooth = .3f; break;
+                case PenFinish.Metal: smooth = .65f; metal = .35f; break;   // no reflections in the room: keep metals bright
+                case PenFinish.Gold: smooth = .7f; metal = .4f; break;
+                case PenFinish.Glitter: smooth = .62f; metal = .2f; break;
+                case PenFinish.Holo: smooth = .7f; metal = .35f; break;
+            }
+            if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", smooth);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smooth);
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metal);
+            penMatCache[key] = m;
+            return m;
+        }
     }
 }

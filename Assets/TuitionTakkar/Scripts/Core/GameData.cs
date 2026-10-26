@@ -66,6 +66,19 @@ namespace TuitionTakkar
         public PenShape shape = PenShape.Round;
         public float statWeight, statGrip, statSpin;
 
+        // ---------- pens built from parts (shop pens, workshop pens) ----------
+        public PenFinish finish = PenFinish.Glossy;
+        public PenPattern pattern = PenPattern.None;
+        public PenRarity rarity = PenRarity.Common;
+        /// <summary>"Gel pen", "Click pen"...; empty for the classic pens.</summary>
+        public string typeName = "";
+        /// <summary>Shop price for generated pens (0 = priced by <see cref="Economy"/>).</summary>
+        public int price;
+        /// <summary>Made by the player in the pen workshop.</summary>
+        public bool custom;
+        public PenParts.Spec spec;
+        public bool FromParts => !string.IsNullOrEmpty(typeName);
+
         public PenDef Recolor(Color body, Color cap)
         {
             var p = (PenDef)MemberwiseClone();
@@ -189,10 +202,29 @@ namespace TuitionTakkar
             };
         }
 
+        /// <summary>
+        /// Any pen by id: a classic pen, one of the 600 shop pens ("g001"…) or a workshop pen
+        /// ("c.…", rebuilt from its code). Unknown ids fall back to the Starter Click.
+        /// </summary>
         public static PenDef Pen(string id)
         {
             foreach (var p in Pens) if (p.id == id) return p;
+            if (PenParts.IsCustom(id))
+            {
+                if (!customCache.TryGetValue(id, out var c) || c == null) c = customCache[id] = PenParts.Custom(id);
+                if (c != null) return c;
+            }
+            var g = PenParts.GeneratedPen(id);
+            if (g != null) return g;
             return Pens[0];
+        }
+
+        static readonly Dictionary<string, PenDef> customCache = new Dictionary<string, PenDef>();
+
+        public static bool IsClassic(string id)
+        {
+            foreach (var p in Pens) if (p.id == id) return true;
+            return false;
         }
 
         public static RivalDef RivalForPen(string penId)

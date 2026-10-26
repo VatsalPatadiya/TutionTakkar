@@ -60,8 +60,17 @@ namespace TuitionTakkar
         /// <summary>The Golden Nib is never sold; this is only used to price its refills.</summary>
         const int GoldenValue = 750;
 
-        public static bool ForSale(string penId) => Prices.ContainsKey(penId);
-        public static int Price(string penId) => Prices.TryGetValue(penId, out var p) ? p : 0;
+        /// <summary>Classic pens from the price list, plus the 600 generated shop pens.</summary>
+        public static bool ForSale(string penId) => Prices.ContainsKey(penId) || PenParts.GeneratedPen(penId) != null;
+
+        public static int Price(string penId)
+        {
+            if (Prices.TryGetValue(penId, out var p)) return p;
+            var g = PenParts.GeneratedPen(penId);
+            if (g != null) return g.price;
+            if (PenParts.TryDecode(penId, out var spec)) return PenParts.Cost(spec);
+            return 0;
+        }
 
         public static int PracticeReward(int level) => PracticeWin[Mathf.Clamp(level, 0, PracticeWin.Length - 1)];
 
@@ -69,7 +78,12 @@ namespace TuitionTakkar
 
         public static bool UsesInk(string penId) => penId != Catalog.StarterId;
 
-        static int Value(string penId) => ForSale(penId) ? Price(penId) : penId == "golden" ? GoldenValue : 300;
+        static int Value(string penId)
+        {
+            if (penId == "golden") return GoldenValue;
+            int p = Price(penId);
+            return p > 0 ? p : 300;
+        }
 
         /// <summary>Cost of a full tank, rounded to 5 marks.</summary>
         public static int FullRefillCost(string penId) => Mathf.Max(5, Mathf.RoundToInt(Value(penId) / 3f / 5f) * 5);
@@ -144,7 +158,7 @@ namespace TuitionTakkar
             PenDef best = null;
             foreach (var p in Catalog.Pens)
             {
-                if (!ForSale(p.id) || save.Owns(p.id)) continue;
+                if (!Prices.ContainsKey(p.id) || save.Owns(p.id)) continue;
                 if (best == null || Price(p.id) < Price(best.id)) best = p;
             }
             return best;

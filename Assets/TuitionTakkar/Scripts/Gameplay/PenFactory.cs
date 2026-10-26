@@ -153,7 +153,7 @@ namespace TuitionTakkar
                 var body = new GameObject("Body");
                 body.transform.SetParent(root, false);
                 body.AddComponent<MeshFilter>().sharedMesh = PrismMesh(L * 0.9f, r * 1.2f);
-                body.AddComponent<MeshRenderer>().sharedMaterial = ArtLib.Lit(d.color);
+                body.AddComponent<MeshRenderer>().sharedMaterial = ArtLib.PenMaterial(d);
                 body.transform.localPosition = new Vector3(L * 0.05f, 0f, 0f);
                 // Sharpened end: a smooth cone instead of a squashed sphere.
                 Lathe(root, "Tip", d.tipColor, new[] { P(x0, 0f), P(x0 + L * 0.035f, r * 0.22f), P(x0 + L * 0.05f, r * 0.3f) });
@@ -167,7 +167,8 @@ namespace TuitionTakkar
             Lathe(root, "Tip", d.tipColor, new[] { P(x0, 0f), P(x0 + L * 0.012f, r * 0.14f), P(x0 + L * 0.03f, r * 0.2f) });
             Lathe(root, "Cone", metal, new[] { P(x0 + L * 0.03f, r * 0.2f), P(x0 + L * 0.07f, r * 0.62f), P(x0 + L * 0.085f, r * 0.9f), P(x0 + L * 0.09f, r * 0.98f) });
             Lathe(root, "Grip", d.gripColor, Ridged(x0 + L * 0.09f, x0 + L * 0.27f, r * 1.0f, r * 1.07f, 7));
-            Lathe(root, "Barrel", d.color, new[] { P(x0 + L * 0.27f, r * 0.96f), P(x0 + L * 0.275f, r), P(x0 + L * 0.835f, r), P(x0 + L * 0.84f, r * 0.97f) });
+            Lathe(root, "Barrel", d.color, new[] { P(x0 + L * 0.27f, r * 0.96f), P(x0 + L * 0.275f, r), P(x0 + L * 0.835f, r), P(x0 + L * 0.84f, r * 0.97f) },
+                ArtLib.PenMaterial(d));
 
             var capPts = new List<Vector2> { P(x0 + L * 0.84f, r * 1.04f), P(x0 + L * 0.845f, r * 1.12f), P(x0 + L * 0.95f, r * 1.12f) };
             for (int i = 1; i <= 6; i++)
@@ -207,7 +208,7 @@ namespace TuitionTakkar
         /// Spins a side profile (x along the pen, radius) around the pen's axis into a smooth
         /// mesh with proper normals. Open ends get a flat disc so nothing looks hollow.
         /// </summary>
-        static void Lathe(Transform root, string name, Color c, Vector2[] profile)
+        static void Lathe(Transform root, string name, Color c, Vector2[] profile, Material material = null)
         {
             const int seg = 32;
             var sb = new System.Text.StringBuilder(name);
@@ -218,6 +219,9 @@ namespace TuitionTakkar
             {
                 var v = new List<Vector3>();
                 var nrm = new List<Vector3>();
+                var uv = new List<Vector2>();
+                float xMin = profile[0].x, xMax = profile[profile.Length - 1].x;
+                float span = Mathf.Max(1e-4f, xMax - xMin);
                 var tri = new List<int>();
                 int rows = profile.Length;
                 for (int i = 0; i < rows; i++)
@@ -234,6 +238,7 @@ namespace TuitionTakkar
                         float cy = Mathf.Cos(a), cz = Mathf.Sin(a);
                         v.Add(new Vector3(profile[i].x, cy * profile[i].y, cz * profile[i].y));
                         nrm.Add(new Vector3(pn.x, cy * pn.y, cz * pn.y).normalized);
+                        uv.Add(new Vector2((profile[i].x - xMin) / span, k / (float)seg));
                     }
                 }
                 for (int i = 0; i < rows - 1; i++)
@@ -244,10 +249,12 @@ namespace TuitionTakkar
                 }
                 EndDisc(v, nrm, tri, profile[0], -1f, seg);
                 EndDisc(v, nrm, tri, profile[rows - 1], 1f, seg);
+                while (uv.Count < v.Count) uv.Add(Vector2.zero); // end discs: plain colour corner
 
                 mesh = new Mesh { name = "Lathe_" + name };
                 mesh.SetVertices(v);
                 mesh.SetNormals(nrm);
+                mesh.SetUVs(0, uv);
                 mesh.SetTriangles(tri, 0);
                 FaceOutward(mesh);
                 mesh.RecalculateBounds();
@@ -258,7 +265,7 @@ namespace TuitionTakkar
             go.transform.SetParent(root, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = ArtLib.Lit(c);
+            mr.sharedMaterial = material != null ? material : ArtLib.Lit(c);
         }
 
         static void EndDisc(List<Vector3> v, List<Vector3> n, List<int> t, Vector2 p, float dir, int seg)
