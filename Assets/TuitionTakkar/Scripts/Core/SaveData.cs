@@ -34,6 +34,8 @@ namespace TuitionTakkar
         public bool googleLinked;
         /// <summary>Editor / dev builds: online without Google, for testing.</summary>
         public bool devGuest;
+        /// <summary>Plays online as "Guest_xxxxxx" without Google. Guest wins never go on the leaderboard.</summary>
+        public bool onlineGuest;
         /// <summary>Public name without Unity's "#1234" tag.</summary>
         public string onlineName = "";
         /// <summary>Last known online wins (shown before the leaderboard answers).</summary>
@@ -84,10 +86,11 @@ namespace TuitionTakkar
         }
 
         public bool Owns(string penId) => owned.Contains(penId);
-        public bool LadderComplete => ladderIndex >= Catalog.Rivals.Count;
+        /// <summary>The ladder never ends now (new batches keep coming).</summary>
+        public bool LadderComplete => false;
 
-        public RivalDef CurrentRival =>
-            Catalog.Rivals[Mathf.Clamp(ladderIndex, 0, Catalog.Rivals.Count - 1)];
+        /// <summary>The rival to beat next: forward only, beaten rivals can't be replayed.</summary>
+        public RivalDef CurrentRival => Ladder.RivalAt(ladderIndex);
 
         public static SaveData Load()
         {

@@ -71,6 +71,43 @@ namespace TuitionTakkar
             gm.StartMatch(s);
         }
 
+        [MenuItem("Tuition Takkar/Dev: Ladder to Batch 2, rival 1")]
+        static void Ladder2() => JumpLadder(10);
+
+        [MenuItem("Tuition Takkar/Dev: Ladder to Batch 2 boss")]
+        static void Ladder2Boss() => JumpLadder(19);
+
+        static void JumpLadder(int index)
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            gm.Save.ladderIndex = index;
+            gm.Save.Save();
+            gm.ShowRival();
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Online, signed out (choice screen)")]
+        static void OnlineChoice()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            OnlineServices.SignOut(gm.Save);
+            gm.ShowOnline();
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Online, continue as guest")]
+        static async void OnlineGuest()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            await OnlineServices.SignInGuestAsync(gm.Save);
+            Debug.Log("[TuitionTakkar] guest name " + gm.Save.onlineName + " / server name " + await OnlineServices.Auth.GetPlayerNameAsync(false));
+            gm.ShowOnline();
+        }
+
         [MenuItem("Tuition Takkar/Dev: Open tuck shop")]
         static void Shop() { if (!Application.isPlaying || GameManager.I == null) return; Application.runInBackground = true; GameManager.I.ShowPouch(1); }
 

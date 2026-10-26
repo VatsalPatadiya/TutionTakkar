@@ -326,7 +326,13 @@ namespace TuitionTakkar
 
         static async void ReportWin(GameManager gm, Label winsText, Label rankLine)
         {
-            int total = await OnlineServices.ReportWinAsync();
+            if (!OnlineServices.OnLeaderboard(gm.Save))
+            {
+                // Guests: the win is real, but only Google players go on the leaderboard.
+                if (rankLine != null) rankLine.text = "playing as guest: sign in with Google to put your wins on the leaderboard.";
+                return;
+            }
+            int total = await OnlineServices.ReportWinAsync(gm.Save);
             if (total > 0)
             {
                 gm.Save.onlineWins = total;

@@ -10,7 +10,9 @@ namespace TuitionTakkar
         public int[] score;
         public int marksBefore, marksAfter;
         public PenDef wonPen;        // ladder: the pen you took (null on rematch / loss)
+        /// <summary>Beat the boss: the whole batch is done (see batchDone).</summary>
         public bool becameChampion;
+        public int batchDone;
         public RivalDef nextRival;
         public RewardResult rewards;  // marks earned and how (empty for Pass & Play)
     }
@@ -42,8 +44,9 @@ namespace TuitionTakkar
             else if (humanWon)
             {
                 kicker = "MATCH WON · " + a + "–" + b;
-                title = m.becameChampion ? "BATCH CHAMPION" : s0.rival.name.ToUpperInvariant() + " IS DONE";
-                hand = m.wonPen != null ? "their pen goes in your pouch." : "rematch won. marks banked.";
+                title = m.becameChampion ? Ladder.BatchName(m.batchDone).ToUpperInvariant() + " DONE!" : s0.rival.name.ToUpperInvariant() + " IS DONE";
+                hand = m.becameChampion ? Ladder.BatchName(m.batchDone + 1) + " · " + Ladder.Subtitle(m.batchDone + 1).ToLowerInvariant() + " is open."
+                    : m.wonPen != null ? "their pen goes in your pouch." : "you already had their pen: bonus marks instead.";
             }
             else
             {
@@ -91,7 +94,7 @@ namespace TuitionTakkar
             if (s0.mode != MatchMode.PassAndPlay && m.rewards != null)
                 root.Add(RewardsPanel(gm, m));
 
-            if (s0.mode == MatchMode.Ladder && humanWon && m.nextRival != null && !m.becameChampion)
+            if (s0.mode == MatchMode.Ladder && humanWon && m.nextRival != null)
             {
                 var next = UIKit.Row().St(s =>
                 {
@@ -100,7 +103,8 @@ namespace TuitionTakkar
                 next.Add(UIKit.Avatar(m.nextRival.initial, m.nextRival.avatar, 40f));
                 var nc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
                 nc.Add(UIKit.Strong("Next: " + m.nextRival.name, 15f, Color.white),
-                    UIKit.Plain("Ladder " + Mathf.Min(gm.Save.ladderIndex + 1, Catalog.Rivals.Count) + " / " + Catalog.Rivals.Count, 13f, Pal.MistLight));
+                    UIKit.Plain(Ladder.BatchName(Ladder.BatchOf(gm.Save.ladderIndex)) + " · rival " + (Ladder.PosInBatch(gm.Save.ladderIndex) + 1) + " of " + Ladder.PerBatch
+                        + (Ladder.IsBoss(gm.Save.ladderIndex) ? " · BOSS" : ""), 13f, Pal.MistLight));
                 next.Add(nc);
                 root.Add(next);
             }
@@ -112,7 +116,7 @@ namespace TuitionTakkar
             if (s0.mode == MatchMode.Ladder && humanWon)
             {
                 left = UIKit.Btn("Open pouch", () => gm.ShowPouch(0), Pal.Night, Color.white, UIKit.BodyBold, 16f, 56f, 14f, null, Color.white);
-                right = UIKit.PrimaryBtn(m.becameChampion ? "HOME" : "NEXT RIVAL", () => { if (m.becameChampion) gm.ShowHome(); else gm.ShowRival(); }, 56f);
+                right = UIKit.PrimaryBtn(m.becameChampion ? "NEXT BATCH" : "NEXT RIVAL", () => gm.ShowRival(), 56f);
             }
             else if (s0.mode == MatchMode.Ladder)
             {

@@ -8,8 +8,10 @@ namespace TuitionTakkar
         public static VisualElement Build(GameManager gm, RivalDef rival)
         {
             var save = gm.Save;
-            int index = Catalog.Rivals.IndexOf(rival);
-            bool replay = save.Owns(rival.penId);
+            int index = Ladder.IndexOf(rival);
+            int batch = Ladder.BatchOf(index), pos = Ladder.PosInBatch(index);
+            bool boss = Ladder.IsBoss(index);
+            bool ownsPen = save.Owns(rival.penId);
             var myPen = Catalog.Pen(save.equipped);
             var theirPen = Catalog.Pen(rival.penId);
 
@@ -19,10 +21,14 @@ namespace TuitionTakkar
 
             var top = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
             top.Add(UIKit.IconBtn(() => gm.ShowHome(), UIKit.BackIcon(), Pal.Night, "Back"));
-            top.Add(UIKit.Strong("BATCH LADDER · RIVAL " + (index + 1) + " OF " + Catalog.Rivals.Count, 14f, Pal.BenchText, TextAnchor.MiddleCenter)
+            var tc = UIKit.Col().St(s => s.alignItems = Align.Center);
+            tc.Add(UIKit.Strong(Ladder.BatchName(batch).ToUpperInvariant() + " · " + (boss ? "BOSS" : "RIVAL " + (pos + 1) + " OF " + Ladder.PerBatch), 14f, Pal.BenchText, TextAnchor.MiddleCenter)
                 .St(s => s.letterSpacing = 0.6f));
+            tc.Add(UIKit.HandText(Ladder.Subtitle(batch).ToLowerInvariant(), 14f, Pal.BenchText, TextAnchor.MiddleCenter));
+            top.Add(tc);
             top.Add(UIKit.El().St(s => s.width = 44));
             root.Add(top);
+            root.Add(BatchStrip(save, batch, pos));
 
             // Graph-paper card
             var card = UIKit.Col().St(s => { s.marginTop = 22; UIKit.Pad(s, 22, 20, 20, 20); s.borderBottomWidth = 6; s.borderBottomColor = new Color(0, 0, 0, 0.12f); });
@@ -52,7 +58,12 @@ namespace TuitionTakkar
             var info = UIKit.Col().St(s => s.marginTop = 16);
             info.Add(UIKit.KeyValue("Format", "Best of " + (GameConfig.RoundsToWin * 2 - 1), Pal.Ink));
             info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
-            info.Add(UIKit.KeyValue("Win", replay ? "+" + rival.reward / 2 + " marks (rematch)" : "Keep " + theirPen.name + " · +" + rival.reward + " marks", Pal.Green));
+            info.Add(UIKit.KeyValue("Win", ownsPen ? "+" + (rival.reward + rival.reward / 2) + " marks (you have their pen)" : "Keep " + theirPen.name + " · +" + rival.reward + " marks", Pal.Green));
+            if (boss)
+            {
+                info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
+                info.Add(UIKit.KeyValue("Batch bonus", "+" + Ladder.BatchBonus(batch) + " marks · opens " + Ladder.BatchName(batch + 1), Pal.Green));
+            }
             info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
             info.Add(UIKit.KeyValue("Lose", "+" + Economy.LossConsolation + " marks for trying", Pal.InkSoft));
             card.Add(info);
@@ -72,6 +83,27 @@ namespace TuitionTakkar
             root.Add(UIKit.Grow());
             root.Add(UIKit.PrimaryBtn("START MATCH", () => gm.StartLadder(rival), 60f));
             return root;
+        }
+
+        /// <summary>The batch's 10 rivals: beaten (ticked), you're here (ringed), still locked ("?").</summary>
+        static VisualElement BatchStrip(SaveData save, int batch, int pos)
+        {
+            var row = UIKit.Row().St(s => { s.marginTop = 12; s.justifyContent = Justify.SpaceBetween; });
+            for (int i = 0; i < Ladder.PerBatch; i++)
+            {
+                var r = Ladder.RivalAt(batch * Ladder.PerBatch + i);
+                bool beaten = i < pos, current = i == pos;
+                var dot = UIKit.Col().St(s =>
+                {
+                    s.width = 30; s.height = 30; UIKit.Radius(s, 15); s.alignItems = Align.Center; s.justifyContent = Justify.Center;
+                    s.backgroundColor = beaten || current ? r.avatar : Pal.Locked;
+                    UIKit.Border(s, current ? 3f : beaten ? 3f : 1.5f, current ? Pal.Red : beaten ? Pal.Green : Pal.Ink);
+                    s.opacity = beaten ? 0.75f : 1f;
+                });
+                dot.Add(UIKit.Disp(beaten || current ? r.initial : "?", 14f, current || beaten ? Pal.Ink : Pal.LockedText, TextAnchor.MiddleCenter));
+                row.Add(dot);
+            }
+            return row;
         }
 
         static VisualElement Person(string name, string pen, string initial, Color c)

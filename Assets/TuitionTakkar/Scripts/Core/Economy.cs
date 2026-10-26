@@ -106,7 +106,8 @@ namespace TuitionTakkar
         /// Works out the marks for a finished offline match and marks the daily double as
         /// used when it applies. Does not add the marks to the save; the caller does.
         /// </summary>
-        public static RewardResult ForMatch(MatchSetup s, bool humanWon, int knockOffs, bool firstLadderWin, SaveData save)
+        public static RewardResult ForMatch(MatchSetup s, bool humanWon, int knockOffs, bool firstLadderWin, SaveData save,
+            int batchBonus = 0, int ownedPenBonus = 0)
         {
             var r = new RewardResult();
             if (s.mode == MatchMode.PassAndPlay) return r;
@@ -133,6 +134,16 @@ namespace TuitionTakkar
             r.lines.Add(new RewardLine { label = "Match win", note = note, amount = win });
 
             int sub = win;
+            if (ownedPenBonus > 0)
+            {
+                r.lines.Add(new RewardLine { label = "Pen bonus", note = "you already have their pen", amount = ownedPenBonus });
+                sub += ownedPenBonus;
+            }
+            if (batchBonus > 0)
+            {
+                r.lines.Add(new RewardLine { label = "Batch complete", note = "all 10 rivals beaten", amount = batchBonus });
+                sub += batchBonus;
+            }
             if (knockOffs > 0)
             {
                 int k = knockOffs * KnockOffBonus;

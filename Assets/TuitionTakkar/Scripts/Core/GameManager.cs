@@ -274,24 +274,35 @@ namespace TuitionTakkar
             bool humanWon = s.mode == MatchMode.PassAndPlay || !s.isBot[winner];
             bool firstLadderWin = false;
 
+            int batchBonus = 0, ownedPenBonus = 0;
             if (s.mode == MatchMode.Ladder && humanWon)
             {
+                // Forward only: the rival played is always the current one.
                 var rival = s.rival;
-                firstLadderWin = !Save.Owns(rival.penId);
+                int idx = Ladder.IndexOf(rival);
+                firstLadderWin = idx == Save.ladderIndex;
                 if (firstLadderWin)
                 {
-                    Save.AddPen(rival.penId);
-                    o.wonPen = Catalog.Pen(rival.penId);
+                    if (!Save.Owns(rival.penId))
+                    {
+                        Save.AddPen(rival.penId);
+                        o.wonPen = Catalog.Pen(rival.penId);
+                    }
+                    else ownedPenBonus = rival.reward / 2;
+                    if (Ladder.IsBoss(idx))
+                    {
+                        o.becameChampion = true;   // batch complete
+                        o.batchDone = Ladder.BatchOf(idx);
+                        batchBonus = Ladder.BatchBonus(o.batchDone);
+                    }
+                    Save.ladderIndex++;
                 }
-                int idx = Catalog.Rivals.IndexOf(rival);
-                if (idx == Save.ladderIndex) Save.ladderIndex++;
-                o.becameChampion = firstLadderWin && idx == Catalog.Rivals.Count - 1;
-                o.nextRival = Save.LadderComplete ? null : Save.CurrentRival;
+                o.nextRival = Save.CurrentRival;
             }
 
             // Marks: see Economy (match win, knock-offs, first win of the day, or 2 for trying).
             int knocks = knockOffs != null ? knockOffs[0] : 0;
-            o.rewards = Economy.ForMatch(s, humanWon, knocks, firstLadderWin, Save);
+            o.rewards = Economy.ForMatch(s, humanWon, knocks, firstLadderWin, Save, batchBonus, ownedPenBonus);
             Save.marks += o.rewards.total;
             Save.Save();
 

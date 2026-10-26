@@ -87,14 +87,13 @@ namespace TuitionTakkar
             var lrow = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
             var lcol = UIKit.Col().St(s => { s.flexShrink = 1; s.marginRight = 8; });
             lcol.Add(UIKit.Disp("BATCH LADDER", 26f, Pal.Ink));
-            if (save.LadderComplete)
-                lcol.Add(UIKit.HandText("batch champion! replay the final anytime.", 16f, Pal.Ink).St(s => s.marginTop = 2));
-            else
+            int lb = Ladder.BatchOf(save.ladderIndex), lp = Ladder.PosInBatch(save.ladderIndex);
+            lcol.Add(UIKit.HandText(Ladder.BatchName(lb) + " · " + Ladder.Subtitle(lb).ToLowerInvariant(), 16f, Pal.Ink));
             {
                 var r = save.CurrentRival;
                 var nx = UIKit.Row().St(s => s.marginTop = 4);
                 nx.Add(UIKit.Avatar(r.initial, r.avatar, 26f));
-                nx.Add(UIKit.Strong("Next: " + r.name, 14f, Pal.Ink).St(s => s.marginLeft = 6));
+                nx.Add(UIKit.Strong((Ladder.IsBoss(save.ladderIndex) ? "Boss: " : "Next: ") + r.name, 14f, Pal.Ink).St(s => s.marginLeft = 6));
                 var rw = UIKit.Row().St(s => { s.marginLeft = 8; s.backgroundColor = new Color(1f, 1f, 1f, 0.6f); UIKit.Pad(s, 2, 8, 2, 6); UIKit.Radius(s, 10); });
                 rw.Add(new CoinIcon(14f));
                 rw.Add(UIKit.Strong("+" + r.reward, 12f, Pal.Ink).St(s => s.marginLeft = 4));
@@ -105,13 +104,13 @@ namespace TuitionTakkar
             lrow.Add(UIKit.Btn("Play", () => gm.ShowRival(), Pal.Red, Color.white, UIKit.BodyBold, 15f, 44f, 22f, Pal.RedDark));
             ladder.Add(lrow);
             var dots = UIKit.Row().St(s => s.marginTop = 10);
-            for (int i = 0; i < Catalog.Rivals.Count; i++)
+            for (int i = 0; i < Ladder.PerBatch; i++)
             {
-                var d = UIKit.Dot(12f, Pal.Ink, i < save.ladderIndex, Pal.Ink);
+                var d = UIKit.Dot(12f, Pal.Ink, i < lp, Pal.Ink);
                 if (i > 0) d.style.marginLeft = 5;
                 dots.Add(d);
             }
-            dots.Add(UIKit.Strong(Mathf.Min(save.ladderIndex + 1, Catalog.Rivals.Count) + " / " + Catalog.Rivals.Count, 12f, Pal.Ink)
+            dots.Add(UIKit.Strong((lp + 1) + " / " + Ladder.PerBatch, 12f, Pal.Ink)
                 .St(s => s.marginLeft = 8));
             ladder.Add(dots);
             ladder.RegisterCallback<ClickEvent>(e =>

@@ -82,8 +82,8 @@ namespace TuitionTakkar
 
             var body = UIKit.Col().St(s => { UIKit.Pad(s, 26, 22, 0, 22); });
             var card = Paper(-1f);
-            card.Add(UIKit.Disp("SIGN IN TO\nPLAY ONLINE", 34f, Pal.Ink));
-            card.Add(UIKit.HandText("so your wins count on the class leaderboard, and your pens follow you to a new phone.", 18f, Pal.Ink).St(s => s.marginTop = 6));
+            card.Add(UIKit.Disp("HOW DO YOU\nWANT TO PLAY?", 34f, Pal.Ink));
+            card.Add(UIKit.HandText("sign in with Google to get on the class leaderboard, or jump in as a guest.", 18f, Pal.Ink).St(s => s.marginTop = 6));
 
             var google = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 17f, 58f, 14f, Pal.H("#C9D3DE"), Pal.Ink);
             google.style.marginTop = 20;
@@ -93,19 +93,20 @@ namespace TuitionTakkar
             gRow.Add(UIKit.Strong("Continue with Google", 17f, Pal.Ink).St(s => s.marginLeft = 10));
             google.Add(gRow);
             card.Add(google);
+            var gPoints = UIKit.Col().St(s => s.marginTop = 8);
+            foreach (var p in new[] { "your wins go on the leaderboard", "pick your own name, keep it on a new phone", "your email is never shown to other players" })
+                gPoints.Add(UIKit.Plain("•  " + p, 13f, Pal.InkSoft).St(s => s.marginTop = 3));
+            card.Add(gPoints);
 
-            var points = UIKit.Col().St(s => s.marginTop = 16);
-            foreach (var p in new[] { "your email is never shown to other players", "ladder, practice and pouch stay yours", "offline modes never need sign-in" })
-                points.Add(UIKit.Plain("•  " + p, 13f, Pal.InkSoft).St(s => s.marginTop = 4));
-            card.Add(points);
+            var guest = UIKit.Btn("Continue as Guest", () => DoGuest(gm), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 17f, 58f, 14f, Pal.H("#C7A928"), Pal.Ink);
+            guest.style.marginTop = 18;
+            card.Add(guest);
+            var qPoints = UIKit.Col().St(s => s.marginTop = 8);
+            foreach (var p in new[] { "play right away as Guest_xxxxxx", "quick match, rooms and invites all work", "guest wins don't go on the leaderboard (sign in later any time)" })
+                qPoints.Add(UIKit.Plain("•  " + p, 13f, Pal.InkSoft).St(s => s.marginTop = 3));
+            card.Add(qPoints);
             body.Add(card);
 
-            if (Application.isEditor || Debug.isDebugBuild)
-            {
-                var dev = UIKit.Btn("Test as guest (dev build only)", () => DoDevGuest(gm), Color.clear, Pal.BenchText, UIKit.BodyBold, 14f, 44f, 12f, null, Pal.BenchText);
-                dev.style.marginTop = 16;
-                body.Add(dev);
-            }
             body.Add(UIKit.Btn("Not now", () => gm.ShowHome(), Color.clear, Pal.Ink, UIKit.BodyBold, 16f, 48f, 12f).St(s => s.marginTop = 8));
             root.Add(body);
             return root;
@@ -129,12 +130,12 @@ namespace TuitionTakkar
             }
         }
 
-        static async void DoDevGuest(GameManager gm)
+        static async void DoGuest(GameManager gm)
         {
-            gm.UI.ShowOverlay(Busy("signing in…"));
+            gm.UI.ShowOverlay(Busy("getting you a seat…"));
             try
             {
-                await OnlineServices.SignInDevGuestAsync(gm.Save);
+                await OnlineServices.SignInGuestAsync(gm.Save);
                 gm.UI.HideOverlay();
                 Next(gm);
             }
@@ -241,7 +242,8 @@ namespace TuitionTakkar
         {
             var save = gm.Save;
             var root = Screen();
-            root.Add(Header("PLAY ONLINE", "signed in as " + OnlineServices.DisplayName(save), () => gm.ShowHome()));
+            bool guest = OnlineServices.IsGuest(save);
+            root.Add(Header("PLAY ONLINE", (guest ? "playing as " : "signed in as ") + OnlineServices.DisplayName(save), () => gm.ShowHome()));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
@@ -306,17 +308,30 @@ namespace TuitionTakkar
             {
                 s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; s.backgroundColor = Pal.Night; UIKit.Radius(s, 14); UIKit.Pad(s, 14, 16, 14, 16);
             });
-            var lc = UIKit.Col();
-            var winsLabel = UIKit.Strong("You · " + save.onlineWins + " online wins", 15f, Color.white);
-            var rankLabel = UIKit.Plain("checking the board…", 12f, Pal.Mist);
+            var lc = UIKit.Col().St(s => { s.flexShrink = 1; s.marginRight = 8; });
+            var winsLabel = UIKit.Strong(guest ? "Playing as guest" : "You · " + save.onlineWins + " online wins", 15f, Color.white);
+            var rankLabel = UIKit.Plain(guest ? "guest wins don't go on the leaderboard" : "checking the board…", 12f, Pal.Mist);
+            rankLabel.style.whiteSpace = WhiteSpace.Normal;
             lc.Add(winsLabel, rankLabel);
             lb.Add(lc);
             lb.Add(UIKit.Strong("Leaderboard ›", 14f, Pal.Yellow));
             lb.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); ShowLeaderboard(gm); });
             body.Add(lb);
-            LoadMyRank(gm, winsLabel, rankLabel);
+            if (guest)
+            {
+                // Sign in later: Google is linked to this same account, nothing is lost.
+                var up = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 15f, 52f, 12f, Pal.H("#C9D3DE"), Pal.Ink);
+                up.style.marginTop = 12;
+                var uRow = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
+                uRow.pickingMode = PickingMode.Ignore;
+                uRow.Add(GoogleG(20f));
+                uRow.Add(UIKit.Strong("Sign in with Google to get on the board", 14f, Pal.Ink).St(s => s.marginLeft = 8));
+                up.Add(uRow);
+                body.Add(up);
+            }
+            else LoadMyRank(gm, winsLabel, rankLabel);
 
-            var signOut = UIKit.Btn("Sign out", () =>
+            var signOut = UIKit.Btn(guest ? "Stop playing as guest" : "Sign out", () =>
             {
                 OnlineServices.SignOut(save);
                 gm.ShowHome();
@@ -694,9 +709,19 @@ namespace TuitionTakkar
                 s.backgroundColor = Pal.Yellow; UIKit.Radius(s, 14); UIKit.Pad(s, 12, 14, 12, 14); UIKit.Border(s, 2f, Pal.Ink);
                 s.justifyContent = Justify.SpaceBetween; s.marginBottom = 14;
             });
-            mine.Add(UIKit.Strong(me.HasValue ? "You are #" + me.Value.rank : board == OnlineServices.WeeklyId ? "No wins this week yet" : "You're not on the board yet", 16f, Pal.Ink));
-            mine.Add(UIKit.Disp((me.HasValue ? me.Value.wins : 0) + " WINS", 20f, Pal.Ink));
-            body.Add(mine);
+            if (!OnlineServices.OnLeaderboard(gm.Save))
+            {
+                // Guests can look, but only Google players are on the board.
+                mine.Add(UIKit.Strong("Playing as guest: sign in with Google to get on the board", 14f, Pal.Ink).St(s => { s.whiteSpace = WhiteSpace.Normal; s.flexShrink = 1; }));
+                mine.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); DoGoogle(gm); });
+                body.Add(mine);
+            }
+            else
+            {
+                mine.Add(UIKit.Strong(me.HasValue ? "You are #" + me.Value.rank : board == OnlineServices.WeeklyId ? "No wins this week yet" : "You're not on the board yet", 16f, Pal.Ink));
+                mine.Add(UIKit.Disp((me.HasValue ? me.Value.wins : 0) + " WINS", 20f, Pal.Ink));
+                body.Add(mine);
+            }
 
             if (top.Count == 0)
             {

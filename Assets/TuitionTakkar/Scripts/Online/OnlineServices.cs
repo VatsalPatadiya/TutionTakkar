@@ -45,8 +45,42 @@ namespace TuitionTakkar
 
         // ---------- Google ----------
 
-        /// <summary>True once this phone has signed in with Google (or a dev guest).</summary>
-        public static bool HasAccount(SaveData s) => s.googleLinked || s.devGuest;
+        /// <summary>True once this phone plays online: with Google, or as a guest.</summary>
+        public static bool HasAccount(SaveData s) => s.googleLinked || s.devGuest || s.onlineGuest;
+
+        /// <summary>Only Google players go on the leaderboard.</summary>
+        public static bool OnLeaderboard(SaveData s) => s.googleLinked;
+
+        public static bool IsGuest(SaveData s) => !s.googleLinked && (s.onlineGuest || s.devGuest);
+
+        // ---------- guest ----------
+
+        public const string GuestPrefix = "Guest_";
+
+        /// <summary>"Guest_" + 6 letters/numbers taken from the player id, so every guest's name is different.</summary>
+        public static string GuestName(string playerId)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char ch in (playerId ?? "").ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(ch) && ch < 128) sb.Append(ch);
+                if (sb.Length == 6) break;
+            }
+            while (sb.Length < 6) sb.Append((char)('a' + UnityEngine.Random.Range(0, 26)));
+            return GuestPrefix + sb;
+        }
+
+        /// <summary>Plays online straight away with the phone's own anonymous account and a Guest_ name.</summary>
+        public static async Task SignInGuestAsync(SaveData save)
+        {
+            await InitAsync();
+            string name = GuestName(Auth.PlayerId);
+            try { await Auth.UpdatePlayerNameAsync(name); }
+            catch (Exception e) { Debug.LogWarning("Guest name: " + e.Message); }
+            save.onlineGuest = true;
+            save.onlineName = name;
+            save.Save();
+        }
 
         /// <summary>
         /// Google account picker, then: link Google onto the current session. If that Google
@@ -67,7 +101,10 @@ namespace TuitionTakkar
             }
             save.googleLinked = true;
             save.devGuest = false;
+            save.onlineGuest = false;
             await RefreshNameAsync(save);
+            // A guest who signs in picks a real name (the Guest_ one was only for guests).
+            if (save.onlineName.StartsWith(GuestPrefix)) save.onlineName = "";
             save.Save();
             return g.displayName;
         }
@@ -87,6 +124,7 @@ namespace TuitionTakkar
             GoogleSignIn.SignOut();
             save.googleLinked = false;
             save.devGuest = false;
+            save.onlineGuest = false;
             save.onlineName = "";
             save.Save();
             initTask = null;
@@ -144,10 +182,14 @@ namespace TuitionTakkar
             public bool me;
         }
 
-        /// <summary>Adds one online win to the all-time and weekly boards. Returns the new all-time total (or -1).</summary>
-        public static async Task<int> ReportWinAsync()
+        /// <summary>
+        /// Adds one online win to the all-time and weekly boards. Returns the new all-time total (or -1).
+        /// Google players only: guests never reach the leaderboard.
+        /// </summary>
+        public static async Task<int> ReportWinAsync(SaveData save)
         {
             int total = -1;
+            if (!OnLeaderboard(save)) return total;
             try
             {
                 await InitAsync();

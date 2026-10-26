@@ -99,8 +99,8 @@ namespace TuitionTakkar
                     list.Add(new Item { day = 0, title = "Double marks are waiting", body = "Your first win today pays 2× marks. One quick match?" });
             }
 
-            string rival = save.LadderComplete ? "The whole batch" : save.CurrentRival.name;
-            list.Add(new Item { day = 1, title = rival + " wants a rematch", body = save.LadderComplete ? "You're the champion. Come defend your title!" : rival + " is waiting at the desk. Flick them off!" });
+            string rival = save.CurrentRival.name;
+            list.Add(new Item { day = 1, title = rival + " is waiting", body = rival + " is waiting at the desk in " + Ladder.BatchName(Ladder.BatchOf(save.ladderIndex)) + ". Flick them off!" });
             list.Add(new Item { day = 2, title = "Double marks are waiting", body = "Your first win today pays 2× marks." });
             list.Add(new Item { day = 3, title = "Your pens are gathering dust", body = "Win today for 2× marks!" });
             list.Add(new Item { day = 5, title = "Double marks are waiting", body = "One win today pays double. The desk misses you." });
