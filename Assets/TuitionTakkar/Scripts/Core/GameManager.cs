@@ -243,12 +243,24 @@ namespace TuitionTakkar
             else ShowRival();
         }
 
+        bool nameTapHooked;
+
+        /// <summary>Online: tap a classmate's name on the blackboard to see their profile.</summary>
+        void OnNameTapped(int i)
+        {
+            var s = Match.Setup;
+            if (s == null || s.mode != MatchMode.Online || s.net == null || i == s.localIndex || i < 0 || i >= s.Players) return;
+            Audio.Ui();
+            ProfileScreens.ShowOpponent(this, s.net.PlayerIdAt(i), s.names[i], s.pens[i]);
+        }
+
         public void StartMatch(MatchSetup s)
         {
             Paused = false;
             Time.timeScale = 1f;
             UI.ShowHud();
             // Online: every player looks at the desk from their own side (pen at the bottom).
+            if (!nameTapHooked) { UI.Hud.NameTapped += OnNameTapped; nameTapHooked = true; }
             Desks.Active = s.mode == MatchMode.Online ? s.desk : null;
             World.SetDesk(Desks.ActiveOrHome, s.IsParty);
             UI.Hud.SetDesk(Desks.Active, s.desk != null ? s.desk.Pot(s.Players) : 0);
@@ -293,6 +305,7 @@ namespace TuitionTakkar
                     else ownedPenBonus = rival.reward / 2;
                     if (Ladder.IsBoss(idx))
                     {
+                        Save.stats.bosses++;
                         o.becameChampion = true;   // batch complete
                         o.batchDone = Ladder.BatchOf(idx);
                         batchBonus = Ladder.BatchBonus(o.batchDone);
@@ -314,6 +327,7 @@ namespace TuitionTakkar
 
             World.ClearPens();
             UI.ShowScreen(MatchEndScreen.Build(this, o));
+            if (s.mode != MatchMode.PassAndPlay && s.mode != MatchMode.Practice) { Badges.Check(Save); ProfileScreens.ShowPendingBadges(this, 2200); }
             if (humanWon && s.mode != MatchMode.PassAndPlay) Reminders.AskAfterWin(this);
         }
 

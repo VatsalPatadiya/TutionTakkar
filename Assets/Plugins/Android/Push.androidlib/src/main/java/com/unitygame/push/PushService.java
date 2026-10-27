@@ -30,7 +30,9 @@ public class PushService extends FirebaseMessagingService {
         PendingIntent tap = PendingIntent.getActivity(this, (int) System.currentTimeMillis(), open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Notification note = new Notification.Builder(this, PushBridge.CHANNEL)
+        String channel = msg.getData().get("channel");
+        if (channel == null || channel.isEmpty()) channel = PushBridge.CHANNEL;
+        Notification note = new Notification.Builder(this, channel)
             .setSmallIcon(getApplicationInfo().icon)
             .setContentTitle(title)
             .setContentText(body)
@@ -44,6 +46,7 @@ public class PushService extends FirebaseMessagingService {
 
     @Override
     public void onNewToken(String token) {
-        // Topics follow the install, so nothing to store yet (per-player messages come later).
+        // Push.cs uploads it to Cloud Save next time the game opens (room invites reach this phone).
+        PushBridge.lastToken = token;
     }
 }

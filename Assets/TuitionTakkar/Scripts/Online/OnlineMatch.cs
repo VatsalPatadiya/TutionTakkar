@@ -31,10 +31,21 @@ namespace TuitionTakkar
         /// <summary>The app came back from the background: catch up with the room straight away.</summary>
         public static void OnResume() => link?.Nudge(99f);
 
+        /// <summary>Left, dropped or counted out of a running match: a loss in the stats (the fee is gone).</summary>
+        static void RecordLeft(GameManager gm)
+        {
+            var s = gm.Match.Setup;
+            if (s == null || s.mode != MatchMode.Online || !gm.Match.Running) return;
+            StatsTracker.Stop();
+            int them = s.IsParty ? -1 : 1 - s.localIndex;
+            StatsRecorder.Online(gm.Save, s, s.Players, them >= 0 ? s.names[them] : s.Players + " players", "left", -s.feePaid, 0, true);
+        }
+
         /// <summary>No connection for too long: the match is lost.</summary>
         static async void GiveUp(GameManager gm, OnlineLink l)
         {
             if (link != l) return;
+            RecordLeft(gm);
             link = null;
             DropReactions();
             l.Detach();
@@ -81,6 +92,7 @@ namespace TuitionTakkar
             }
 
             gm.UI.ShowScreen(Intro(s));
+            _ = Friends.SetPresenceAsync(gm, "match", s.desk != null ? s.desk.name : "");
             gm.UI.ScreenLayer.schedule.Execute(() =>
             {
                 if (link != l || room.Closed) { Refund(gm, s); return; }
@@ -189,6 +201,10 @@ namespace TuitionTakkar
             var pay = Settle(gm, s, iWon ? 1 : 2, true);
             if (iWon) gm.Save.onlineWins++;
             gm.Save.Save();
+            {
+                int me0 = s.localIndex, them0 = 1 - me0;
+                StatsRecorder.Online(gm.Save, s, iWon ? 1 : 2, s.names[them0], score[me0] + "–" + score[them0], pay.net, pay.staked ? pay.won : 0);
+            }
 
             var root = UIKit.Col().St(st => { st.backgroundColor = Pal.Night; UIKit.Pad(st, 44, 20, 26, 20); });
             root.pickingMode = PickingMode.Position;
@@ -245,6 +261,8 @@ namespace TuitionTakkar
 
             gm.UI.ShowScreen(root);
             if (iWon) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
+            ProfileScreens.ShowPendingBadges(gm, 2200);
+            _ = Friends.SetPresenceAsync(gm, "home");
         }
 
         // =====================================================================
@@ -265,6 +283,7 @@ namespace TuitionTakkar
             var pay = Settle(gm, s, mine, real);
             if (iWon && real) gm.Save.onlineWins++;
             gm.Save.Save();
+            if (real) StatsRecorder.Online(gm.Save, s, mine, s.Players + " players", HudView.Ordinal(mine), pay.net, pay.staked ? pay.won : 0);
 
             var root = UIKit.Col().St(st => { st.backgroundColor = Pal.Night; UIKit.Pad(st, 44, 20, 26, 20); });
             root.pickingMode = PickingMode.Position;
@@ -328,11 +347,14 @@ namespace TuitionTakkar
             gm.UI.ShowScreen(root);
             gm.Audio.Stamp();
             if (iWon && real) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
+            ProfileScreens.ShowPendingBadges(gm, 2200);
+            _ = Friends.SetPresenceAsync(gm, "home");
         }
 
         /// <summary>This phone was counted out (away too long, or the room closed).</summary>
         public static async void Kicked(GameManager gm, string reason)
         {
+            RecordLeft(gm);
             var l = link;
             link = null;
             DropReactions();
@@ -481,6 +503,7 @@ namespace TuitionTakkar
                 var l = link;
                 link = null;
                 DropReactions();
+                RecordLeft(gm);
                 gm.Match.Stop();
                 l?.Detach();
                 gm.UI.HideOverlay();

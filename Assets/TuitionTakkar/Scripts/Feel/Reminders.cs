@@ -67,6 +67,7 @@ namespace TuitionTakkar
                 save.marks += ComebackBonus;
                 paid = true;
             }
+            if (save.lastPlayDay != today) save.stats.daysPlayed++;
             save.lastPlayDay = today;
             save.Save();
             return paid;

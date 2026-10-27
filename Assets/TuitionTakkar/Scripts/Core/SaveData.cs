@@ -46,6 +46,10 @@ namespace TuitionTakkar
         public string lastPocketDay = "";
         /// <summary>The desk last chosen for Quick Match.</summary>
         public string lastDesk = "tuition";
+        /// <summary>Profile stats and badges.</summary>
+        public PlayerStats stats = new PlayerStats();
+        /// <summary>Permanent player ID for friends (TT-XXXXXX), from Cloud Code. Google players only.</summary>
+        public string friendId = "";
 
         // ---------- reminders ----------
         /// <summary>Settings switch for the 7 PM reminders.</summary>
@@ -112,6 +116,9 @@ namespace TuitionTakkar
                 if (data.lastPlayDay == null) data.lastPlayDay = "";
                 if (data.lastPocketDay == null) data.lastPocketDay = "";
                 if (string.IsNullOrEmpty(data.lastDesk)) data.lastDesk = "tuition";
+                if (data.stats == null) data.stats = new PlayerStats();
+                if (data.friendId == null) data.friendId = "";
+                data.stats.Fix();
                 if (!data.owned.Contains(Catalog.StarterId)) data.owned.Insert(0, Catalog.StarterId);
                 if (!data.Owns(data.equipped)) data.equipped = Catalog.StarterId;
                 return data;

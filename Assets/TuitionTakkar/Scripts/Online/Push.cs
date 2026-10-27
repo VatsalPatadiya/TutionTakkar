@@ -31,6 +31,20 @@ namespace TuitionTakkar
             CheckTappedLink();
         }
 
+        /// <summary>This phone's notification token ("" in the editor or before Firebase is ready).</summary>
+        public static string Token()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (var bridge = new AndroidJavaClass(Bridge))
+                    return bridge.CallStatic<string>("token") ?? "";
+            }
+            catch (Exception e) { Debug.LogWarning("Push token: " + e.Message); }
+#endif
+            return "";
+        }
+
         /// <summary>The game was opened by tapping a notification that carried a link.</summary>
         public static void CheckTappedLink()
         {

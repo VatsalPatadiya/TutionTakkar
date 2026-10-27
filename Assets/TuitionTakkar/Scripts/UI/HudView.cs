@@ -60,6 +60,16 @@ namespace TuitionTakkar
             public ChalkBox[] boxes;
             public ChalkTimer timer;
             public bool active;
+            public int player = -1;
+        }
+
+        /// <summary>A player's name on the blackboard was tapped (online: opens their profile).</summary>
+        public event System.Action<int> NameTapped;
+
+        void Tappable(ChalkRow r)
+        {
+            r.root.pickingMode = PickingMode.Position;
+            r.root.RegisterCallback<ClickEvent>(_ => { if (r.player >= 0) NameTapped?.Invoke(r.player); });
         }
 
         class EdgeWarning
@@ -259,6 +269,8 @@ namespace TuitionTakkar
             Layout();
             // Nothing on the HUD may swallow a touch meant for a pen (only the pause button is a button).
             UIKit.PassThrough(Root);
+            Tappable(left);
+            Tappable(right);
         }
 
         // ---------- layout ----------
@@ -453,6 +465,8 @@ namespace TuitionTakkar
                 partyBox.Add(r.root);
             }
             UIKit.PassThrough(partyBox);
+            for (int i = 0; i < n; i++)
+                if (partyRows[i] != null) { partyRows[i].player = i; Tappable(partyRows[i]); }
             if (shooterNow >= 0 && shooterNow < n) MarkPartyTurn(shooterNow, humanTurn);
             HideAim();
         }
@@ -497,6 +511,8 @@ namespace TuitionTakkar
                 : s.mode == MatchMode.Ladder && s.rival != null ? Color.Lerp(s.rival.avatar, Color.white, 0.35f) : Sketch.ChalkPink;
             // The top row is always this phone's player (online player 1 included).
             int me = s.mode == MatchMode.Online ? s.localIndex : 0, them = 1 - me;
+            left.player = me;
+            right.player = them;
             SetRow(left, ChalkName(s, me), Sketch.ChalkYellow, score[me], true);
             SetRow(right, ChalkName(s, them), theirChalk, score[them], true);
             title.text = "PEN FIGHT · round " + round + " of " + (GameConfig.RoundsToWin * 2 - 1);

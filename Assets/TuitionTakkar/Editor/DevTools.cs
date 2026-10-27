@@ -183,6 +183,46 @@ namespace TuitionTakkar
             Debug.Log("[TuitionTakkar] online level " + OnlineLevel.Level(GameManager.I.Save.onlineXp));
         }
 
+        [MenuItem("Tuition Takkar/Dev: Open my profile (sample stats)")]
+        static void Profile()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            var st = gm.Save.stats;
+            if (st.played == 0)
+            {
+                st.played = 214; st.won = 131; st.lost = 83; st.streak = 4; st.bestStreak = 11;
+                st.knockOffs = 486; st.ownFalls = 172; st.flawless = 38; st.comebacks = 9; st.oneFlick = 27; st.survivor = 3;
+                st.partyPlayed = 46; st.party1st = 17; st.party2nd = 12; st.potWon = 248600; st.biggestPot = 50000; st.highestDesk = 16;
+                st.tierWins = new[] { 74, 38, 19, 0, 0 }; st.since = "Oct 2026"; st.daysPlayed = 19; st.bosses = 5; st.finished = 204; st.roomsHosted = 2; st.friends = 3;
+                st.deskIds.Add("tuition"); st.deskPlays.Add(61); st.deskIds.Add("kota"); st.deskPlays.Add(12);
+                st.recent.Add(new MatchRecord { won = true, vs = "RiyaFlicks", desk = "Kota Coaching Hub", score = "3–1", net = 40000, at = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 700 });
+                st.recent.Add(new MatchRecord { won = false, vs = "Arjun_07", desk = "Principal's Office", score = "1–3", net = -1000, at = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 2400 });
+                st.recent.Add(new MatchRecord { won = true, vs = "Meera.T", desk = "Primary School", score = "2–0", free = true, at = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 90000 });
+                gm.Save.onlineXp += 3000;
+                gm.Save.Save();
+            }
+            ProfileScreens.ShowProfile(gm, () => gm.ShowHome());
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Open badges")]
+        static void BadgesScreen()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            ProfileScreens.ShowBadges(gm, () => gm.ShowHome());
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Scroll screen down")]
+        static void ScrollDown()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.ScrollView>(gm.UI.ScreenLayer).ForEach(sv => sv.scrollOffset += new Vector2(0, 700));
+        }
+
         [MenuItem("Tuition Takkar/Dev: Save game view screenshot")]
         static void Shot()
         {

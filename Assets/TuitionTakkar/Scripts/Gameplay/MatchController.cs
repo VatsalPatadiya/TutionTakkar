@@ -92,6 +92,7 @@ namespace TuitionTakkar
         {
             Stop();
             setup = s;
+            StatsTracker.Begin(s);
             score[0] = score[1] = 0;
             knockOffs[0] = knockOffs[1] = 0;
             round = 1;
@@ -440,6 +441,8 @@ namespace TuitionTakkar
             if (!selfOut && oppOut) knockOffs[shooter]++; // a real knock-off, not the other pen's own mistake
             firstShooter = 1 - winner;
 
+            StatsTracker.Round(shooter, selfOut, oppOut, shots, winner, w.IsOverhanging(w.Pens[winner]), score);
+
             var sum = new RoundSummary
             {
                 round = round,
@@ -504,6 +507,7 @@ namespace TuitionTakkar
             for (int i = 0; i < alive.Length; i++)
                 if (i != shooter && alive[i] && w.IsOut(w.Pens[i])) fell.Add(i);
 
+            StatsTracker.PartyShot(shooter, fell);
             foreach (int i in fell)
             {
                 place[i] = aliveCount;
@@ -718,6 +722,7 @@ namespace TuitionTakkar
                 var s = setup;
                 int[] final = { score[0], score[1] };
                 int[] knocks = { knockOffs[0], knockOffs[1] };
+                StatsTracker.MatchEnd(winner, final);
                 Stop();
                 gm.OnMatchOver(s, winner, final, knocks);
                 return;

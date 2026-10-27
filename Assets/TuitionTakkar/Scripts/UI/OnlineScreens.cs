@@ -52,6 +52,8 @@ namespace TuitionTakkar
         public static void ShowPlay(GameManager gm)
         {
             gm.UI.ShowScreen(Play(gm));
+            FriendsUI.Hook(gm);
+            if (Friends.Allowed(gm.Save)) StartFriends(gm);
             if (inviteCode == null) return;
             string code = inviteCode, from = inviteFrom;
             inviteCode = inviteFrom = null;
@@ -59,6 +61,30 @@ namespace TuitionTakkar
         }
 
         static string inviteCode, inviteFrom;
+
+        static async void StartFriends(GameManager gm)
+        {
+            try { await Friends.InitAsync(gm); await Friends.SetPresenceAsync(gm, "home"); }
+            catch (Exception e) { Debug.LogWarning("Friends: " + e.Message); }
+        }
+
+        /// <summary>Join a room straight away (a friend's invite).</summary>
+        public static async void JoinDirect(GameManager gm, string code)
+        {
+            if (!NetPopups.IsOnline) { gm.UI.ShowOverlay(NetPopups.NoInternet(gm)); return; }
+            gm.UI.ShowOverlay(Busy("joining " + code + "…"));
+            try
+            {
+                await OnlineServices.InitAsync();
+                var room = await OnlineRoom.JoinByCodeAsync(gm, code);
+                gm.UI.HideOverlay();
+                ShowRoom(gm, room);
+            }
+            catch (Exception e)
+            {
+                gm.UI.ShowOverlay(Error(gm, "CAN'T JOIN", OnlineRoom.Explain(e)));
+            }
+        }
 
         /// <summary>
         /// An invite link was tapped: sign in / pick a name if needed, then Play Online
@@ -248,6 +274,54 @@ namespace TuitionTakkar
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             var body = UIKit.Col().St(s => UIKit.Pad(s, 20, 20, 24, 20));
+
+            // My profile + Friends
+            {
+                int lvl = OnlineLevel.Level(save.onlineXp);
+                var me = UIKit.Row().St(s => { s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 12, 10, 12); s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.1f); });
+                var av = UIKit.El().St(s => { s.width = 48; s.height = 48; });
+                av.Add(UIKit.Avatar(ProfileScreens.Initial(OnlineServices.DisplayName(save)), Pal.Yellow, 48f));
+                var lvd = UIKit.El().St(s => { s.position = Position.Absolute; s.right = -4; s.bottom = -3; s.width = 22; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Pouch; UIKit.Border(s, 2f, Pal.Paper); s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
+                lvd.Add(UIKit.Disp(lvl.ToString(), 11f, Color.white, TextAnchor.MiddleCenter));
+                av.Add(lvd);
+                me.Add(av);
+                var mc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexGrow = 1; s.flexShrink = 1; });
+                mc.Add(UIKit.Strong("My profile", 16f, Pal.Ink));
+                mc.Add(UIKit.Strong(save.stats.won + " wins · " + save.stats.knockOffs + " knocked off · " + save.stats.BadgesEarned + " badges", 12f, Pal.H("#5B6B78")));
+                me.Add(mc);
+                me.Add(UIKit.Strong("View ›", 13f, Pal.Green));
+                me.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); ProfileScreens.ShowProfile(gm); });
+                body.Add(me);
+
+                var frCard = UIKit.Row().St(s => { s.marginTop = 10; s.marginBottom = 16; s.backgroundColor = Pal.Night; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 12, 10, 12); });
+                var fi = UIKit.El().St(s => { s.width = 48; s.height = 48; UIKit.Radius(s, 14); s.backgroundColor = Pal.NightSoft; s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
+                var ppl = UIKit.El().St(s => { s.width = 28; s.height = 22; });
+                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 3; s.top = 0; s.width = 10; s.height = 10; UIKit.Radius(s, 5); s.backgroundColor = Color.white; }));
+                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 0; s.top = 12; s.width = 16; s.height = 9; s.borderTopLeftRadius = s.borderTopRightRadius = 8; s.backgroundColor = Color.white; }));
+                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 16; s.top = 2; s.width = 9; s.height = 9; UIKit.Radius(s, 5); s.backgroundColor = Pal.Yellow; }));
+                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 14; s.top = 13; s.width = 14; s.height = 8; s.borderTopLeftRadius = s.borderTopRightRadius = 7; s.backgroundColor = Pal.Yellow; }));
+                fi.Add(ppl);
+                int req = Friends.Ready ? Friends.Incoming.Count : 0;
+                if (req > 0)
+                    fi.Add(UIKit.Strong(req.ToString(), 11f, Color.white, TextAnchor.MiddleCenter).St(s => { s.position = Position.Absolute; s.right = -5; s.top = -5; s.backgroundColor = Pal.Red; UIKit.Radius(s, 9); UIKit.Pad(s, 1, 6, 1, 6); }));
+                frCard.Add(fi);
+                var fc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexGrow = 1; s.flexShrink = 1; });
+                fc.Add(UIKit.Strong("Friends", 16f, Color.white));
+                string fsub;
+                if (!Friends.Allowed(save)) fsub = "sign in with Google to add friends";
+                else if (!Friends.Ready) fsub = "your classmates";
+                else
+                {
+                    int on = 0;
+                    foreach (var f in Friends.List) if (Friends.StateOf(f) != Friends.State.Offline) on++;
+                    fsub = on + " online" + (req > 0 ? " · " + req + (req == 1 ? " request" : " requests") : " · " + Friends.List.Count + " friends");
+                }
+                fc.Add(UIKit.Strong(fsub, 12f, Pal.Mist));
+                frCard.Add(fc);
+                frCard.Add(UIKit.Strong("›", 22f, Pal.Yellow));
+                frCard.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); FriendsUI.Show(gm, 0); });
+                body.Add(frCard);
+            }
 
             // Quick match (chalkboard)
             var quick = UIKit.Col().St(s =>
@@ -604,6 +678,12 @@ namespace TuitionTakkar
             actions.Add(share);
             cork.Add(actions);
             content.Add(cork);
+            if (room.InCharge && Friends.Allowed(gm.Save))
+            {
+                var inv = UIKit.Btn("INVITE FRIENDS", () => FriendsUI.ShowInviteSheet(gm, room), Pal.Night, Color.white, UIKit.Display, 20f, 52f, 14f, Pal.H("#0E1A1F"));
+                inv.style.marginTop = 12;
+                content.Add(inv);
+            }
 
             var head = UIKit.Row().St(s => { s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; });
             head.Add(UIKit.Disp("CLASSMATES " + room.Players.Count + " / " + room.Seats, 22f, Pal.Ink));
@@ -685,6 +765,7 @@ namespace TuitionTakkar
 
         static async void DoStart(GameManager gm, OnlineRoom room)
         {
+            if (!room.IsQuick) { gm.Save.stats.roomsHosted++; gm.Save.Save(); }
             try { await room.StartAsync(); }
             catch (Exception e) { gm.UI.ShowOverlay(Error(gm, "COULDN'T START", OnlineRoom.Explain(e))); }
         }

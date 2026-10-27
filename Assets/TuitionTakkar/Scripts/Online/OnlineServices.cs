@@ -126,8 +126,10 @@ namespace TuitionTakkar
             save.devGuest = false;
             save.onlineGuest = false;
             save.onlineName = "";
+            save.friendId = "";
             save.Save();
             initTask = null;
+            Friends.Reset();
         }
 
         // ---------- name ----------
