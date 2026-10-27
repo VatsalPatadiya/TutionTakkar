@@ -80,21 +80,36 @@ namespace TuitionTakkar
 
         public static string NameOf(Player p) => PlayerData(p, "name", "Player");
         public static string PenOf(Player p) => PlayerData(p, "pen", Catalog.StarterId);
+        /// <summary>The player can pay this room's entry fee ("1"), or not ("0").</summary>
+        public static bool CanPay(Player p) => PlayerData(p, "ok", "1") == "1";
+
+        /// <summary>The desk this room plays at (entry fee, rules, look).</summary>
+        public DeskDef Desk => Desks.ById(Data("desk", "primary")) ?? Desks.All[0];
+
+        public bool EveryoneCanPay
+        {
+            get
+            {
+                foreach (var p in Players) if (!CanPay(p)) return false;
+                return true;
+            }
+        }
 
         /// <summary>Host may start: private room with 2+, or Quick Match full / waited long enough.</summary>
         public bool CanStart =>
-            InCharge && !Playing && Players.Count >= MinPlayers &&
+            InCharge && !Playing && Players.Count >= MinPlayers && EveryoneCanPay &&
             (!IsQuick || Full || Time.realtimeSinceStartup - JoinedAt >= QuickStartAfter);
 
         // ---------- create / join ----------
 
-        static Player Me(GameManager gm) => new Player(data: new Dictionary<string, PlayerDataObject>
+        static Player Me(GameManager gm, bool canPay = true) => new Player(data: new Dictionary<string, PlayerDataObject>
         {
             { "name", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, OnlineServices.DisplayName(gm.Save)) },
             { "pen", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, gm.Save.equipped) },
+            { "ok", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, canPay ? "1" : "0") },
         });
 
-        public static async Task<OnlineRoom> CreateAsync(GameManager gm, int seats, bool quick)
+        public static async Task<OnlineRoom> CreateAsync(GameManager gm, int seats, bool quick, DeskDef desk)
         {
             await LeaveCurrentAsync();
             await OnlineServices.InitAsync();
@@ -107,6 +122,7 @@ namespace TuitionTakkar
                     { "kind", new DataObject(DataObject.VisibilityOptions.Public, quick ? KindQuick : KindRoom, DataObject.IndexOptions.S1) },
                     { "state", new DataObject(DataObject.VisibilityOptions.Member, "wait") },
                     { "owner", new DataObject(DataObject.VisibilityOptions.Member, OnlineServices.PlayerId) },
+                    { "desk", new DataObject(DataObject.VisibilityOptions.Public, desk.id, DataObject.IndexOptions.S2) },
                 },
             };
             var lobby = await LobbyService.Instance.CreateLobbyAsync(quick ? "Quick match" : "Private room", seats, options);
@@ -114,7 +130,7 @@ namespace TuitionTakkar
         }
 
         /// <summary>Joins an open Quick Match room for this many players, or opens a new one.</summary>
-        public static async Task<OnlineRoom> QuickMatchAsync(GameManager gm, int seats)
+        public static async Task<OnlineRoom> QuickMatchAsync(GameManager gm, int seats, DeskDef desk)
         {
             await LeaveCurrentAsync();
             await OnlineServices.InitAsync();
@@ -126,6 +142,7 @@ namespace TuitionTakkar
                     Filter = new List<QueryFilter>
                     {
                         new QueryFilter(QueryFilter.FieldOptions.S1, KindQuick, QueryFilter.OpOptions.EQ),
+                        new QueryFilter(QueryFilter.FieldOptions.S2, desk.id, QueryFilter.OpOptions.EQ),
                         new QueryFilter(QueryFilter.FieldOptions.MaxPlayers, seats.ToString(), QueryFilter.OpOptions.EQ),
                         new QueryFilter(QueryFilter.FieldOptions.AvailableSlots, "0", QueryFilter.OpOptions.GT),
                     },
@@ -134,7 +151,7 @@ namespace TuitionTakkar
             }
             catch (LobbyServiceException e) when (e.Reason == LobbyExceptionReason.NoOpenLobbies)
             {
-                return await CreateAsync(gm, seats, true);
+                return await CreateAsync(gm, seats, true, desk);
             }
         }
 
@@ -143,7 +160,7 @@ namespace TuitionTakkar
             await LeaveCurrentAsync();
             await OnlineServices.InitAsync();
             var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code.Trim().ToUpperInvariant(),
-                new JoinLobbyByCodeOptions { Player = Me(gm) });
+                new JoinLobbyByCodeOptions { Player = Me(gm, false) });   // the room screen says if we can pay once it sees the desk
             return await AttachAsync(gm, lobby, false);
         }
 
@@ -313,6 +330,20 @@ namespace TuitionTakkar
                 Data = new Dictionary<string, DataObject>
                 {
                     { "state", new DataObject(DataObject.VisibilityOptions.Member, "wait") },
+                },
+            });
+            Changed?.Invoke();
+        }
+
+        /// <summary>Host (private room): sit everyone at another desk.</summary>
+        public async Task SetDeskAsync(DeskDef desk)
+        {
+            if (!IsHost || Playing) return;
+            Lobby = await LobbyService.Instance.UpdateLobbyAsync(Lobby.Id, new UpdateLobbyOptions
+            {
+                Data = new Dictionary<string, DataObject>
+                {
+                    { "desk", new DataObject(DataObject.VisibilityOptions.Public, desk.id, DataObject.IndexOptions.S2) },
                 },
             });
             Changed?.Invoke();

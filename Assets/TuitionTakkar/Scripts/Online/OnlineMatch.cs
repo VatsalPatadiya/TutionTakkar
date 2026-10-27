@@ -71,10 +71,19 @@ namespace TuitionTakkar
                         break;
                     }
 
+            // Sit down: the entry fee goes into the pot now that the match is really starting.
+            s.desk = room.Desk;
+            s.feePaid = Mathf.Clamp(s.desk.fee, 0, gm.Save.marks);
+            if (s.feePaid > 0)
+            {
+                gm.Save.marks -= s.feePaid;
+                gm.Save.Save();
+            }
+
             gm.UI.ShowScreen(Intro(s));
             gm.UI.ScreenLayer.schedule.Execute(() =>
             {
-                if (link != l || room.Closed) return;
+                if (link != l || room.Closed) { Refund(gm, s); return; }
                 gm.StartMatch(s);
                 reactions = new Reactions(gm, l);
                 gm.UI.Hud.Root.Add(reactions.Root);
@@ -83,11 +92,48 @@ namespace TuitionTakkar
             }).StartingIn(2200);
         }
 
+        /// <summary>The match never got going (room closed in the intro): the entry fee comes back.</summary>
+        static void Refund(GameManager gm, MatchSetup s)
+        {
+            if (s.feePaid <= 0) return;
+            gm.Save.marks += s.feePaid;
+            s.feePaid = 0;
+            gm.Save.Save();
+        }
+
+        /// <summary>Desk name, tier and pot on the intro card.</summary>
+        static VisualElement PotLine(MatchSetup s)
+        {
+            var d = s.desk;
+            var col = UIKit.Col().St(st => { st.alignItems = Align.Center; st.marginBottom = 14; });
+            if (d == null) return col;
+            var tier = UIKit.Strong(d.Number + " · " + Desks.TierName(d.tier) + " DESK", 11f, Pal.Ink, TextAnchor.MiddleCenter).St(st =>
+            {
+                st.backgroundColor = d.Trim ?? Pal.H("#E9D9B4"); UIKit.Pad(st, 3, 10, 3, 10); UIKit.Radius(st, 6); st.letterSpacing = 1f;
+            });
+            col.Add(tier);
+            col.Add(UIKit.Disp(d.name.ToUpperInvariant(), 26f, Color.white, TextAnchor.MiddleCenter).St(st => st.marginTop = 6));
+            if (d.Free)
+                col.Add(UIKit.HandText("friendly desk · nothing at stake", 17f, Pal.MistLight, TextAnchor.MiddleCenter));
+            else
+            {
+                var pot = UIKit.Row().St(st => { st.marginTop = 6; st.justifyContent = Justify.Center; st.alignItems = Align.Center; });
+                pot.Add(new CoinIcon(26f));
+                pot.Add(UIKit.Disp(Desks.Money(d.Pot(s.Players)), 34f, Pal.Yellow).St(st => st.marginLeft = 8));
+                pot.Add(UIKit.Strong(" POT", 14f, Pal.Yellow));
+                col.Add(pot);
+                string split = s.Players > 2 ? "1st takes " + Desks.Money(d.Prize(s.Players, 1)) + " · 2nd takes " + Desks.Money(d.Prize(s.Players, 2)) : "winner takes it all";
+                col.Add(UIKit.HandText("you paid " + Desks.Money(s.feePaid) + " to sit down. " + split + ".", 16f, Pal.MistLight, TextAnchor.MiddleCenter).St(st => st.marginTop = 2));
+            }
+            return col;
+        }
+
         /// <summary>"YOU vs RiyaFlicks" card while both phones get ready.</summary>
         static VisualElement Intro(MatchSetup s)
         {
             var root = UIKit.Col().St(st => { st.backgroundColor = Pal.Night; st.justifyContent = Justify.Center; st.alignItems = Align.Center; UIKit.Pad(st, 40, 24, 40, 24); });
             root.pickingMode = PickingMode.Position;
+            root.Add(PotLine(s));
             if (s.IsParty)
             {
                 root.Add(UIKit.Strong("ONLINE · " + s.Players + " PLAYERS · LAST PEN STANDING", 13f, Pal.Mist, TextAnchor.MiddleCenter).St(st => st.letterSpacing = 1f));
@@ -140,9 +186,7 @@ namespace TuitionTakkar
             var room = l?.Room;
 
             bool iWon = winner == s.localIndex;
-            int before = gm.Save.marks;
-            int marks = iWon ? Economy.OnlineWin : Economy.LossConsolation;
-            gm.Save.marks += marks;
+            var pay = Settle(gm, s, iWon ? 1 : 2, true);
             if (iWon) gm.Save.onlineWins++;
             gm.Save.Save();
 
@@ -181,15 +225,9 @@ namespace TuitionTakkar
                 w.Add(winsText);
                 rewards.Add(w);
             }
-            var m = Box(Pal.Paper);
-            var mr = UIKit.Row().St(st => st.justifyContent = Justify.Center);
-            mr.Add(new CoinIcon(24f));
-            mr.Add(UIKit.Disp("+" + marks, 30f, Pal.Ink).St(st => st.marginLeft = 6));
-            m.Add(mr);
-            m.Add(UIKit.Strong("marks · " + before + " → " + gm.Save.marks, 12f, Pal.Ink, TextAnchor.MiddleCenter));
-            if (!iWon) m.style.width = Length.Percent(100);
-            rewards.Add(m);
+            rewards.Add(MarksBox(gm, pay, iWon, 24f, 30f));
             card.Add(rewards);
+            card.Add(XpLine(pay));
             var rankLine = UIKit.HandText(iWon ? "updating the leaderboard…" : "", 16f, Pal.InkSoft, TextAnchor.MiddleCenter).St(st => st.marginTop = 10);
             card.Add(rankLine);
             root.Add(card);
@@ -224,9 +262,7 @@ namespace TuitionTakkar
             int mine = places[s.localIndex];
             bool iWon = mine == 1;
             bool real = s.mode == MatchMode.Online; // the editor's hot-seat test pays nothing
-            int before = gm.Save.marks;
-            int marks = !real ? 0 : mine == 1 ? Economy.OnlineWin : mine == 2 ? Economy.OnlineSecond : Economy.LossConsolation;
-            gm.Save.marks += marks;
+            var pay = Settle(gm, s, mine, real);
             if (iWon && real) gm.Save.onlineWins++;
             gm.Save.Save();
 
@@ -271,15 +307,9 @@ namespace TuitionTakkar
                 w.Add(winsText);
                 rewards.Add(w);
             }
-            var m = Box(Pal.Paper);
-            var mr = UIKit.Row().St(st => st.justifyContent = Justify.Center);
-            mr.Add(new CoinIcon(22f));
-            mr.Add(UIKit.Disp("+" + marks, 28f, Pal.Ink).St(st => st.marginLeft = 6));
-            m.Add(mr);
-            m.Add(UIKit.Strong("marks · " + before + " → " + gm.Save.marks, 12f, Pal.Ink, TextAnchor.MiddleCenter));
-            if (!iWon) m.style.width = Length.Percent(100);
-            rewards.Add(m);
+            rewards.Add(MarksBox(gm, pay, iWon, 22f, 28f));
             card.Add(rewards);
+            if (real) card.Add(XpLine(pay));
             var rankLine = UIKit.HandText(iWon ? "updating the leaderboard…" : "", 15f, Pal.InkSoft, TextAnchor.MiddleCenter).St(st => st.marginTop = 8);
             card.Add(rankLine);
             root.Add(card);
@@ -313,6 +343,68 @@ namespace TuitionTakkar
             {
                 try { await l.Room.LeaveAsync(); } catch (Exception) { }
             }
+        }
+
+        // =====================================================================
+        // the pot
+        // =====================================================================
+
+        public struct Payout
+        {
+            public int start;       // marks before sitting down
+            public int won;         // marks paid out now (prize or old reward)
+            public int net;         // won - fee
+            public int fee;
+            public bool staked;     // a paid desk
+            public int xp, levelBefore, levelAfter;
+            public DeskDef opened;  // a new desk opened by levelling up
+        }
+
+        /// <summary>Pays the prize for a place (pot split) or the old friendly rewards, and the XP.</summary>
+        static Payout Settle(GameManager gm, MatchSetup s, int place, bool real)
+        {
+            var d = s.desk;
+            var p = new Payout { fee = s.feePaid, start = gm.Save.marks + s.feePaid };
+            if (!real) return p;
+            p.staked = d != null && !d.Free;
+            if (p.staked) p.won = d.Prize(s.Players, place);
+            else p.won = place == 1 ? Economy.OnlineWin : place == 2 && s.Players > 2 ? Economy.OnlineSecond : Economy.LossConsolation;
+            p.net = p.won - p.fee;
+            gm.Save.marks += p.won;
+
+            p.levelBefore = OnlineLevel.Level(gm.Save.onlineXp);
+            p.xp = OnlineLevel.ForMatch(d, place, s.Players);
+            gm.Save.onlineXp += p.xp;
+            p.levelAfter = OnlineLevel.Level(gm.Save.onlineXp);
+            foreach (var desk in Desks.All)
+                if (desk.level > p.levelBefore && desk.level <= p.levelAfter) p.opened = desk;
+            s.feePaid = 0;
+            return p;
+        }
+
+        static VisualElement MarksBox(GameManager gm, Payout pay, bool iWon, float coin, float size)
+        {
+            var m = Box(Pal.Paper);
+            var mr = UIKit.Row().St(st => st.justifyContent = Justify.Center);
+            mr.Add(new CoinIcon(coin));
+            string big = pay.staked ? (pay.net >= 0 ? "+" + Desks.Money(pay.won) : "-" + Desks.Money(-pay.net)) : "+" + pay.won;
+            mr.Add(UIKit.Disp(big, size, pay.staked && pay.net < 0 ? Pal.Red : Pal.Ink).St(st => st.marginLeft = 6));
+            m.Add(mr);
+            string what = !pay.staked ? "marks" : pay.won > 0 ? (iWon ? "pot won" : "your share") : "entry lost";
+            m.Add(UIKit.Strong(what + " · " + Desks.Money(pay.start) + " → " + Desks.Money(gm.Save.marks), 12f, Pal.Ink, TextAnchor.MiddleCenter));
+            if (!iWon) m.style.width = Length.Percent(100);
+            return m;
+        }
+
+        static VisualElement XpLine(Payout pay)
+        {
+            var col = UIKit.Col().St(st => { st.marginTop = 10; st.alignSelf = Align.Stretch; st.alignItems = Align.Center; });
+            if (pay.xp <= 0) return col;
+            string lv = pay.levelAfter > pay.levelBefore ? "LEVEL UP! you're level " + pay.levelAfter : "level " + pay.levelAfter;
+            col.Add(UIKit.Strong("+" + pay.xp + " XP · " + lv, 13f, pay.levelAfter > pay.levelBefore ? Pal.Green : Pal.InkSoft, TextAnchor.MiddleCenter));
+            if (pay.opened != null)
+                col.Add(UIKit.HandText("new desk open: " + pay.opened.name + "!", 16f, Pal.Ink, TextAnchor.MiddleCenter));
+            return col;
         }
 
         static VisualElement Box(Color c)

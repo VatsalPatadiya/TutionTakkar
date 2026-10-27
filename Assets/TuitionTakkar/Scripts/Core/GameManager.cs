@@ -249,7 +249,9 @@ namespace TuitionTakkar
             Time.timeScale = 1f;
             UI.ShowHud();
             // Online: every player looks at the desk from their own side (pen at the bottom).
-            World.SetPartyDesk(s.IsParty);
+            Desks.Active = s.mode == MatchMode.Online ? s.desk : null;
+            World.SetDesk(Desks.ActiveOrHome, s.IsParty);
+            UI.Hud.SetDesk(Desks.Active, s.desk != null ? s.desk.Pot(s.Players) : 0);
             World.Rig.yaw = s.mode == MatchMode.Online ? BenchWorld.YawFor(s.localIndex, s.Players) : 0f;
             World.Rig.Fit();
             Match.Begin(s);

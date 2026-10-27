@@ -14,7 +14,7 @@ namespace TuitionTakkar
         static readonly Color Chalk = Pal.H("#2E4A3C");
         static readonly Color ChalkEdge = Pal.H("#6B4A2B");
         static readonly Color Cork = Pal.H("#C89B6A");
-        static int seats = 2;
+        internal static int seats = 2;
         static string suggestedName = "";
 
         // =====================================================================
@@ -283,9 +283,12 @@ namespace TuitionTakkar
             seats = Mathf.Clamp(seats, 2, OnlineMatch.MaxPlayers);
             for (int k = 0; k < segButtons.Count; k++) PaintSeg(segButtons[k], k + 2 == seats, k + 2 <= OnlineMatch.MaxPlayers);
             quick.Add(segs);
-            var find = UIKit.Btn("FIND A MATCH", () => DoQuick(gm), Pal.Yellow, Pal.Ink, UIKit.Display, 22f, 58f, 16f, Pal.H("#C7A928"));
+            var find = UIKit.Btn("CHOOSE A DESK", () => DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick), Pal.Yellow, Pal.Ink, UIKit.Display, 22f, 58f, 16f, Pal.H("#C7A928"));
             find.style.marginTop = 14;
             quick.Add(find);
+            var last = Desks.ById(save.lastDesk) ?? Desks.All[1];
+            int lv = OnlineLevel.Level(save.onlineXp);
+            quick.Add(UIKit.Plain("level " + lv + " · last desk: " + last.name + (last.Free ? " (free)" : " · entry " + Desks.Money(last.fee)), 12f, Pal.Yellow, TextAnchor.MiddleCenter).St(s => s.marginTop = 8));
             quick.Add(UIKit.Plain(OnlineMatch.MaxPlayers < 4 ? "3 and 4 player desks are coming next" : "bigger desk for 3 and 4 players", 12f, Pal.MistLight, TextAnchor.MiddleCenter).St(s => s.marginTop = 8));
             body.Add(quick);
 
@@ -365,12 +368,14 @@ namespace TuitionTakkar
             else rank.text = "win a match to get on the board";
         }
 
-        static async void DoQuick(GameManager gm)
+        internal static void SignInFromDesk(GameManager gm) => DoGoogle(gm);
+
+        internal static async void DoQuick(GameManager gm, DeskDef desk)
         {
-            gm.UI.ShowOverlay(Busy("finding a room…"));
+            gm.UI.ShowOverlay(Busy("finding a seat at " + desk.name + "…"));
             try
             {
-                var room = await OnlineRoom.QuickMatchAsync(gm, seats);
+                var room = await OnlineRoom.QuickMatchAsync(gm, seats, desk);
                 gm.UI.HideOverlay();
                 ShowRoom(gm, room);
             }
@@ -385,7 +390,7 @@ namespace TuitionTakkar
             gm.UI.ShowOverlay(Busy("making a room…"));
             try
             {
-                var room = await OnlineRoom.CreateAsync(gm, OnlineMatch.MaxPlayers, false);
+                var room = await OnlineRoom.CreateAsync(gm, OnlineMatch.MaxPlayers, false, Desks.All[0]);   // a friendly desk until the host picks one
                 gm.UI.HideOverlay();
                 ShowRoom(gm, room);
             }
@@ -439,7 +444,8 @@ namespace TuitionTakkar
         public static void ShowRoom(GameManager gm, OnlineRoom room)
         {
             var root = Screen();
-            root.Add(Header(room.IsQuick ? "QUICK MATCH" : "PRIVATE ROOM", room.Seats + " players · last pen standing", () => Leave(gm, room)));
+            var header = Header(room.IsQuick ? "QUICK MATCH" : "PRIVATE ROOM", room.Seats + " players · " + room.Desk.name, () => Leave(gm, room));
+            root.Add(header);
             var content = UIKit.Col().St(s => { s.flexGrow = 1; UIKit.Pad(s, 20, 20, 24, 20); });
             root.Add(content);
 
@@ -453,6 +459,9 @@ namespace TuitionTakkar
                     OnlineMatch.Begin(gm, room);
                     return;
                 }
+                PublishCanPay(gm, room);
+                var sub = header.Query<Label>().Last();
+                if (sub != null) sub.text = room.Seats + " players · " + room.Desk.name;
                 content.Clear();
                 if (room.IsQuick) PaintQuick(gm, room, content);
                 else PaintPrivate(gm, room, content);
@@ -477,8 +486,53 @@ namespace TuitionTakkar
             Paint();
         }
 
+        static bool publishing;
+
+        /// <summary>Tell the room whether I can pay its desk's entry fee (the host can't start until everyone can).</summary>
+        static async void PublishCanPay(GameManager gm, OnlineRoom room)
+        {
+            var me = room.Find(room.MyId);
+            if (me == null || publishing || room.Playing) return;
+            bool can = Desks.Check(gm.Save, room.Desk, true) == Desks.Block.None;
+            if (can == OnlineRoom.CanPay(me)) return;
+            publishing = true;
+            try { await room.SetMyDataAsync(new Dictionary<string, string> { { "ok", can ? "1" : "0" } }); }
+            catch (Exception e) { Debug.LogWarning("Room ok: " + e.Message); }
+            publishing = false;
+        }
+
+        /// <summary>The room's desk: picture, name, entry and pot (host: change it).</summary>
+        static VisualElement DeskRow(GameManager gm, OnlineRoom room, bool dark)
+        {
+            var d = room.Desk;
+            var row = UIKit.Row().St(s =>
+            {
+                UIKit.Pad(s, 8, 12, 8, 8); UIKit.Radius(s, 12);
+                s.backgroundColor = dark ? new Color(1, 1, 1, 0.1f) : Pal.Paper; UIKit.Border(s, 2f, dark ? new Color(1, 1, 1, 0.25f) : Pal.Ink);
+            });
+            row.Add(UIKit.El().St(s =>
+            {
+                s.width = 34; s.height = 52; UIKit.Radius(s, 4); s.flexShrink = 0;
+                s.backgroundImage = new StyleBackground(DeskArt.Preview(d)); UIKit.Border(s, 3f, d.Trim ?? d.edge);
+            }));
+            var col = UIKit.Col().St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; });
+            col.Add(UIKit.Strong(d.Number + " · " + d.name, 15f, dark ? Color.white : Pal.Ink));
+            string money = d.Free ? "friendly · nothing at stake" : "entry " + Desks.Money(d.fee) + " · pot " + Desks.Money(d.Pot(Mathf.Max(2, room.Players.Count)));
+            col.Add(UIKit.Plain(money, 12f, dark ? Pal.Yellow : Pal.Green));
+            col.Add(UIKit.Plain(Mathf.RoundToInt(d.turnSeconds) + " s turns · " + (room.Seats > 2 && room.Players.Count > 2 ? "last pen standing" : "best of " + d.BestOf), 11f, dark ? Pal.Mist : Pal.InkSoft));
+            row.Add(col);
+            if (!room.IsQuick && room.InCharge)
+            {
+                var change = UIKit.Btn("Change", () => DeskScreens.ShowChooser(gm, DeskScreens.Mode.Room, room), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 14f, 40f, 10f, null, Pal.Ink);
+                change.style.flexShrink = 0;
+                row.Add(change);
+            }
+            return row;
+        }
+
         static void PaintQuick(GameManager gm, OnlineRoom room, VisualElement content)
         {
+            content.Add(DeskRow(gm, room, false).St(s => s.marginBottom = 12));
             var board = UIKit.Col().St(s =>
             {
                 s.backgroundColor = Chalk; UIKit.Pad(s, 18, 16, 18, 16); UIKit.Radius(s, 10); UIKit.Border(s, 5f, ChalkEdge);
@@ -553,7 +607,8 @@ namespace TuitionTakkar
 
             var head = UIKit.Row().St(s => { s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; });
             head.Add(UIKit.Disp("CLASSMATES " + room.Players.Count + " / " + room.Seats, 22f, Pal.Ink));
-            head.Add(UIKit.Plain("best of " + (GameConfig.RoundsToWin * 2 - 1), 12f, Pal.BenchText));
+            head.Add(UIKit.Plain("best of " + room.Desk.BestOf, 12f, Pal.BenchText));
+            content.Insert(1, DeskRow(gm, room, false).St(s => s.marginTop = 12));
             content.Add(head);
             var list = UIKit.Col().St(s => s.marginTop = 8);
             for (int i = 0; i < room.Seats; i++)
@@ -568,10 +623,15 @@ namespace TuitionTakkar
                 start.SetEnabled(ok);
                 start.style.opacity = ok ? 1f : 0.5f;
                 content.Add(start);
-                content.Add(UIKit.Plain(ok ? "everyone in? start when ready." : "needs at least 2 players", 12f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => s.marginTop = 6));
+                string why = ok ? "everyone in? start when ready." : room.Players.Count < OnlineRoom.MinPlayers ? "needs at least 2 players" : "someone can't pay the entry. pick a cheaper desk.";
+                content.Add(UIKit.Plain(why, 12f, ok ? Pal.BenchText : Pal.Red, TextAnchor.MiddleCenter).St(s => s.marginTop = 6));
             }
             else if (room.IsOwner)
                 content.Add(UIKit.HandText("getting your room back…", 17f, Pal.BenchText, TextAnchor.MiddleCenter));
+            else if (Desks.Check(gm.Save, room.Desk, true) != Desks.Block.None)
+                content.Add(UIKit.HandText(OnlineServices.IsGuest(gm.Save) && room.Desk.index >= Desks.GuestDesks
+                    ? "guests can only sit at the first 2 desks. ask the host for a cheaper desk, or sign in with Google."
+                    : "you need " + Desks.Money(room.Desk.fee) + " marks for this desk. ask the host for a cheaper one.", 16f, Pal.Red, TextAnchor.MiddleCenter));
             else
                 content.Add(UIKit.HandText("waiting for the host to start…", 17f, Pal.BenchText, TextAnchor.MiddleCenter));
 
@@ -594,6 +654,8 @@ namespace TuitionTakkar
             var col = UIKit.Col().St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; });
             var nr = UIKit.Row();
             nr.Add(UIKit.Strong(name + (me ? " (you)" : ""), 15f, dark ? Color.white : Pal.Ink));
+            if (!OnlineRoom.CanPay(p))
+                nr.Add(UIKit.Strong("CAN'T PAY", 10f, Color.white, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Red; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
             if (p.Id == room.Owner && !room.IsQuick)
                 nr.Add(UIKit.Strong("HOST", 10f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
             col.Add(nr);
@@ -750,7 +812,7 @@ namespace TuitionTakkar
         // shared pieces
         // =====================================================================
 
-        static VisualElement Screen()
+        internal static VisualElement Screen()
         {
             var root = UIKit.Col();
             UIKit.Laminate(root);
@@ -758,7 +820,7 @@ namespace TuitionTakkar
             return root;
         }
 
-        static VisualElement Header(string title, string sub, Action back)
+        internal static VisualElement Header(string title, string sub, Action back)
         {
             var head = UIKit.Col().St(s =>
             {
@@ -775,7 +837,7 @@ namespace TuitionTakkar
             return head;
         }
 
-        static VisualElement Paper(float rot)
+        internal static VisualElement Paper(float rot)
         {
             var c = UIKit.Col().St(s =>
             {
@@ -861,7 +923,7 @@ namespace TuitionTakkar
             return o;
         }
 
-        static VisualElement Sheet(out VisualElement card)
+        internal static VisualElement Sheet(out VisualElement card)
         {
             var o = UIKit.Col().St(s => { s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.6f); s.justifyContent = Justify.FlexEnd; });
             o.pickingMode = PickingMode.Position;

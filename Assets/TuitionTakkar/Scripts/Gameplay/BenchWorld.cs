@@ -50,32 +50,25 @@ namespace TuitionTakkar
                 frictionCombine = PhysicsMaterialCombine.Average, bounceCombine = PhysicsMaterialCombine.Average
             };
 
-            BuildDesk();
-
-            // Classroom floor tiles. Fallen pens land here.
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            // Classroom floor. Fallen pens land here.
+            floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
             floor.name = "Floor";
             floor.transform.SetParent(transform, false);
             floor.transform.localPosition = new Vector3(0f, -GameConfig.DeskHeight - 0.5f, 0f);
             floor.transform.localScale = new Vector3(60f, 1f, 60f);
-            floor.GetComponent<MeshRenderer>().sharedMaterial = ArtLib.LitTextured(ArtLib.FloorTiles, new Vector2(36f, 36f));
             floor.GetComponent<Collider>().sharedMaterial = FloorMaterial;
             floor.AddComponent<Surface>().kind = SurfaceKind.Floor;
 
-            // Tube-light key light, tuned so the laminate reads pale green, not white.
+            // Tube-light key light.
             var lightGo = new GameObject("TubeLight");
             lightGo.transform.SetParent(transform, false);
             lightGo.transform.rotation = Quaternion.Euler(70f, -25f, 0f);
-            var l = lightGo.AddComponent<Light>();
-            l.type = LightType.Directional;
-            l.color = Pal.H("#FFF9F0");
-            l.intensity = 0.62f;
-            l.shadows = LightShadows.Soft;
-            l.shadowStrength = 0.45f;
+            keyLight = lightGo.AddComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.shadows = LightShadows.Soft;
+            keyLight.shadowStrength = 0.45f;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = Pal.H("#6E675C");
             RenderSettings.ambientIntensity = 1f;
-            RenderSettings.reflectionIntensity = 0f;
 
             // Camera in front of the desk, looking down at it in perspective.
             var camGo = new GameObject("BenchCamera");
@@ -89,16 +82,38 @@ namespace TuitionTakkar
             camGo.tag = "MainCamera";
             camGo.AddComponent<AudioListener>();
             Rig = camGo.AddComponent<CameraRig>();
+
+            SetDesk(Desks.Home, false);
         }
 
         /// <summary>Switches between the normal desk and the square party desk (3–4 players).</summary>
-        public void SetPartyDesk(bool party)
+        public void SetPartyDesk(bool party) => SetDesk(Desk ?? Desks.Home, party);
+
+        /// <summary>The desk being played on (its look, size and room).</summary>
+        public DeskDef Desk { get; private set; }
+
+        GameObject floor;
+        Light keyLight;
+
+        /// <summary>Builds the desk and its room: top, frame, trim, rug, floor, wall colour, light, reflections.</summary>
+        public void SetDesk(DeskDef d, bool party)
         {
-            if (deskRoot != null && PartyDesk == party) return;
+            if (d == null) d = Desks.Home;
+            if (deskRoot != null && PartyDesk == party && Desk == d) return;
+            Desk = d;
             PartyDesk = party;
-            deskW = party ? GameConfig.PartyDeskSize : GameConfig.DeskWidth;
-            deskD = party ? GameConfig.PartyDeskSize : GameConfig.DeskDepth;
+            deskW = (party ? GameConfig.PartyDeskSize : GameConfig.DeskWidth) * d.size;
+            deskD = (party ? GameConfig.PartyDeskSize : GameConfig.DeskDepth) * d.size;
             BuildDesk();
+
+            floor.GetComponent<MeshRenderer>().sharedMaterial = DeskArt.Make(DeskArt.Floor(d), new Vector2(30f, 30f), 0.7f);
+            keyLight.color = d.light;
+            keyLight.intensity = d.Premium ? 0.68f : 0.62f;
+            RenderSettings.ambientLight = Color.Lerp(Pal.H("#6E675C"), d.wall * 0.62f, d.Premium ? 0.35f : 0.1f);
+            RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Custom;
+            RenderSettings.customReflectionTexture = DeskArt.Room(d);
+            RenderSettings.reflectionIntensity = d.Premium ? 0.6f : 0.45f;
+            if (Cam != null) Cam.backgroundColor = d.wall;
             if (Rig != null) Rig.Fit();
         }
 
@@ -108,50 +123,7 @@ namespace TuitionTakkar
             deskRoot = new GameObject("Desk").transform;
             deskRoot.SetParent(transform, false);
 
-            float t = GameConfig.DeskThickness;
-
-            // Desk top (the only surface pens play on): an old wooden school desk, carved by past
-            // students (mockup K1). One texture covers the whole top.
-            var top = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            top.name = "DeskTop";
-            top.transform.SetParent(deskRoot, false);
-            top.transform.localPosition = new Vector3(0f, -t * 0.5f, 0f);
-            top.transform.localScale = new Vector3(deskW, t, deskD);
-            int texW = PartyDesk ? 768 : 512, texH = PartyDesk ? 768 : 1024;
-            top.GetComponent<MeshRenderer>().sharedMaterial =
-                ArtLib.LitTextured(ArtLib.DeskWood(texW, texH), Vector2.one);
-            top.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            top.GetComponent<Collider>().sharedMaterial = DeskMaterial;
-            top.AddComponent<Surface>().kind = SurfaceKind.Desk;
-
-            // A thin darker wood rim, the thick front edge, black steel legs and a soft shadow on
-            // the floor. All visual only: the playable top stays exactly DeskWidth x DeskDepth.
-            const float rim = RimSize;
-            Visual(PrimitiveType.Cube, "Rim", new Vector3(0f, -t * 0.5f - 0.01f, 0f),
-                new Vector3(deskW + rim * 2f, t, deskD + rim * 2f), Pal.H("#7E5F3E"));
-            // Front edge: on the near side only for the normal desk, on all four sides for the
-            // square party desk (every player looks at it from a different side).
-            int sides = PartyDesk ? 4 : 1;
-            for (int k = 0; k < sides; k++)
-            {
-                var turn = Quaternion.Euler(0f, 90f * k, 0f);
-                bool across = k % 2 == 1;
-                float halfFar = across ? HalfW : HalfD;
-                float span = across ? deskD : deskW;
-                var edge = Visual(PrimitiveType.Cube, "FrontEdge", turn * new Vector3(0f, -t * 0.5f - 0.01f, -halfFar - rim - 0.005f),
-                    new Vector3(span + rim * 2f, t + 0.02f, 0.01f), Pal.H("#4E3620"));
-                edge.transform.localRotation = turn;
-                // A thicker slab under the top's edge, so the desk reads as a heavy wooden bench.
-                var slab = Visual(PrimitiveType.Cube, "Slab", turn * new Vector3(0f, -t - 0.11f, -halfFar - rim + 0.06f),
-                    new Vector3(span + rim * 2f, 0.22f, 0.12f), Pal.H("#3F2B19"));
-                slab.transform.localRotation = turn;
-            }
-
-            float legH = GameConfig.DeskHeight - t;
-            float lx = HalfW - 0.16f, lz = HalfD - 0.16f;
-            foreach (var p in new[] { new Vector2(lx, lz), new Vector2(-lx, lz), new Vector2(lx, -lz), new Vector2(-lx, -lz) })
-                Visual(PrimitiveType.Cube, "Leg", new Vector3(p.x, -t - legH * 0.5f, p.y),
-                    new Vector3(0.14f, legH, 0.14f), Pal.H("#1E1E1E"));
+            DeskModel.Build(Desk, deskRoot, deskW, deskD, PartyDesk, DeskMaterial);
 
             var shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
             shadow.name = "DeskShadow";

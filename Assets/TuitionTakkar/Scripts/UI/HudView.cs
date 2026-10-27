@@ -33,7 +33,8 @@ namespace TuitionTakkar
 
         readonly VisualElement wall, wallShade, board, boardShadow, ledge;
         readonly VisualElement duoBox, partyBox;
-        readonly Label title, dateNote;
+        readonly Label title, dateNote, thought, notesL;
+        readonly Label plate;
         readonly ChalkRow left, right;
         readonly VisualElement chitRow;
         readonly PaperChit chit;
@@ -132,10 +133,10 @@ namespace TuitionTakkar
             Root.Add(board);
 
             // Chalk notes left over from class, small in the bottom corners.
-            var notesL = Sketch.Chalk("Std. 9-A", 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.left = 10; s.bottom = 3; });
+            notesL = Sketch.Chalk("Std. 9-A", 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.left = 10; s.bottom = 3; });
             dateNote = Sketch.Chalk("Date: " + System.DateTime.Now.ToString("dd/MM"), 10f, new Color(1f, 1f, 1f, 0.4f)).St(s => { s.position = Position.Absolute; s.right = 10; s.bottom = 3; });
             // Leftover lesson, rubbed out but still faintly there.
-            var thought = Sketch.Chalk("\"practice makes a man perfect\"", 10f, new Color(1f, 1f, 1f, 0.32f), TextAnchor.MiddleCenter).St(s =>
+            thought = Sketch.Chalk("\"practice makes a man perfect\"", 10f, new Color(1f, 1f, 1f, 0.32f), TextAnchor.MiddleCenter).St(s =>
             {
                 s.position = Position.Absolute; s.left = 0; s.right = 0; s.bottom = 3;
             });
@@ -176,6 +177,18 @@ namespace TuitionTakkar
             ledge.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 60; s.top = -5; s.width = 20; s.height = 5; UIKit.Radius(s, 2); s.backgroundColor = Sketch.ChalkWhite; }));
             ledge.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 90; s.top = -4; s.width = 14; s.height = 5; UIKit.Radius(s, 2); s.backgroundColor = Sketch.ChalkYellow; }));
             Root.Add(ledge);
+
+            // Premium desks: a metal plate on the board's frame ("GOLD DESK").
+            plate = UIKit.Strong("", 9f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
+            {
+                s.height = 15;
+                UIKit.Pad(s, 0, 8, 0, 8); UIKit.Radius(s, 3); s.letterSpacing = 1.2f; s.display = DisplayStyle.None;
+                UIKit.Border(s, 1f, new Color(0f, 0f, 0f, 0.35f));
+            });
+            var plateRow = UIKit.Row().St(s => { s.position = Position.Absolute; s.left = 0; s.right = 0; s.top = -10; s.justifyContent = Justify.Center; });
+            plateRow.pickingMode = PickingMode.Ignore;
+            plateRow.Add(plate);
+            ledge.Add(plateRow);
 
             // Pause: a sketched paper square, top right (just over the board's frame).
             pauseBtn = new Button(() => gm.Pause()) { tooltip = "Pause" };
@@ -272,6 +285,48 @@ namespace TuitionTakkar
             pauseBtn.style.top = pauseTop;
         }
 
+        // ---------- the desk being played ----------
+
+        /// <summary>Online desks: the room's wall, a metal board frame and plate for premium tiers, the desk and pot in chalk.</summary>
+        public void SetDesk(DeskDef d, int pot)
+        {
+            var wallTop = Pal.H("#566655");
+            var wallBottom = Pal.H("#4B5A4A");
+            Color fT = Pal.H("#5A3E27"), fL = Pal.H("#4E3522"), fR = Pal.H("#3F2A1A"), fB = Pal.H("#362416");
+            if (d != null && d.Premium)
+            {
+                wallTop = Color.Lerp(wallTop, d.wall, 0.55f) * 0.9f;
+                wallBottom = Color.Lerp(wallBottom, d.wall, 0.55f) * 0.78f;
+                wallTop.a = wallBottom.a = 1f;
+                var m = d.Trim.Value;
+                fT = Color.Lerp(m, Color.white, 0.25f); fL = m; fR = Color.Lerp(m, Color.black, 0.25f); fB = Color.Lerp(m, Color.black, 0.4f);
+            }
+            wall.style.backgroundImage = new StyleBackground(ArtLib.Gradient(wallTop, wallBottom));
+            board.style.borderTopColor = fT; board.style.borderLeftColor = fL;
+            board.style.borderRightColor = fR; board.style.borderBottomColor = fB;
+            ledge.style.backgroundColor = d != null && d.Premium ? fL : Pal.H("#8A6440");
+            ledge.style.borderBottomColor = d != null && d.Premium ? fB : Pal.H("#5E4024");
+
+            if (d != null && d.Premium)
+            {
+                plate.text = Desks.TierName(d.tier) + " DESK";
+                plate.style.backgroundColor = Color.Lerp(d.Trim.Value, Color.white, 0.15f);
+                plate.style.display = DisplayStyle.Flex;
+            }
+            else plate.style.display = DisplayStyle.None;
+
+            if (d == null)
+            {
+                thought.text = "\"practice makes a man perfect\"";
+                notesL.text = "Std. 9-A";
+            }
+            else
+            {
+                thought.text = d.name + (pot > 0 ? " · pot " + Desks.Money(pot) : " · friendly");
+                notesL.text = d.Number;
+            }
+        }
+
         // ---------- chalk rows ----------
 
         /// <summary>K9 column: (arrow) name (timer) over a big score and the round boxes. Mirrored = right side.</summary>
@@ -289,7 +344,7 @@ namespace TuitionTakkar
             var bottom = UIKit.Row().St(s => { s.marginTop = 2; s.flexDirection = mirrored ? FlexDirection.RowReverse : FlexDirection.Row; });
             r.score = Sketch.Chalk("", 34f, Color.white);
             var boxes = UIKit.Row().St(s => { s.marginLeft = mirrored ? 0 : 8; s.marginRight = mirrored ? 8 : 0; });
-            r.boxes = new ChalkBox[GameConfig.RoundsToWin];
+            r.boxes = new ChalkBox[3];   // best of 5 at most; SetRow hides the spare one at best-of-3 desks
             for (int i = 0; i < r.boxes.Length; i++)
             {
                 r.boxes[i] = new ChalkBox();
@@ -329,7 +384,11 @@ namespace TuitionTakkar
             r.name.text = Short(name, 8);
             r.name.style.color = chalk;
             r.score.text = showScore ? score.ToString() : "";
-            for (int i = 0; i < r.boxes.Length; i++) r.boxes[i].Won = i < score;
+            for (int i = 0; i < r.boxes.Length; i++)
+            {
+                r.boxes[i].Won = i < score;
+                r.boxes[i].style.display = i < GameConfig.RoundsToWin ? DisplayStyle.Flex : DisplayStyle.None;
+            }
         }
 
         /// <summary>The shooter's row gets the arrow (and the chalk timer when someone is on the clock).</summary>

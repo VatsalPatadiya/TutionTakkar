@@ -40,6 +40,12 @@ namespace TuitionTakkar
         public string onlineName = "";
         /// <summary>Last known online wins (shown before the leaderboard answers).</summary>
         public int onlineWins;
+        /// <summary>Online XP: sets the online level that opens the higher desks.</summary>
+        public int onlineXp;
+        /// <summary>Local date (yyyy-MM-dd) the daily pocket money was last taken.</summary>
+        public string lastPocketDay = "";
+        /// <summary>The desk last chosen for Quick Match.</summary>
+        public string lastDesk = "tuition";
 
         // ---------- reminders ----------
         /// <summary>Settings switch for the 7 PM reminders.</summary>
@@ -104,6 +110,8 @@ namespace TuitionTakkar
                 if (data.lastDoubleDay == null) data.lastDoubleDay = "";
                 if (data.onlineName == null) data.onlineName = "";
                 if (data.lastPlayDay == null) data.lastPlayDay = "";
+                if (data.lastPocketDay == null) data.lastPocketDay = "";
+                if (string.IsNullOrEmpty(data.lastDesk)) data.lastDesk = "tuition";
                 if (!data.owned.Contains(Catalog.StarterId)) data.owned.Insert(0, Catalog.StarterId);
                 if (!data.Owns(data.equipped)) data.equipped = Catalog.StarterId;
                 return data;

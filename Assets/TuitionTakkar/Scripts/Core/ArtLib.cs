@@ -397,6 +397,8 @@ namespace TuitionTakkar
             ['#'] = new[] { new float[] { 1.3f, 0, 1.8f, 6 }, new float[] { 2.8f, 0, 3.3f, 6 }, new float[] { 0, 2, 4.6f, 2.2f }, new float[] { 0, 4, 4.6f, 4.2f } },
         };
 
+        public static bool Glyph(char ch, out float[][] strokes) => Glyphs.TryGetValue(ch, out strokes);
+
         /// <summary>Scratch text into the wood: a dark groove with a light lip beside it.</summary>
         static void Carve(Color[] px, int w, int h, string text, Vector2 uv, float height, float rotDeg)
         {

@@ -126,6 +126,63 @@ namespace TuitionTakkar
             GameManager.I.Save.Save();
         }
 
+        // ---------- desks ----------
+
+        static int deskShown = 1;
+
+        [MenuItem("Tuition Takkar/Dev: Desk look, next")]
+        static void DeskNext() => ShowDesk(deskShown + 1);
+
+        [MenuItem("Tuition Takkar/Dev: Desk look, previous")]
+        static void DeskPrev() => ShowDesk(deskShown - 1);
+
+        [MenuItem("Tuition Takkar/Dev: Desk look D2 Tuition Centre")]
+        static void DeskD2() => ShowDesk(1);
+
+        [MenuItem("Tuition Takkar/Dev: Desk look D6 Principal's Office")]
+        static void DeskD6() => ShowDesk(5);
+
+        [MenuItem("Tuition Takkar/Dev: Desk look D28 Champions' Palace")]
+        static void DeskD28() => ShowDesk(27);
+
+        /// <summary>Play mode: a 2-player pass-and-play match at desk i, with the HUD as online shows it.</summary>
+        static void ShowDesk(int i)
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            deskShown = (i % Desks.All.Count + Desks.All.Count) % Desks.All.Count;
+            var d = Desks.All[deskShown];
+            var s = new MatchSetup(2) { mode = MatchMode.PassAndPlay };
+            s.pens[0] = Catalog.Pen(gm.Save.equipped);
+            s.pens[1] = PenParts.Generated[7];
+            s.names[0] = "Player 1"; s.names[1] = "Player 2";
+            gm.StartMatch(s);
+            Desks.Active = d;
+            gm.World.SetDesk(d, false);
+            gm.World.ResetPens();
+            gm.UI.Hud.SetDesk(d, d.Pot(2));
+            Debug.Log("[TuitionTakkar] desk " + d.Number + " " + d.name);
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Open desk chooser")]
+        static void DeskChooser()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick);
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Add 5000 online XP")]
+        static void Xp()
+        {
+            if (!Application.isPlaying || GameManager.I == null) return;
+            GameManager.I.Save.onlineXp += 5000;
+            GameManager.I.Save.Save();
+            Debug.Log("[TuitionTakkar] online level " + OnlineLevel.Level(GameManager.I.Save.onlineXp));
+        }
+
         [MenuItem("Tuition Takkar/Dev: Save game view screenshot")]
         static void Shot()
         {

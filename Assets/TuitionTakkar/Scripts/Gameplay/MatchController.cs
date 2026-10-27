@@ -31,6 +31,10 @@ namespace TuitionTakkar
         public int localIndex;
         /// <summary>Online: the room link that sends and receives shots. Null offline.</summary>
         public OnlineLink net;
+        /// <summary>Online: the desk played at (look, rules, entry fee). Null offline.</summary>
+        public DeskDef desk;
+        /// <summary>Online: marks this phone paid to sit down (0 at a friendly desk).</summary>
+        public int feePaid;
     }
 
     public class RoundSummary
