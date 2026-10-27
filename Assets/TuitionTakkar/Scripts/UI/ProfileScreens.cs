@@ -182,6 +182,7 @@ namespace TuitionTakkar
 
         public static void ShowProfile(GameManager gm, Action back = null)
         {
+            if (!Friends.Allowed(gm.Save)) { if (back != null) back(); else OnlineScreens.ShowPlay(gm); return; } // guests have no profile
             var save = gm.Save;
             var st = save.stats;
             back ??= () => OnlineScreens.ShowPlay(gm);

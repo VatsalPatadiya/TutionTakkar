@@ -11,8 +11,8 @@ namespace TuitionTakkar.EditorTools
     /// Tuition Takkar ▸ Build Release APK and Install: a non-development APK signed with the release keystore
     /// (Player Settings ▸ Publishing Settings; the passwords are entered there by hand and never stored here),
     /// written to Builds/Release. Prints the signing certificate fingerprints (needed in Firebase for Google
-    /// sign-in), then replaces the app on every connected phone: uninstall (a different signing key can't
-    /// install over the old one), install, allow notifications, launch.
+    /// sign-in), then updates the app on every connected phone (uninstalling first only if the old one
+    /// was signed with a different key), allows notifications and launches it.
     /// </summary>
     static class ReleaseApk
     {
@@ -69,8 +69,15 @@ namespace TuitionTakkar.EditorTools
                 if (parts.Length != 2 || parts[1] != "device") continue;
                 string serial = parts[0];
                 log.AppendLine("== " + serial);
-                log.AppendLine("$ uninstall\n" + Run(adb, "-s " + serial + " uninstall " + Package));
-                log.AppendLine("$ install\n" + Run(adb, "-s " + serial + " install \"" + Path.GetFullPath(Output) + "\""));
+                // Update in place (keeps the phone's game data). Only when the old app was signed with a
+                // different key (the debug test builds) does it have to be uninstalled first.
+                string r = Run(adb, "-s " + serial + " install -r \"" + Path.GetFullPath(Output) + "\"");
+                log.AppendLine("$ install -r\n" + r);
+                if (r.Contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") || r.Contains("signatures do not match"))
+                {
+                    log.AppendLine("$ uninstall (old build signed with another key)\n" + Run(adb, "-s " + serial + " uninstall " + Package));
+                    log.AppendLine("$ install\n" + Run(adb, "-s " + serial + " install \"" + Path.GetFullPath(Output) + "\""));
+                }
                 log.AppendLine("$ grant notifications\n" + Run(adb, "-s " + serial + " shell pm grant " + Package + " android.permission.POST_NOTIFICATIONS"));
                 Run(adb, "-s " + serial + " shell monkey -p " + Package + " -c android.intent.category.LAUNCHER 1");
             }

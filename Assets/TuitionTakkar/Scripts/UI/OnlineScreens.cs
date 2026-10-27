@@ -275,7 +275,8 @@ namespace TuitionTakkar
             scroll.style.flexGrow = 1;
             var body = UIKit.Col().St(s => UIKit.Pad(s, 20, 20, 24, 20));
 
-            // My profile + Friends
+            // My profile + Friends: only for players signed in with Google (or Apple); guests don't see either.
+            if (Friends.Allowed(save))
             {
                 int lvl = OnlineLevel.Level(save.onlineXp);
                 var me = UIKit.Row().St(s => { s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 12, 10, 12); s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.1f); });
