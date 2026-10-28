@@ -16,7 +16,7 @@ namespace TuitionTakkar
         public const string Scheme = "tuitiontakkar";
         public const string Host = "penfighter-6be8b.web.app";
 
-        static readonly Regex CodeRx = new Regex(@"join(?:/|\?code=|\?c=)([A-Za-z0-9]{6})", RegexOptions.IgnoreCase);
+        static readonly Regex CodeRx = new Regex(@"(?:join(?:/|\?code=|\?c=)|[?&]code=)([A-Za-z0-9]{6})", RegexOptions.IgnoreCase);
         static readonly Regex FromRx = new Regex(@"[?&]from=([^&#]+)", RegexOptions.IgnoreCase);
 
         static GameManager gm;

@@ -32,3 +32,6 @@ Keystore/
 
 # Local APK builds
 /Builds/
+
+# Web build output (rebuild with Tuition Takkar > Build Web Version)
+LinkSite/public/play/

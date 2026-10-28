@@ -4,71 +4,115 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Join my room · Tuition Takkar</title>
-<meta name="description" content="You're invited to a pen fight on Tuition Takkar. Tap to join the room.">
+<meta name="description" content="You're invited to a pen fight on Tuition Takkar. Play right here in your browser, or open the app.">
 <meta property="og:title" content="You're invited to a pen fight! ✏️">
-<meta property="og:description" content="Tap to join my Tuition Takkar room.">
-<meta name="theme-color" content="#2F4A3E">
+<meta property="og:description" content="Tap to join my Tuition Takkar room. No download needed.">
+<meta name="theme-color" content="#1C2C33">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Kalam:wght@400;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --desk:#E8E0CB; --board:#2F4A3E; --wood:#6B4A2B; --chalk:#F4F1E8; --yellow:#FFE45C; --ink:#1F2A44; --red:#E8563A; }
+  :root { --sage:#CBDDD0; --night:#1C2C33; --board:#2F4A3A; --wood:#7A5534; --yellow:#FFE45C; --yellow-dark:#C7A928;
+          --ink:#1F2A44; --mint:#8FE0B5; --pink:#F8C8D4; --paper:#FFFDF4; }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; background:var(--desk); color:var(--ink); font-family:"Patrick Hand", system-ui, sans-serif;
-         display:flex; align-items:center; justify-content:center; padding:24px 16px; }
-  .card { width:100%; max-width:420px; text-align:center; }
-  .board { background:var(--board); border:12px solid var(--wood); border-radius:8px; padding:28px 18px 24px; color:var(--chalk); position:relative; }
-  .board::after { content:""; position:absolute; left:-12px; right:-12px; bottom:-26px; height:14px; background:#8A6440; }
-  h1 { font-family:"Lilita One", sans-serif; font-weight:400; margin:0; font-size:44px; line-height:1; letter-spacing:1px; }
-  h1 span { color:var(--yellow); display:block; }
-  .who { font-size:22px; margin:14px 0 4px; }
-  .code { font-family:"Lilita One", sans-serif; font-size:52px; letter-spacing:10px; color:var(--yellow); margin:4px 0 0; }
-  .btn { display:block; width:100%; margin-top:40px; padding:18px; border:0; border-radius:16px; background:var(--red);
-         border-bottom:5px solid #B23A22; color:#fff; font:400 24px "Lilita One", sans-serif; text-decoration:none; letter-spacing:1px; }
-  .ghost { display:inline-block; margin-top:14px; background:none; border:2px solid var(--ink); border-radius:12px; padding:10px 18px;
-           font:inherit; font-size:18px; color:var(--ink); cursor:pointer; }
-  .help { font-size:18px; margin-top:18px; line-height:1.35; }
-  .help a { color:var(--ink); }
+  html, body { margin:0; }
+  body { min-height:100vh; color:var(--ink); font-family:"Nunito", system-ui, sans-serif; background-color:var(--sage);
+         background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 3px, transparent 3px 14px);
+         display:flex; flex-direction:column; }
+  header { background:var(--night); border-radius:0 0 20px 20px; }
+  .bar { max-width:1100px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .logo { background:var(--yellow); font-family:"Lilita One", sans-serif; font-size:20px; padding:4px 12px; transform:rotate(-2deg);
+          box-shadow:0 3px 0 var(--yellow-dark); }
+  header a { color:#fff; font-weight:900; text-decoration:none; padding:10px 4px; }
+  main { flex:1; width:100%; max-width:1100px; margin:0 auto; padding:24px 16px; display:flex; flex-wrap:wrap; gap:28px; align-items:center; }
+  .intro { flex:1 1 420px; min-width:0; }
+  .who { display:inline-flex; align-items:center; gap:10px; background:var(--paper); padding:8px 16px 8px 8px; border-radius:40px;
+         font-weight:900; font-size:17px; box-shadow:0 3px 0 rgba(31,42,68,.12); }
+  .face { width:44px; height:44px; border-radius:50%; background:var(--pink); border:3px solid #fff; display:flex; align-items:center;
+          justify-content:center; font-family:"Lilita One", sans-serif; font-size:22px; }
+  h1 { font-family:"Lilita One", sans-serif; font-weight:400; font-size:clamp(44px, 8vw, 72px); line-height:.95; margin:18px 0 8px; }
+  .hand { font-family:"Kalam", cursive; font-size:clamp(19px, 3vw, 24px); margin:0 0 22px; }
+  .room { flex:1 1 340px; min-width:0; display:flex; justify-content:center; }
+  .board { width:100%; max-width:420px; background:var(--board); border:10px solid var(--wood); border-radius:12px; padding:20px;
+           color:#fff; transform:rotate(1.2deg); box-shadow:0 8px 0 rgba(31,42,68,.16); }
+  .row { display:flex; justify-content:space-between; align-items:center; }
+  .lbl { font-weight:900; font-size:12px; letter-spacing:.1em; color:#CFE3D6; }
+  .seat { font-weight:900; font-size:12px; color:var(--ink); background:var(--mint); padding:3px 10px; border-radius:10px; }
+  .code { font-family:"Lilita One", sans-serif; font-size:clamp(44px, 9vw, 60px); letter-spacing:.08em; margin:4px 0 2px; }
+  .desk { font-family:"Kalam", cursive; font-size:18px; color:#E6F0E9; }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:66px; padding:0 30px; border-radius:16px;
+         text-decoration:none; color:var(--ink); }
+  .play { background:var(--yellow); font-family:"Lilita One", sans-serif; font-size:28px; box-shadow:0 5px 0 var(--yellow-dark); }
+  .app { background:#fff; border:3px solid var(--ink); font-weight:900; font-size:17px; min-height:58px; }
+  .note { margin:14px 0 0; font-weight:800; font-size:14px; color:#33424F; }
+  .copy { margin-top:10px; background:none; border:0; font:900 15px "Nunito", sans-serif; color:var(--ink); text-decoration:underline; cursor:pointer; padding:8px 0; }
+  .closed .play, .closed .room { display:none; }
+  @media (max-width: 560px) { .btn { width:100%; } .room { order:-1; } }
 </style>
 </head>
 <body>
-<main class="card">
-  <div class="board">
-    <h1>TUITION<span>TAKKAR</span></h1>
-    <p class="who" id="who">a classmate saved you a seat</p>
-    <p class="code" id="code">······</p>
-  </div>
-  <a class="btn" id="open" href="#">OPEN THE GAME</a>
-  <button class="ghost" id="copy" type="button">Copy code</button>
-  <p class="help" id="help">No game yet? Get it, then tap this link again, or open Play Online → Join with code.</p>
+<header><div class="bar"><span class="logo">TUITION TAKKAR</span><a id="get" href="#">Get the app</a></div></header>
+<main id="main">
+  <section class="intro">
+    <span class="who"><span class="face" id="face">?</span><span id="who">A classmate invited you</span></span>
+    <h1 id="title">PEN FIGHT<br>AT THEIR DESK!</h1>
+    <p class="hand">flick your pen, knock theirs off. no download needed.</p>
+    <div class="actions">
+      <a class="btn play" id="play" href="#">PLAY IN BROWSER</a>
+      <a class="btn app" id="open" href="#">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2A44" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg>
+        Open in the app
+      </a>
+    </div>
+    <p class="note" id="note">plays on any phone or laptop</p>
+    <button class="copy" id="copy" type="button">Copy room code</button>
+  </section>
+  <section class="room">
+    <div class="board">
+      <div class="row"><span class="lbl">ROOM CODE</span><span class="seat">seat saved for you</span></div>
+      <div class="code" id="code">······</div>
+      <div class="desk">best of 3 · first to knock off wins</div>
+    </div>
+  </section>
 </main>
 <script>
 (function () {
   var PKG = "com.unitygame.tuitiontakkar";
-  var m = location.pathname.match(/join\/([A-Za-z0-9]{6})/);
+  var m = location.pathname.match(/join\/([A-Za-z0-9]{6})/) || location.search.match(/[?&]code=([A-Za-z0-9]{6})/);
   var code = m ? m[1].toUpperCase() : "";
-  var from = (new URLSearchParams(location.search).get("from") || "").slice(0, 14);
-  document.getElementById("code").textContent = code || "??????";
-  if (from) document.getElementById("who").textContent = from + " saved you a seat";
-
-  var q = "join/" + code + (from ? "?from=" + encodeURIComponent(from) : "");
+  var from = (new URLSearchParams(location.search).get("from") || "").trim().slice(0, 14);
   var ua = navigator.userAgent || "";
   var android = /Android/i.test(ua), ios = /iPhone|iPad|iPod/i.test(ua);
   var store = "https://play.google.com/store/apps/details?id=" + PKG;
-  var link = android
-    ? "intent://" + q + "#Intent;scheme=tuitiontakkar;package=" + PKG + ";S.browser_fallback_url=" + encodeURIComponent(store) + ";end"
-    : "tuitiontakkar://" + q;
-  var open = document.getElementById("open");
-  open.href = link;
-  if (!android && !ios) open.style.display = "none";
-  if (android) document.getElementById("help").innerHTML =
-    'No game yet? <a href="' + store + '">Get it on Google Play</a>, then tap the invite link again.';
 
-  // Try to jump straight into the game (some in-app browsers need the button tap instead).
-  if (code && (android || ios)) setTimeout(function () { location.href = link; }, 300);
+  document.getElementById("code").textContent = code || "??????";
+  if (from) {
+    document.getElementById("who").textContent = from + " invited you";
+    document.getElementById("face").textContent = from.charAt(0).toUpperCase();
+  }
+  document.getElementById("get").href = store;
+
+  // Browser version of the game (Unity web build in /play), straight into this room.
+  var q = "code=" + code + (from ? "&from=" + encodeURIComponent(from) : "");
+  document.getElementById("play").href = "/play/?" + q;
+
+  // The app, if installed. (With the app installed, Android usually opens it before this page loads.)
+  var appPath = "join/" + code + (from ? "?from=" + encodeURIComponent(from) : "");
+  var open = document.getElementById("open");
+  open.href = android
+    ? "intent://" + appPath + "#Intent;scheme=tuitiontakkar;package=" + PKG + ";S.browser_fallback_url=" + encodeURIComponent(store) + ";end"
+    : ios ? "tuitiontakkar://" + appPath : store;
+  if (!android && !ios) open.lastChild.textContent = " Get the phone app";
+
+  if (!code) {
+    document.getElementById("main").className = "closed";
+    document.getElementById("title").innerHTML = "THIS LINK<br>LOOKS BROKEN";
+    document.getElementById("note").textContent = "ask your friend to send the invite again";
+  }
 
   document.getElementById("copy").addEventListener("click", function () {
     var b = this;
-    function done() { b.textContent = "Copied!"; }
+    function done() { b.textContent = "Copied " + code; }
     if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, done); else done();
   });
 })();
