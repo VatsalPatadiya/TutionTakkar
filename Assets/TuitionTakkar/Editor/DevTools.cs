@@ -297,6 +297,63 @@ namespace TuitionTakkar
             Debug.Log("[TuitionTakkar] screenshot saved to Builds/editor-shot.png");
         }
 
+        // ---------- screenshots for docs/PROJECT_GUIDE.md ----------
+
+        [MenuItem("Tuition Takkar/Dev: Save doc screenshots")]
+        static async void DocShots()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) { Debug.LogWarning("Press Play first (phone-size game view)."); return; }
+            Application.runInBackground = true;
+            System.IO.Directory.CreateDirectory("docs/screenshots");
+            async System.Threading.Tasks.Task Shot(string name, System.Action show, int waitMs = 1600)
+            {
+                try { show?.Invoke(); } catch (System.Exception e) { Debug.LogWarning("[doc shots] " + name + ": " + e.Message); }
+                await System.Threading.Tasks.Task.Delay(waitMs);
+                ScreenCapture.CaptureScreenshot("docs/screenshots/" + name + ".png");
+                await System.Threading.Tasks.Task.Delay(700);
+                Debug.Log("[doc shots] " + name);
+            }
+            void Pop(string kind, string extraKey = null, string extraVal = null)
+            {
+                FriendsUI.Hook(gm);
+                var d = new System.Collections.Generic.Dictionary<string, string> { { "kind", kind }, { "fromName", "Riya" }, { "fromId", "doc-" + Random.Range(0, 99999) } };
+                if (kind == "invite") { d["code"] = "ABC" + Random.Range(100, 999); d["deskId"] = Desks.All[3].id; d["seated"] = "1"; d["seats"] = "2"; }
+                Friends.FromPush(d);
+            }
+
+            await Shot("01-home", () => gm.ShowHome());
+            await Shot("02-exit-prompt", () => { gm.ShowHome(); BackNav.Handle(gm); });
+            await Shot("03-batch-ladder-rival", () => gm.ShowRival());
+            await Shot("04-pouch-my-pens", () => gm.ShowPouch(0));
+            await Shot("05-pouch-tuck-shop", () => gm.ShowPouch(1));
+            await Shot("06-pouch-workshop", () => gm.ShowPouch(2));
+            await Shot("07-online-sign-in", () => { OnlineServices.SignOut(gm.Save); gm.ShowOnline(); }, 2500);
+            await OnlineServices.SignInGuestAsync(gm.Save);
+            await Shot("08-play-online", () => gm.ShowOnline(), 2500);
+            await Shot("09-desk-chooser", () => DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick));
+            await Shot("10-leaderboard", () => gm.ShowLeaderboard(), 3500);
+            await Shot("11-friends-guest-locked", () => FriendsUI.Show(gm, 0));
+            await Shot("12-my-profile", () =>
+            {
+                bool was = gm.Save.googleLinked;
+                gm.Save.googleLinked = true;   // the profile is for signed-in players; only for this picture
+                Profile();
+                gm.Save.googleLinked = was;
+            });
+            await Shot("13-badges", () => ProfileScreens.ShowBadges(gm, () => gm.ShowHome()));
+            await Shot("14-friend-request-popup", () => { gm.ShowHome(); Pop("friend_request"); });
+            await Shot("15-friend-accepted-popup", () => { gm.ShowHome(); Pop("friend_accepted"); });
+            await Shot("16-room-invite-popup", () => { gm.ShowHome(); Pop("invite"); });
+            await Shot("17-match-2-players", () => Party(2), 3500);
+            await Shot("18-match-paused", () => gm.Pause());
+            await Shot("19-match-4-players", () => { gm.Resume(); Party(4); }, 3500);
+            await Shot("20-desk-champions-palace", () => ShowDesk(27), 2500);
+            gm.Resume();
+            gm.ShowHome();
+            Debug.Log("[doc shots] done");
+        }
+
         static void Party(int n)
         {
             var gm = GameManager.I;
