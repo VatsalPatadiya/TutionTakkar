@@ -369,6 +369,38 @@ All under **Tuition Takkar** in the Unity menu bar.
 - **Back gesture** in an online match (the leave / opponent-wins sheet).
 - The **paid desk match** with 2 phones (fees, pot, refund) has not been tested end to end yet.
 
+### Web version (started 28 Oct 2026)
+
+Goal: someone taps an invite link without the app, plays that match in the browser, and is nudged to install. Not the whole game.
+
+**Decided**
+- Same Unity project and repo. "Web" is just another build target (Unity Web / WebGL). The landing page stays in `LinkSite/` (Firebase Hosting).
+- Web players are guests, use the Starter Click pen on the default desk, and get "get the app" prompts. The batch ladder, pouch, shop, workshop, badges, friends and push stay app-only.
+- Mockups for every web screen (desktop and phone browser) are on the design canvas "Tuition Takkar · All screens + Web".
+
+**Done**
+- **Networking check: no rewrite needed.** Online play only uses the Unity Lobby service (`OnlineRoom`, `OnlineLink`), which works in browsers. Lobby events fall back to polling if their socket fails. Each flick sends exact pen positions and the shooter's "rest" is final, so small physics differences between web and phone don't matter.
+- **Invite links are already App Links** (`DeepLinks`, `DeepLinkSetup`, `LinkSite/public/.well-known/assetlinks.json`). They also accept `?code=ABC123`, which the web build reads from its page URL.
+- **Menu `Tuition Takkar > Build Web Version`** (`Editor/WebBuild.cs`) builds into `LinkSite/public/play` (git-ignored). It uses gzip with the decompression fallback, so no hosting headers are needed. Result is written to `Builds/web-info.txt`. The first build was about 15 MB compressed (wasm 11 MB, data 3.6 MB). Building switches the editor to Web; the APK menu switches back.
+- Google sign-in is hidden on web, so browser players see only "Play as guest".
+- `join.html` was redesigned: PLAY IN BROWSER (`/play/?code=…&from=…`) first, Open in the app second, and no automatic jump to the Play Store.
+
+**Next (in order)**
+1. Test `/play/?code=ABC123` in a phone browser. Serve `LinkSite/public` locally or deploy, then join a room made on a phone. Check that Unity services sign-in, lobby join and a full match work, including lobby events or the polling fallback.
+2. Web-only flow from the mockups:
+   - straight to "pick a name" instead of home
+   - lobby, then match, then a result screen with "get the app"
+   - "room has closed" when the code is invalid
+   - hide pouch, ladder, shop and badges
+   - Starter Click pen only
+3. Phone-browser feel:
+   - a custom WebGL template: portrait full screen, no pinch-zoom or pull-to-refresh (`touch-action:none`)
+   - the TT loading screen instead of the Unity logo
+   - sound starts on the first tap
+   - back button through the History API
+4. Make it smaller: strip unused desks and assets from the web build, and use lighter graphics.
+5. Deploy: `firebase deploy --only hosting` from `LinkSite/`. The owner runs this with their own Firebase login.
+
 ### Still to do
 
 - Confirm `total_wins` is set to **Total score** in the dashboard.
