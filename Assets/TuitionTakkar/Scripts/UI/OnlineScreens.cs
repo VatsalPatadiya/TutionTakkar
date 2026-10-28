@@ -109,28 +109,43 @@ namespace TuitionTakkar
             var body = UIKit.Col().St(s => { UIKit.Pad(s, 26, 22, 0, 22); });
             var card = Paper(-1f);
             card.Add(UIKit.Disp("HOW DO YOU\nWANT TO PLAY?", 34f, Pal.Ink));
-            card.Add(UIKit.HandText("sign in with Google to get on the class leaderboard, or jump in as a guest.", 18f, Pal.Ink).St(s => s.marginTop = 6));
+            card.Add(UIKit.HandText("save your wins, or just jump in.", 19f, Pal.Ink).St(s => s.marginTop = 6));
 
-            var google = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 17f, 58f, 14f, Pal.H("#C9D3DE"), Pal.Ink);
-            google.style.marginTop = 20;
+            // One short reason under each button instead of three bullet lines.
+            VisualElement Perk(string text, LineIcon.Kind icon)
+            {
+                var r = UIKit.Row().St(s => { s.marginTop = 8; s.alignSelf = Align.Center; });
+                r.Add(new LineIcon(icon, 18f, 18f, Pal.InkSoft));
+                r.Add(UIKit.Strong(text, 14f, Pal.InkSoft).St(s => s.marginLeft = 6));
+                return r;
+            }
+
+            var tag = UIKit.Strong("BEST", 11f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
+            {
+                s.position = Position.Absolute; s.right = 12; s.top = -10; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 3, 8, 3, 8); UIKit.Radius(s, 8);
+            });
+            var google = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 18f, 64f, 14f, Pal.H("#C9D3DE"), Pal.Ink);
+            google.style.marginTop = 22;
+            google.style.overflow = Overflow.Visible;
             var gRow = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
             gRow.pickingMode = PickingMode.Ignore;
-            gRow.Add(GoogleG(24f));
-            gRow.Add(UIKit.Strong("Continue with Google", 17f, Pal.Ink).St(s => s.marginLeft = 10));
+            gRow.Add(GoogleG(26f));
+            gRow.Add(UIKit.Strong("Continue with Google", 18f, Pal.Ink).St(s => s.marginLeft = 10));
             google.Add(gRow);
+            google.Add(tag);
             card.Add(google);
-            var gPoints = UIKit.Col().St(s => s.marginTop = 8);
-            foreach (var p in new[] { "your wins go on the leaderboard", "pick your own name, keep it on a new phone", "your email is never shown to other players" })
-                gPoints.Add(UIKit.Plain("•  " + p, 13f, Pal.InkSoft).St(s => s.marginTop = 3));
-            card.Add(gPoints);
+            card.Add(Perk("get on the leaderboard", LineIcon.Kind.Medal));
 
-            var guest = UIKit.Btn("Continue as Guest", () => DoGuest(gm), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 17f, 58f, 14f, Pal.H("#C7A928"), Pal.Ink);
-            guest.style.marginTop = 18;
+            var or = UIKit.Row().St(s => { s.marginTop = 16; s.alignItems = Align.Center; });
+            or.Add(UIKit.El().St(s => { s.flexGrow = 1; s.height = 2; s.backgroundColor = Pal.H("#D8DEE4"); }));
+            or.Add(UIKit.Strong("or", 13f, Pal.InkSoft).St(s => { s.marginLeft = 10; s.marginRight = 10; }));
+            or.Add(UIKit.El().St(s => { s.flexGrow = 1; s.height = 2; s.backgroundColor = Pal.H("#D8DEE4"); }));
+            card.Add(or);
+
+            var guest = UIKit.Btn("PLAY AS GUEST", () => DoGuest(gm), Pal.Yellow, Pal.Ink, UIKit.Display, 22f, 64f, 14f, Pal.H("#C7A928"), Pal.Ink);
+            guest.style.marginTop = 14;
             card.Add(guest);
-            var qPoints = UIKit.Col().St(s => s.marginTop = 8);
-            foreach (var p in new[] { "play right away as Guest_xxxxxx", "quick match, rooms and invites all work", "guest wins don't go on the leaderboard (sign in later any time)" })
-                qPoints.Add(UIKit.Plain("•  " + p, 13f, Pal.InkSoft).St(s => s.marginTop = 3));
-            card.Add(qPoints);
+            card.Add(Perk("play now · sign in later", LineIcon.Kind.Person));
             body.Add(card);
 
             body.Add(UIKit.Btn("Not now", () => gm.ShowHome(), Color.clear, Pal.Ink, UIKit.BodyBold, 16f, 48f, 12f).St(s => s.marginTop = 8));
@@ -276,53 +291,40 @@ namespace TuitionTakkar
             scroll.style.flexGrow = 1;
             var body = UIKit.Col().St(s => UIKit.Pad(s, 20, 20, 24, 20));
 
-            // My profile + Friends: only for players signed in with Google (or Apple); guests don't see either.
+            // My profile + Friends side by side (signed-in players only; guests don't see either).
             if (Friends.Allowed(save))
             {
                 int lvl = OnlineLevel.Level(save.onlineXp);
-                var me = UIKit.Row().St(s => { s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 12, 10, 12); s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.1f); });
-                var av = UIKit.El().St(s => { s.width = 48; s.height = 48; });
-                av.Add(UIKit.Avatar(ProfileScreens.Initial(OnlineServices.DisplayName(save)), Pal.Yellow, 48f));
-                var lvd = UIKit.El().St(s => { s.position = Position.Absolute; s.right = -4; s.bottom = -3; s.width = 22; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Pouch; UIKit.Border(s, 2f, Pal.Paper); s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
+                var pair = UIKit.Row(Align.Stretch).St(s => { s.justifyContent = Justify.SpaceBetween; s.marginBottom = 16; });
+                var me = UIKit.Row().St(s => { s.width = Length.Percent(48.5f); s.height = 64; s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 0, 10, 0, 10); s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.12f); });
+                var av = UIKit.El().St(s => { s.width = 42; s.height = 42; s.flexShrink = 0; });
+                av.Add(UIKit.Avatar(ProfileScreens.Initial(OnlineServices.DisplayName(save)), Pal.Yellow, 42f));
+                var lvd = UIKit.El().St(s => { s.position = Position.Absolute; s.right = -5; s.bottom = -4; s.width = 22; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Pouch; UIKit.Border(s, 2f, Pal.Paper); s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
                 lvd.Add(UIKit.Disp(lvl.ToString(), 11f, Color.white, TextAnchor.MiddleCenter));
                 av.Add(lvd);
                 me.Add(av);
-                var mc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexGrow = 1; s.flexShrink = 1; });
-                mc.Add(UIKit.Strong("My profile", 16f, Pal.Ink));
-                mc.Add(UIKit.Strong(save.stats.won + " wins · " + save.stats.knockOffs + " knocked off · " + save.stats.BadgesEarned + " badges", 12f, Pal.H("#5B6B78")));
+                var mc = UIKit.Col().St(s => { s.marginLeft = 10; s.flexShrink = 1; });
+                mc.Add(UIKit.Disp("MY PROFILE", 16f, Pal.Ink));
+                mc.Add(UIKit.Strong(save.stats.won + " wins", 13f, Pal.InkSoft));
                 me.Add(mc);
-                me.Add(UIKit.Strong("View ›", 13f, Pal.Green));
                 me.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); ProfileScreens.ShowProfile(gm); });
-                body.Add(me);
 
-                var frCard = UIKit.Row().St(s => { s.marginTop = 10; s.marginBottom = 16; s.backgroundColor = Pal.Night; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 12, 10, 12); });
-                var fi = UIKit.El().St(s => { s.width = 48; s.height = 48; UIKit.Radius(s, 14); s.backgroundColor = Pal.NightSoft; s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
-                var ppl = UIKit.El().St(s => { s.width = 28; s.height = 22; });
-                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 3; s.top = 0; s.width = 10; s.height = 10; UIKit.Radius(s, 5); s.backgroundColor = Color.white; }));
-                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 0; s.top = 12; s.width = 16; s.height = 9; s.borderTopLeftRadius = s.borderTopRightRadius = 8; s.backgroundColor = Color.white; }));
-                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 16; s.top = 2; s.width = 9; s.height = 9; UIKit.Radius(s, 5); s.backgroundColor = Pal.Yellow; }));
-                ppl.Add(UIKit.El().St(s => { s.position = Position.Absolute; s.left = 14; s.top = 13; s.width = 14; s.height = 8; s.borderTopLeftRadius = s.borderTopRightRadius = 7; s.backgroundColor = Pal.Yellow; }));
-                fi.Add(ppl);
+                var frCard = UIKit.Row().St(s => { s.width = Length.Percent(48.5f); s.height = 64; s.backgroundColor = Pal.Night; UIKit.Radius(s, 16); UIKit.Pad(s, 0, 10, 0, 10); });
                 int req = Friends.Ready ? Friends.Incoming.Count : 0;
+                var fi = UIKit.El().St(s => { s.width = 42; s.height = 42; UIKit.Radius(s, 12); s.backgroundColor = Pal.NightSoft; s.alignItems = Align.Center; s.justifyContent = Justify.Center; s.flexShrink = 0; });
+                fi.Add(new LineIcon(LineIcon.Kind.People, 28f, 26f, Pal.Yellow));
                 if (req > 0)
-                    fi.Add(UIKit.Strong(req.ToString(), 11f, Color.white, TextAnchor.MiddleCenter).St(s => { s.position = Position.Absolute; s.right = -5; s.top = -5; s.backgroundColor = Pal.Red; UIKit.Radius(s, 9); UIKit.Pad(s, 1, 6, 1, 6); }));
+                    fi.Add(UIKit.Strong(req.ToString(), 11f, Color.white, TextAnchor.MiddleCenter).St(s => { s.position = Position.Absolute; s.right = -6; s.top = -6; s.minWidth = 20; s.height = 20; s.backgroundColor = Pal.Red; UIKit.Radius(s, 10); UIKit.Border(s, 2f, Pal.Night); }));
                 frCard.Add(fi);
-                var fc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexGrow = 1; s.flexShrink = 1; });
-                fc.Add(UIKit.Strong("Friends", 16f, Color.white));
-                string fsub;
-                if (!Friends.Allowed(save)) fsub = "sign in with Google to add friends";
-                else if (!Friends.Ready) fsub = "your classmates";
-                else
-                {
-                    int on = 0;
-                    foreach (var f in Friends.List) if (Friends.StateOf(f) != Friends.State.Offline) on++;
-                    fsub = on + " online" + (req > 0 ? " · " + req + (req == 1 ? " request" : " requests") : " · " + Friends.List.Count + " friends");
-                }
-                fc.Add(UIKit.Strong(fsub, 12f, Pal.Mist));
+                var fc = UIKit.Col().St(s => { s.marginLeft = 10; s.flexShrink = 1; });
+                fc.Add(UIKit.Disp("FRIENDS", 16f, Color.white));
+                int on = 0;
+                if (Friends.Ready) foreach (var f in Friends.List) if (Friends.StateOf(f) != Friends.State.Offline) on++;
+                fc.Add(UIKit.Strong(req > 0 ? req + (req == 1 ? " request" : " requests") : on + " online", 13f, req > 0 ? Pal.Yellow : Pal.Mist));
                 frCard.Add(fc);
-                frCard.Add(UIKit.Strong("›", 22f, Pal.Yellow));
-                frCard.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); FriendsUI.Show(gm, 0); });
-                body.Add(frCard);
+                frCard.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); FriendsUI.Show(gm, req > 0 ? 1 : 0); });
+                pair.Add(me, frCard);
+                body.Add(pair);
             }
 
             // Quick match (chalkboard)
@@ -332,7 +334,7 @@ namespace TuitionTakkar
             });
             UIKit.Rot(quick, -0.6f);
             quick.Add(UIKit.Disp("QUICK MATCH", 28f, Color.white));
-            quick.Add(UIKit.HandText("random classmates. last pen standing wins.", 16f, Pal.H("#E6EFE9")));
+            quick.Add(UIKit.HandText("random classmates · pick how many", 16f, Pal.H("#E6EFE9")));
             var segs = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 12; s.justifyContent = Justify.SpaceBetween; });
             var segButtons = new List<VisualElement>();
             for (int n = 2; n <= 4; n++)
@@ -359,20 +361,18 @@ namespace TuitionTakkar
             seats = Mathf.Clamp(seats, 2, OnlineMatch.MaxPlayers);
             for (int k = 0; k < segButtons.Count; k++) PaintSeg(segButtons[k], k + 2 == seats, k + 2 <= OnlineMatch.MaxPlayers);
             quick.Add(segs);
-            var find = UIKit.Btn("CHOOSE A DESK", () => DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick), Pal.Yellow, Pal.Ink, UIKit.Display, 22f, 58f, 16f, Pal.H("#C7A928"));
+            var find = UIKit.Btn("FIND A MATCH", () => DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick), Pal.Yellow, Pal.Ink, UIKit.Display, 26f, 62f, 16f, Pal.H("#C7A928"));
             find.style.marginTop = 14;
             quick.Add(find);
             var last = Desks.ById(save.lastDesk) ?? Desks.All[1];
             int lv = OnlineLevel.Level(save.onlineXp);
-            quick.Add(UIKit.Plain("level " + lv + " · last desk: " + last.name + (last.Free ? " (free)" : " · entry " + Desks.Money(last.fee)), 12f, Pal.Yellow, TextAnchor.MiddleCenter).St(s => s.marginTop = 8));
-            quick.Add(UIKit.Plain(OnlineMatch.MaxPlayers < 4 ? "3 and 4 player desks are coming next" : "bigger desk for 3 and 4 players", 12f, Pal.MistLight, TextAnchor.MiddleCenter).St(s => s.marginTop = 8));
+            quick.Add(UIKit.Strong("Level " + lv + " · next: pick your desk", 14f, Pal.Yellow, TextAnchor.MiddleCenter).St(s => s.marginTop = 10));
             body.Add(quick);
 
             // Play with friends
             var friends = Paper(0.6f);
             friends.style.marginTop = 18;
             friends.Add(UIKit.Disp("PLAY WITH FRIENDS", 24f, Pal.Ink));
-            friends.Add(UIKit.HandText("make a room, share the code.", 16f, Pal.Ink));
             var fr = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 12; s.justifyContent = Justify.SpaceBetween; });
             var create = UIKit.Btn("+  Create room", () => DoCreate(gm), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 15f, 54f, 12f, null, Pal.Ink);
             create.style.width = Length.Percent(48);
@@ -387,13 +387,16 @@ namespace TuitionTakkar
             {
                 s.marginTop = 18; s.justifyContent = Justify.SpaceBetween; s.backgroundColor = Pal.Night; UIKit.Radius(s, 14); UIKit.Pad(s, 14, 16, 14, 16);
             });
-            var lc = UIKit.Col().St(s => { s.flexShrink = 1; s.marginRight = 8; });
-            var winsLabel = UIKit.Strong(guest ? "Playing as guest" : "You · " + save.onlineWins + " online wins", 15f, Color.white);
-            var rankLabel = UIKit.Plain(guest ? "guest wins don't go on the leaderboard" : "checking the board…", 12f, Pal.Mist);
+            var lc = UIKit.Row().St(s => { s.flexShrink = 1; s.marginRight = 8; });
+            lc.Add(new LineIcon(LineIcon.Kind.Trophy, 30f, 30f, Pal.Yellow));
+            var lcc = UIKit.Col().St(s => { s.marginLeft = 10; s.flexShrink = 1; });
+            lc.Add(lcc);
+            var winsLabel = UIKit.Strong(guest ? "Playing as guest" : save.onlineWins + " online wins", 15f, Color.white);
+            var rankLabel = UIKit.Strong(guest ? "sign in to get on the board" : "checking the board…", 13f, Pal.Mist);
             rankLabel.style.whiteSpace = WhiteSpace.Normal;
-            lc.Add(winsLabel, rankLabel);
+            lcc.Add(winsLabel, rankLabel);
             lb.Add(lc);
-            lb.Add(UIKit.Strong("Leaderboard ›", 14f, Pal.Yellow));
+            lb.Add(UIKit.Strong("Ranks ›", 15f, Pal.Yellow));
             lb.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); ShowLeaderboard(gm); });
             body.Add(lb);
             if (guest)
@@ -404,7 +407,7 @@ namespace TuitionTakkar
                 var uRow = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
                 uRow.pickingMode = PickingMode.Ignore;
                 uRow.Add(GoogleG(20f));
-                uRow.Add(UIKit.Strong("Sign in with Google to get on the board", 14f, Pal.Ink).St(s => s.marginLeft = 8));
+                uRow.Add(UIKit.Strong("Sign in with Google", 16f, Pal.Ink).St(s => s.marginLeft = 8));
                 up.Add(uRow);
                 body.Add(up);
             }
@@ -836,7 +839,7 @@ namespace TuitionTakkar
             {
                 var left = OnlineServices.UntilWeeklyReset();
                 string when = left.Days > 0 ? left.Days + " days " + left.Hours + " h" : left.Hours + " h " + left.Minutes + " min";
-                root.Add(UIKit.Plain("resets Monday 00:00 · " + when + " left", 12f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => { s.marginTop = 6; s.flexShrink = 0; }));
+                root.Add(UIKit.Strong("new week in " + when, 14f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => { s.marginTop = 8; s.flexShrink = 0; }));
             }
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -903,8 +906,33 @@ namespace TuitionTakkar
                 body.Add(UIKit.HandText(board == OnlineServices.WeeklyId ? "nobody has won this week. be the first!" : "nobody has won online yet. be the first!", 18f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => s.marginTop = 20));
                 return;
             }
-            foreach (var r in top)
+            // Top three on a podium: 2 · 1 · 3
+            var podium = UIKit.Row(Align.FlexEnd).St(s => { s.justifyContent = Justify.Center; s.marginBottom = 10; s.marginTop = 4; });
+            int[] order = { 1, 0, 2 };
+            foreach (int i in order)
             {
+                if (i >= top.Count) continue;
+                var r = top[i];
+                var colour = i == 0 ? Pal.H("#E6B422") : i == 1 ? Pal.H("#B7C0C7") : Pal.H("#C8875A");
+                var col = UIKit.Col().St(s => { s.width = Length.Percent(32); s.alignItems = Align.Center; });
+                if (i == 0) col.Add(new LineIcon(LineIcon.Kind.Trophy, 26f, 26f, Pal.H("#C99A12")).St(s => s.marginBottom = 2));
+                col.Add(UIKit.Avatar(Initial(r.name), r.me ? Pal.Yellow : Pal.Sky, i == 0 ? 60f : 50f).St(s => UIKit.Border(s, 3f, colour)));
+                col.Add(UIKit.Strong(r.name, 13f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginTop = 4; s.overflow = Overflow.Hidden; s.maxWidth = Length.Percent(100); }));
+                col.Add(UIKit.Strong(r.wins + " wins", 12f, Pal.InkSoft, TextAnchor.MiddleCenter));
+                var step = UIKit.Col().St(s =>
+                {
+                    s.marginTop = 6; s.width = Length.Percent(92); s.height = i == 0 ? 74 : i == 1 ? 56 : 44;
+                    s.backgroundColor = colour; s.borderTopLeftRadius = s.borderTopRightRadius = 10; s.alignItems = Align.Center; s.justifyContent = Justify.Center;
+                });
+                step.Add(UIKit.Disp((i + 1).ToString(), 26f, Color.white, TextAnchor.MiddleCenter));
+                col.Add(step);
+                podium.Add(col);
+            }
+            body.Add(podium);
+
+            for (int idx = 3; idx < top.Count; idx++)
+            {
+                var r = top[idx];
                 var row = UIKit.Row().St(s =>
                 {
                     s.marginTop = 6; UIKit.Pad(s, 10, 14, 10, 12); UIKit.Radius(s, 12);

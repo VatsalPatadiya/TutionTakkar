@@ -299,18 +299,97 @@ namespace TuitionTakkar
 
         // ---------- screenshots for docs/PROJECT_GUIDE.md ----------
 
+        [MenuItem("Tuition Takkar/Dev: Home shots (guest + signed in)")]
+        static async void HomeShots()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            gm.ShowHome();
+            await System.Threading.Tasks.Task.Delay(1500);
+            ScreenCapture.CaptureScreenshot("Builds/home-guest.png");
+            await System.Threading.Tasks.Task.Delay(700);
+            bool was = gm.Save.googleLinked;
+            gm.Save.googleLinked = true;   // only for the picture
+            gm.ShowHome();
+            gm.Save.googleLinked = was;
+            await System.Threading.Tasks.Task.Delay(1500);
+            ScreenCapture.CaptureScreenshot("Builds/home-signed.png");
+            await System.Threading.Tasks.Task.Delay(700);
+            gm.ShowHome();
+            Debug.Log("[home shots] done");
+        }
+
+        static string shotDir = "docs/screenshots";
+
+        [MenuItem("Tuition Takkar/Dev: Save improved-UI screenshots")]
+        static async void ImprovedShots()
+        {
+            shotDir = "Builds/ui-improved";
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) { Debug.LogWarning("Press Play first (phone-size game view)."); return; }
+            System.IO.Directory.CreateDirectory(shotDir);
+            bool was = gm.Save.googleLinked;
+            gm.Save.googleLinked = true;   // only for the picture
+            gm.ShowHome();
+            gm.Save.googleLinked = was;
+            await System.Threading.Tasks.Task.Delay(1500);
+            ScreenCapture.CaptureScreenshot(shotDir + "/00-home-signed-in.png");
+            await System.Threading.Tasks.Task.Delay(700);
+            await EndShot(true, "21-result-win");
+            await EndShot(false, "22-result-lose");
+            DocShots();
+        }
+
+        static async System.Threading.Tasks.Task EndShot(bool win, string name)
+        {
+            var gm = GameManager.I;
+            var s = new MatchSetup(2) { mode = MatchMode.Ladder, rival = gm.Save.CurrentRival };
+            s.isBot[1] = true; s.pens[0] = Catalog.Pen("starter"); s.pens[1] = Catalog.Pen(gm.Save.CurrentRival != null ? gm.Save.CurrentRival.penId : "zippy07"); s.names[0] = "You"; s.names[1] = gm.Save.CurrentRival != null ? gm.Save.CurrentRival.name : "Rival";
+            var o = new MatchOutcome { setup = s, winner = win ? 0 : 1, score = win ? new[] { 3, 1 } : new[] { 1, 3 }, marksBefore = gm.Save.marks, marksAfter = gm.Save.marks + (win ? 120 : 2), nextRival = gm.Save.CurrentRival, rewards = new RewardResult() };
+            o.rewards.lines.Add(win ? new RewardLine { label = "Match win", note = "beat the rival", amount = 100 } : new RewardLine { label = "For trying", note = "lost the match", amount = 2 });
+            if (win) o.rewards.lines.Add(new RewardLine { label = "Knock-offs", note = "3 pens off", amount = 20 });
+            o.rewards.total = win ? 120 : 2;
+            try { gm.UI.ShowScreen(MatchEndScreen.Build(gm, o)); } catch (System.Exception e) { Debug.LogWarning("[shots] " + name + ": " + e); }
+            await System.Threading.Tasks.Task.Delay(1500);
+            ScreenCapture.CaptureScreenshot(shotDir + "/" + name + ".png");
+            await System.Threading.Tasks.Task.Delay(700);
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Save result + signed-in home shots")]
+        static async void ResultShots()
+        {
+            shotDir = "Builds/ui-improved";
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            Application.runInBackground = true;
+            bool was = gm.Save.googleLinked;
+            gm.Save.googleLinked = true;
+            gm.ShowHome();
+            gm.Save.googleLinked = was;
+            await System.Threading.Tasks.Task.Delay(1500);
+            ScreenCapture.CaptureScreenshot(shotDir + "/00-home-signed-in.png");
+            await System.Threading.Tasks.Task.Delay(800);
+            await EndShot(true, "21-result-win");
+            await EndShot(false, "22-result-lose");
+            gm.ShowHome();
+            Debug.Log("[result shots] done");
+        }
+
         [MenuItem("Tuition Takkar/Dev: Save doc screenshots")]
+        static void DocShotsMenu() { shotDir = "docs/screenshots"; DocShots(); }
+
         static async void DocShots()
         {
             var gm = GameManager.I;
             if (!Application.isPlaying || gm == null) { Debug.LogWarning("Press Play first (phone-size game view)."); return; }
             Application.runInBackground = true;
-            System.IO.Directory.CreateDirectory("docs/screenshots");
+            System.IO.Directory.CreateDirectory(shotDir);
             async System.Threading.Tasks.Task Shot(string name, System.Action show, int waitMs = 1600)
             {
-                try { show?.Invoke(); } catch (System.Exception e) { Debug.LogWarning("[doc shots] " + name + ": " + e.Message); }
+                try { show?.Invoke(); } catch (System.Exception e) { Debug.LogWarning("[doc shots] " + name + ": " + e); }
                 await System.Threading.Tasks.Task.Delay(waitMs);
-                ScreenCapture.CaptureScreenshot("docs/screenshots/" + name + ".png");
+                ScreenCapture.CaptureScreenshot(shotDir + "/" + name + ".png");
                 await System.Threading.Tasks.Task.Delay(700);
                 Debug.Log("[doc shots] " + name);
             }

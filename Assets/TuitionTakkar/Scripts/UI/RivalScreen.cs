@@ -39,7 +39,8 @@ namespace TuitionTakkar
             card.Add(tape);
 
             var vs = UIKit.Row().St(s => s.justifyContent = Justify.SpaceAround);
-            vs.Add(Person("Guest", myPen.name, "G", Pal.Yellow));
+            string me = OnlineServices.HasAccount(save) ? OnlineServices.DisplayName(save) : "You";
+            vs.Add(Person(me, myPen.name, me.Substring(0, 1).ToUpperInvariant(), Pal.Yellow));
             var vsLabel = UIKit.Disp("VS", 40f, Pal.Red, TextAnchor.MiddleCenter);
             UIKit.Rot(vsLabel, -6f);
             vs.Add(vsLabel);
@@ -53,19 +54,27 @@ namespace TuitionTakkar
             pens.Add(p1, p2);
             card.Add(pens);
 
-            card.Add(UIKit.HandText("\"" + rival.blurb + "\"", 19f, Pal.Ink).St(s => s.marginTop = 16));
+            card.Add(UIKit.HandText("\"" + rival.blurb + "\"", 18f, Pal.Ink).St(s => s.marginTop = 14));
 
-            var info = UIKit.Col().St(s => s.marginTop = 16);
-            info.Add(UIKit.KeyValue("Format", "Best of " + (GameConfig.RoundsToWin * 2 - 1), Pal.Ink));
-            info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
-            info.Add(UIKit.KeyValue("Win", ownsPen ? "+" + (rival.reward + rival.reward / 2) + " marks (you have their pen)" : "Keep " + theirPen.name + " · +" + rival.reward + " marks", Pal.Green));
-            if (boss)
-            {
-                info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
-                info.Add(UIKit.KeyValue("Batch bonus", "+" + Ladder.BatchBonus(batch) + " marks · opens " + Ladder.BatchName(batch + 1), Pal.Green));
-            }
-            info.Add(UIKit.DashedLine(Pal.Dash).St(s => s.marginBottom = 8));
-            info.Add(UIKit.KeyValue("Lose", "+" + Economy.LossConsolation + " marks for trying", Pal.InkSoft));
+            // What you win, as two big chips instead of a table
+            var info = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 16; s.justifyContent = Justify.SpaceBetween; });
+            int winMarks = ownsPen ? rival.reward + rival.reward / 2 : rival.reward;
+            if (boss) winMarks += Ladder.BatchBonus(batch);
+            var win = UIKit.Col().St(s => { s.width = Length.Percent(64); s.backgroundColor = Pal.H("#DFF0E5"); UIKit.Radius(s, 14); UIKit.Pad(s, 10, 12, 10, 12); });
+            win.Add(UIKit.Strong("WIN", 12f, Pal.Green));
+            var wr = UIKit.Row();
+            wr.Add(new CoinIcon(22f));
+            wr.Add(UIKit.Disp("+" + winMarks, 26f, Pal.Green).St(s => s.marginLeft = 6));
+            win.Add(wr);
+            win.Add(UIKit.Strong(ownsPen ? "you already have their pen" : "+ keep their pen!", 13f, Pal.Green));
+            var lose = UIKit.Col().St(s => { s.width = Length.Percent(33); s.backgroundColor = Pal.H("#EEF2F6"); UIKit.Radius(s, 14); UIKit.Pad(s, 10, 12, 10, 12); });
+            lose.Add(UIKit.Strong("LOSE", 12f, Pal.InkSoft));
+            var lr = UIKit.Row();
+            lr.Add(new CoinIcon(22f));
+            lr.Add(UIKit.Disp("+" + Economy.LossConsolation, 26f, Pal.InkSoft).St(s => s.marginLeft = 6));
+            lose.Add(lr);
+            lose.Add(UIKit.Strong("best of " + (GameConfig.RoundsToWin * 2 - 1), 13f, Pal.InkSoft));
+            info.Add(win, lose);
             card.Add(info);
             root.Add(card);
             UIRoot.PopIn(card);
@@ -75,13 +84,12 @@ namespace TuitionTakkar
             how.Add(HowIcon());
             var hc = UIKit.Col().St(s => { s.marginLeft = 14; s.flexShrink = 1; });
             hc.Add(UIKit.Disp("PRESS · PULL · LET GO", 20f, Color.white));
-            hc.Add(UIKit.Plain("Longer pull hits harder. Grab near an end to spin. Too hard, and your pen follows theirs off.", 14f, Pal.MistLight)
-                .St(s => s.marginTop = 4));
+            hc.Add(UIKit.Strong("longer pull = harder hit", 15f, Pal.MistLight).St(s => s.marginTop = 4));
             how.Add(hc);
             root.Add(how);
 
             root.Add(UIKit.Grow());
-            root.Add(UIKit.PrimaryBtn("START MATCH", () => gm.StartLadder(rival), 60f));
+            root.Add(UIKit.Btn("PLAY", () => gm.StartLadder(rival), Pal.Red, Color.white, UIKit.Display, 30f, 66f, 18f, Pal.RedDark));
             return root;
         }
 

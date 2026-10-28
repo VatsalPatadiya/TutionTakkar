@@ -49,60 +49,56 @@ namespace TuitionTakkar
             top.Add(prof, rightTop);
             root.Add(top);
 
-            // ---------- title ----------
-            var titleWrap = UIKit.Col().St(s => { s.alignItems = Align.Center; UIKit.Pad(s, 16, 20, 0, 20); s.flexShrink = 0; });
-            var tape = UIKit.El().St(s => { s.backgroundColor = new Color(Pal.Tape.r, Pal.Tape.g, Pal.Tape.b, 0.92f); UIKit.Pad(s, 6, 22, 4, 22); });
+            // ---------- title (smaller: the game modes get the room) ----------
+            var titleWrap = UIKit.Col().St(s => { s.alignItems = Align.Center; UIKit.Pad(s, 14, 20, 0, 20); s.flexShrink = 0; });
+            var tape = UIKit.El().St(s => { s.backgroundColor = new Color(Pal.Tape.r, Pal.Tape.g, Pal.Tape.b, 0.92f); UIKit.Pad(s, 5, 20, 3, 20); });
             UIKit.Rot(tape, -2f);
-            tape.Add(UIKit.Disp("TUITION TAKKAR", 34f, Pal.Ink, TextAnchor.MiddleCenter).St(s => s.letterSpacing = 1f));
+            tape.Add(UIKit.Disp("TUITION TAKKAR", 30f, Pal.Ink, TextAnchor.MiddleCenter).St(s => s.letterSpacing = 1f));
             titleWrap.Add(tape);
-            titleWrap.Add(UIKit.HandText("flick their pen off the bench. keep it.", 17f, Pal.BenchText, TextAnchor.MiddleCenter)
-                .St(s => s.marginTop = 4));
             root.Add(titleWrap);
 
-            var body = UIKit.Col().St(s => { UIKit.Pad(s, 14, 20, 0, 20); s.flexShrink = 0; });
+            var body = UIKit.Col().St(s => { UIKit.Pad(s, 14, 18, 0, 18); s.flexShrink = 0; });
 
-            // ---------- play online (chalkboard) ----------
-            var online = UIKit.Row().St(s =>
+            // ---------- play online: the main action, with a real button ----------
+            var online = UIKit.Col().St(s =>
             {
-                s.backgroundColor = Chalk; UIKit.Pad(s, 14, 16, 14, 16); UIKit.Radius(s, 10);
-                UIKit.Border(s, 5f, ChalkEdge); s.justifyContent = Justify.SpaceBetween;
+                s.backgroundColor = Chalk; UIKit.Pad(s, 14, 16, 16, 16); UIKit.Radius(s, 10);
+                UIKit.Border(s, 6f, ChalkEdge);
             });
-            var oc = UIKit.Col().St(s => s.flexShrink = 1);
-            var ot = UIKit.Row();
-            ot.Add(UIKit.Disp("PLAY ONLINE", 28f, Color.white));
-            ot.Add(UIKit.Strong("NEW", 11f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
-            {
-                s.marginLeft = 8; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 3, 8, 3, 8); UIKit.Radius(s, 10);
-            }));
-            oc.Add(ot);
-            oc.Add(UIKit.HandText("2, 3 or 4 classmates · room code or quick match", 16f, Pal.H("#E6EFE9")).St(s => s.marginTop = 2));
-            online.Add(oc);
-            online.Add(new LineIcon(LineIcon.Kind.People, 48f, 44f, Color.white));
-            online.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); gm.ShowOnline(); });
+            var ot = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
+            var otl = UIKit.Col();
+            otl.Add(UIKit.Disp("PLAY ONLINE", 30f, Color.white));
+            otl.Add(UIKit.HandText("2, 3 or 4 classmates", 17f, Pal.H("#E6EFE9")));
+            ot.Add(otl);
+            ot.Add(new LineIcon(LineIcon.Kind.People, 52f, 46f, Color.white));
+            online.Add(ot);
+            int on = 0;
+            if (Friends.Ready) foreach (var f in Friends.List) if (Friends.StateOf(f) != Friends.State.Offline) on++;
+            if (on > 0)
+                online.Add(UIKit.Strong(on + (on == 1 ? " friend online" : " friends online"), 13f, Pal.H("#7CE3A4")).St(s => s.marginTop = 4));
+            var playNow = UIKit.Btn("PLAY NOW", () => gm.ShowOnline(), Pal.Yellow, Pal.Ink, UIKit.Display, 26f, 58f, 14f, Pal.H("#C7A928"));
+            playNow.style.marginTop = 12;
+            online.Add(playNow);
+            online.RegisterCallback<ClickEvent>(e => { if (e.target is Button) return; gm.Audio.Ui(); gm.ShowOnline(); });
             UIKit.Rot(online, -0.6f);
             body.Add(online);
 
-            // ---------- batch ladder ----------
-            var ladder = StickyCard(Pal.Yellow, 1f);
-            ladder.style.marginTop = 14;
+            // ---------- batch ladder: who's next and one big button ----------
+            var ladder = StickyCard(Pal.Yellow, 0.8f);
+            ladder.style.marginTop = 16;
             var lrow = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
-            var lcol = UIKit.Col().St(s => { s.flexShrink = 1; s.marginRight = 8; });
-            lcol.Add(UIKit.Disp("BATCH LADDER", 26f, Pal.Ink));
-            int lb = Ladder.BatchOf(save.ladderIndex), lp = Ladder.PosInBatch(save.ladderIndex);
-            lcol.Add(UIKit.HandText(Ladder.BatchName(lb) + " · " + Ladder.Subtitle(lb).ToLowerInvariant(), 16f, Pal.Ink));
-            {
-                var r = save.CurrentRival;
-                var nx = UIKit.Row().St(s => s.marginTop = 4);
-                nx.Add(UIKit.Avatar(r.initial, r.avatar, 26f));
-                nx.Add(UIKit.Strong((Ladder.IsBoss(save.ladderIndex) ? "Boss: " : "Next: ") + r.name, 14f, Pal.Ink).St(s => s.marginLeft = 6));
-                var rw = UIKit.Row().St(s => { s.marginLeft = 8; s.backgroundColor = new Color(1f, 1f, 1f, 0.6f); UIKit.Pad(s, 2, 8, 2, 6); UIKit.Radius(s, 10); });
-                rw.Add(new CoinIcon(14f));
-                rw.Add(UIKit.Strong("+" + r.reward, 12f, Pal.Ink).St(s => s.marginLeft = 4));
-                nx.Add(rw);
-                lcol.Add(nx);
-            }
+            var r = save.CurrentRival;
+            int lp = Ladder.PosInBatch(save.ladderIndex);
+            lrow.Add(UIKit.Avatar(r.initial, r.avatar, 50f));
+            var lcol = UIKit.Col().St(s => { s.flexGrow = 1; s.flexShrink = 1; s.marginLeft = 10; s.marginRight = 8; });
+            lcol.Add(UIKit.Disp("BATCH LADDER", 24f, Pal.Ink));
+            var nx = UIKit.Row();
+            nx.Add(UIKit.Strong((Ladder.IsBoss(save.ladderIndex) ? "Boss " : "vs ") + r.name, 15f, Pal.Ink));
+            nx.Add(new CoinIcon(16f).St(s => s.marginLeft = 8));
+            nx.Add(UIKit.Strong("+" + r.reward, 15f, Pal.Ink).St(s => s.marginLeft = 3));
+            lcol.Add(nx);
             lrow.Add(lcol);
-            lrow.Add(UIKit.Btn("Play", () => gm.ShowRival(), Pal.Red, Color.white, UIKit.BodyBold, 15f, 44f, 22f, Pal.RedDark));
+            lrow.Add(UIKit.Btn("PLAY", () => gm.ShowRival(), Pal.Red, Color.white, UIKit.Display, 20f, 52f, 26f, Pal.RedDark).St(s => s.width = 86));
             ladder.Add(lrow);
             var dots = UIKit.Row().St(s => s.marginTop = 10);
             for (int i = 0; i < Ladder.PerBatch; i++)
@@ -111,38 +107,37 @@ namespace TuitionTakkar
                 if (i > 0) d.style.marginLeft = 5;
                 dots.Add(d);
             }
-            dots.Add(UIKit.Strong((lp + 1) + " / " + Ladder.PerBatch, 12f, Pal.Ink)
-                .St(s => s.marginLeft = 8));
+            dots.Add(UIKit.Strong((lp + 1) + " / " + Ladder.PerBatch, 13f, Pal.Ink).St(s => s.marginLeft = 8));
             ladder.Add(dots);
             ladder.RegisterCallback<ClickEvent>(e =>
             {
-                if (e.target is Button) return; // Play already handled it
+                if (e.target is Button) return;
                 gm.Audio.Ui();
                 gm.ShowRival();
             });
             body.Add(ladder);
 
-            // ---------- pass & play / practice ----------
-            var grid = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 14; s.justifyContent = Justify.SpaceBetween; });
-            var pp = SmallSticky(Pal.Pink, 1.5f, "PASS & PLAY", "2 players, one phone");
+            // ---------- pass & play / practice: icon + two words ----------
+            var grid = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 16; s.justifyContent = Justify.SpaceBetween; });
+            var pp = SmallSticky(Pal.Pink, 1.5f, LineIcon.Kind.Phone, "PASS & PLAY", "one phone");
             pp.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); gm.StartPassAndPlay(); });
-            var pr = SmallSticky(Pal.Sky, -1f, "PRACTICE", "vs bot · " + Catalog.PracticeNames[Mathf.Clamp(save.practiceDifficulty, 0, 2)]);
+            var pr = SmallSticky(Pal.Sky, -1f, LineIcon.Kind.Robot, "PRACTICE", "vs bot · " + Catalog.PracticeNames[Mathf.Clamp(save.practiceDifficulty, 0, 2)]);
             pr.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); gm.UI.ShowOverlay(PracticePicker(gm)); });
             grid.Add(pp, pr);
             body.Add(grid);
 
-            // ---------- daily double ----------
+            // ---------- daily double: bigger, darker ----------
             if (Economy.DoubleAvailable(save))
             {
                 var dd = UIKit.Row().St(s =>
                 {
-                    s.marginTop = 14; s.backgroundColor = Pal.Paper; UIKit.Radius(s, 12); UIKit.Pad(s, 8, 12, 8, 12);
+                    s.marginTop = 16; s.backgroundColor = Pal.Paper; UIKit.Radius(s, 12); UIKit.Pad(s, 10, 14, 10, 14);
                     UIKit.Border(s, 2f, Pal.Dash);
                 });
-                dd.Add(UIKit.Disp("×2", 22f, Pal.Orange));
-                var ddc = UIKit.Col().St(s => { s.marginLeft = 10; s.flexShrink = 1; });
-                ddc.Add(UIKit.Strong("First win today pays double", 13f, Pal.Ink));
-                ddc.Add(UIKit.Plain("ladder or practice · resets at midnight", 11f, Pal.InkSoft));
+                dd.Add(UIKit.Disp("×2", 28f, Pal.Orange));
+                var ddc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
+                ddc.Add(UIKit.Strong("First win today pays double", 15f, Pal.Ink));
+                ddc.Add(UIKit.Strong("ladder or practice", 13f, Pal.InkSoft));
                 dd.Add(ddc);
                 body.Add(dd);
             }
@@ -150,34 +145,35 @@ namespace TuitionTakkar
 
             root.Add(UIKit.Grow());
 
-            // ---------- bottom tiles ----------
-            var tiles = UIKit.Row(Align.Stretch).St(s =>
+            // ---------- bottom: one row of big icon buttons ----------
+            var nav = UIKit.Row(Align.Stretch).St(s =>
             {
-                s.marginLeft = 20; s.marginRight = 20; s.marginBottom = 22; s.marginTop = 12; s.flexShrink = 0;
+                s.marginLeft = 14; s.marginRight = 14; s.marginBottom = 20; s.marginTop = 12; s.flexShrink = 0;
                 s.justifyContent = Justify.SpaceBetween;
             });
-
-            var pouch = Tile(Pal.Pouch, Pal.PouchDark);
-            pouch.Add(UIKit.Disp("PENCIL POUCH", 20f, Color.white));
-            pouch.Add(UIKit.Plain(save.owned.Count + " pens · " + Catalog.Pen(save.equipped).name, 12f, Pal.PouchText).St(s => s.marginTop = 2));
-            var shop = UIKit.Btn("Tuck shop ›", () => gm.ShowPouch(1), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 12f, 28f, 14f);
-            shop.style.marginTop = 8;
-            shop.style.alignSelf = Align.FlexStart;
-            pouch.Add(shop);
-            pouch.RegisterCallback<ClickEvent>(e => { if (e.target is Button) return; gm.Audio.Ui(); gm.ShowPouch(0); });
-
-            var board = Tile(Pal.H("#6B4A9A"), Pal.H("#4E3573"));
-            var bt = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
-            bt.Add(UIKit.Disp("LEADERBOARD", 20f, Color.white));
-            board.Add(bt);
-            board.Add(UIKit.Plain("top classmates by wins", 12f, Pal.H("#E5DCF3")).St(s => s.marginTop = 2));
-            var tr = new LineIcon(LineIcon.Kind.Trophy, 30f, 30f, Pal.Yellow);
-            tr.style.marginTop = 6;
-            board.Add(tr);
-            board.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); gm.ShowLeaderboard(); });
-
-            tiles.Add(pouch, board);
-            root.Add(tiles);
+            bool signedIn = Friends.Allowed(save);
+            nav.Add(NavTile(LineIcon.Kind.Pouch, "PENS", Pal.Pouch, Pal.PouchDark, 0, () => gm.ShowPouch(0)));
+            if (signedIn)
+            {
+                int req = Friends.Ready ? Friends.Incoming.Count : 0;
+                nav.Add(NavTile(LineIcon.Kind.People, "FRIENDS", Pal.Night, Pal.H("#0E1A1F"), req, () => FriendsUI.Show(gm, req > 0 ? 1 : 0)));
+                nav.Add(NavTile(LineIcon.Kind.Trophy, "RANKS", Pal.H("#6B4A9A"), Pal.H("#4E3573"), 0, () => gm.ShowLeaderboard()));
+                nav.Add(NavTile(LineIcon.Kind.Person, "ME", Pal.Green, Pal.H("#134A37"), 0, () => ProfileScreens.ShowProfile(gm, () => gm.ShowHome())));
+            }
+            else
+            {
+                nav.Add(NavTile(LineIcon.Kind.Trophy, "RANKS", Pal.H("#6B4A9A"), Pal.H("#4E3573"), 0, () => gm.ShowLeaderboard()));
+                var sign = UIKit.Col().St(s =>
+                {
+                    s.width = Length.Percent(48); s.height = 80; s.backgroundColor = Color.white; UIKit.Radius(s, 16);
+                    s.borderBottomWidth = 5; s.borderBottomColor = Pal.Dash; s.alignItems = Align.Center; s.justifyContent = Justify.Center;
+                });
+                sign.Add(UIKit.Disp("SIGN IN", 18f, Pal.Ink, TextAnchor.MiddleCenter));
+                sign.Add(UIKit.Strong("friends & profile", 12f, Pal.InkSoft, TextAnchor.MiddleCenter));
+                sign.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); gm.ShowOnline(); });
+                nav.Add(sign);
+            }
+            root.Add(nav);
             return root;
         }
 
@@ -305,14 +301,35 @@ namespace TuitionTakkar
             return e;
         }
 
-        static VisualElement SmallSticky(Color c, float rot, string title, string sub)
+        static VisualElement SmallSticky(Color c, float rot, LineIcon.Kind icon, string title, string sub)
         {
             var e = StickyCard(c, rot);
             e.style.width = Length.Percent(47);
-            e.style.minHeight = 96;
-            UIKit.Pad(e.style, 14, 14, 14, 14);
-            e.Add(UIKit.Disp(title, 21f, Pal.Ink));
-            e.Add(UIKit.HandText(sub, 15f, Pal.Ink).St(s => s.marginTop = 4));
+            e.style.minHeight = 104;
+            UIKit.Pad(e.style, 12, 14, 12, 14);
+            e.Add(new LineIcon(icon, 32f, 32f, Pal.Ink));
+            e.Add(UIKit.Disp(title, 21f, Pal.Ink).St(s => s.marginTop = 4));
+            e.Add(UIKit.Strong(sub, 14f, Pal.InkSoft));
+            return e;
+        }
+
+        /// <summary>A big square icon button for the bottom row, with an optional red count.</summary>
+        static VisualElement NavTile(LineIcon.Kind icon, string label, Color bg, Color edge, int badge, System.Action go)
+        {
+            var e = UIKit.Col().St(s =>
+            {
+                s.width = Length.Percent(23); s.height = 80; s.backgroundColor = bg; UIKit.Radius(s, 16);
+                s.borderBottomWidth = 5; s.borderBottomColor = edge; s.alignItems = Align.Center; s.justifyContent = Justify.Center;
+            });
+            e.Add(new LineIcon(icon, 32f, 32f, Color.white));
+            e.Add(UIKit.Disp(label, 14f, Color.white, TextAnchor.MiddleCenter).St(s => s.marginTop = 3));
+            if (badge > 0)
+                e.Add(UIKit.Strong(badge.ToString(), 12f, Color.white, TextAnchor.MiddleCenter).St(s =>
+                {
+                    s.position = Position.Absolute; s.top = -6; s.right = -4; s.minWidth = 22; s.height = 22;
+                    s.backgroundColor = Pal.Red; UIKit.Radius(s, 11); UIKit.Border(s, 2f, Color.white);
+                }));
+            e.RegisterCallback<ClickEvent>(_ => { GameManager.I?.Audio.Ui(); go?.Invoke(); });
             return e;
         }
     }

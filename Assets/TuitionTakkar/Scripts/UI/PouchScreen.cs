@@ -29,16 +29,15 @@ namespace TuitionTakkar
             row.Add(UIKit.IconBtn(() => gm.ShowHome(), UIKit.BackIcon(), Pal.PouchDark, "Back"));
             row.Add(MarksChip(save.marks, true));
             head.Add(row);
-            head.Add(UIKit.Disp("MY PENCIL POUCH", 34f, Color.white).St(s => s.marginTop = 8));
-            head.Add(UIKit.HandText(tab == 0 ? "win a match, keep their pen." : tab == 1 ? "win matches, earn marks, buy pens." : "pick the parts, see the power, make it yours.", 16f, Pal.PouchText).St(s => s.marginTop = 2));
+            head.Add(UIKit.Disp("PENCIL POUCH", 30f, Color.white).St(s => s.marginTop = 6));
 
             var tabs = UIKit.Row(Align.Stretch).St(s =>
             {
                 s.marginTop = 12; s.backgroundColor = Pal.PouchDark; UIKit.Radius(s, 14); UIKit.Pad(s, 4);
             });
-            tabs.Add(Tab("My pens · " + save.owned.Count, tab == 0, () => gm.ShowPouch(0)));
-            tabs.Add(Tab("Tuck shop", tab == 1, () => gm.ShowPouch(1)));
-            tabs.Add(Tab("Workshop", tab == 2, () => gm.ShowPouch(2)));
+            tabs.Add(Tab("MY PENS", tab == 0, () => gm.ShowPouch(0)));
+            tabs.Add(Tab("SHOP", tab == 1, () => gm.ShowPouch(1)));
+            tabs.Add(Tab("MAKE", tab == 2, () => gm.ShowPouch(2)));
             head.Add(tabs);
             root.Add(head);
 
@@ -216,7 +215,7 @@ namespace TuitionTakkar
 
         static Button Tab(string text, bool on, System.Action go)
         {
-            var b = UIKit.Btn(text, on ? null : go, on ? Pal.Paper : Color.clear, on ? Pal.Ink : Pal.PouchText, UIKit.BodyBold, 14f, 38f, 10f);
+            var b = UIKit.Btn(text, on ? null : go, on ? Pal.Yellow : Color.clear, on ? Pal.Ink : Pal.PouchText, UIKit.Display, 16f, 44f, 10f);
             b.style.flexGrow = 1;
             b.style.flexBasis = 0;
             return b;
@@ -248,28 +247,26 @@ namespace TuitionTakkar
             c.Add(PenIcon.Build(pen, 140f));
             c.Add(UIKit.Disp(pen.name.ToUpperInvariant(), 18f, Pal.Ink).St(s => s.marginTop = 8));
             c.Add(RarityRow(pen));
-            c.Add(UIKit.Plain(pen.traits, 12f, Pal.InkSoft).St(s => s.marginTop = 2));
-
             if (usesInk)
             {
-                c.Add(UIKit.Strong(ink <= 0 ? "OUT OF INK · plays as Starter" : ink <= Economy.InkLowAt ? "INK LOW" : "INK", 10f,
+                c.Add(UIKit.Strong(ink <= 0 ? "OUT OF INK" : ink <= Economy.InkLowAt ? "INK LOW" : "INK " + ink + "/" + Economy.InkTank, 12f,
                     ink <= Economy.InkLowAt ? (ink <= 0 ? Pal.Red : Pal.Orange) : Pal.InkSoft).St(s => { s.marginTop = 8; s.letterSpacing = 0.5f; }));
                 c.Add(new InkBar(ink, Economy.InkTank).St(s => s.marginTop = 3));
             }
-            else c.Add(UIKit.Plain("never needs ink", 12f, Pal.InkSoft).St(s => s.marginTop = 8));
+            else c.Add(UIKit.Strong("never needs ink", 12f, Pal.InkSoft).St(s => s.marginTop = 8));
 
             c.Add(UIKit.Grow());
             var actions = UIKit.Row().St(s => { s.marginTop = 8; s.justifyContent = Justify.SpaceBetween; });
             if (equipped)
-                actions.Add(UIKit.Strong("EQUIPPED", 11f, Color.white, TextAnchor.MiddleCenter)
-                    .St(s => { s.backgroundColor = Pal.Ink; UIKit.Pad(s, 6, 8, 6, 8); UIKit.Radius(s, 10); }));
+                actions.Add(UIKit.Strong("IN USE", 13f, Color.white, TextAnchor.MiddleCenter)
+                    .St(s => { s.backgroundColor = Pal.Green; s.height = 40; s.flexGrow = 1; s.unityTextAlign = TextAnchor.MiddleCenter; UIKit.Radius(s, 10); }));
             else
-                actions.Add(UIKit.Btn("Equip", () => { save.equipped = pen.id; save.Save(); gm.ShowPouch(0); },
-                    Pal.Yellow, Pal.Ink, UIKit.BodyBold, 13f, 34f, 10f, null, Pal.Ink).St(s => s.width = 64));
+                actions.Add(UIKit.Btn("USE", () => { save.equipped = pen.id; save.Save(); gm.ShowPouch(0); },
+                    Pal.Yellow, Pal.Ink, UIKit.Display, 16f, 40f, 10f, Pal.H("#C7A928")).St(s => s.flexGrow = 1));
 
             if (usesInk && ink < Economy.InkTank)
-                actions.Add(UIKit.Btn("Refill", () => gm.UI.ShowOverlay(RefillSheet(gm, pen)),
-                    Pal.Pouch, Color.white, UIKit.BodyBold, 13f, 34f, 10f).St(s => s.width = 64));
+                actions.Add(UIKit.Btn("REFILL", () => gm.UI.ShowOverlay(RefillSheet(gm, pen)),
+                    Pal.Pouch, Color.white, UIKit.Display, 14f, 40f, 10f, Pal.PouchDark).St(s => { s.flexGrow = 1; s.marginLeft = 6; }));
             c.Add(actions);
             return c;
         }

@@ -111,7 +111,6 @@ namespace TuitionTakkar
 
             root.Add(UIKit.Grow());
 
-            var buttons = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
             Button left, right;
             if (s0.mode == MatchMode.Ladder && humanWon)
             {
@@ -128,10 +127,11 @@ namespace TuitionTakkar
                 left = UIKit.Btn("Home", () => gm.ShowHome(), Pal.Night, Color.white, UIKit.BodyBold, 16f, 56f, 14f, null, Color.white);
                 right = UIKit.PrimaryBtn("REMATCH", () => gm.Rematch(s0), 56f);
             }
-            left.style.width = Length.Percent(48);
-            right.style.width = Length.Percent(48);
-            buttons.Add(left, right);
-            root.Add(buttons);
+            // One big obvious next step; the other choice is a quieter button under it.
+            right.style.height = 66; right.style.fontSize = 28;
+            root.Add(right);
+            left.style.marginTop = 10; left.style.height = 50;
+            root.Add(left);
             return root;
         }
         /// <summary>"Match win +20 / Knock-offs +15 / First win today ×2 / TOTAL +70" and the next pen to save for.</summary>

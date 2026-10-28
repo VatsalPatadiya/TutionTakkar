@@ -31,6 +31,8 @@ namespace TuitionTakkar
             return best;
         }
 
+        static int profileTab;
+
         static VisualElement Section(string title, float mt = 14f)
         {
             var c = UIKit.Col().St(s =>
@@ -55,8 +57,8 @@ namespace TuitionTakkar
                     s.width = Length.Percent(w); s.marginTop = 8; s.backgroundColor = bg; UIKit.Radius(s, 12); UIKit.Pad(s, 8, 4, 8, 4);
                     s.alignItems = Align.Center;
                 });
-                cell.Add(UIKit.Disp(value, value.Length > 5 ? 17f : 22f, fg, TextAnchor.MiddleCenter));
-                cell.Add(UIKit.Strong(label, 10f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => { s.letterSpacing = 0.3f; s.marginTop = 2; }));
+                cell.Add(UIKit.Disp(value, value.Length > 5 ? 19f : 24f, fg, TextAnchor.MiddleCenter));
+                cell.Add(UIKit.Strong(label, 11f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => { s.letterSpacing = 0.2f; s.marginTop = 2; s.whiteSpace = WhiteSpace.Normal; }));
                 g.Add(cell);
             }
             return g;
@@ -238,20 +240,55 @@ namespace TuitionTakkar
             hdr.Add(penRow);
             body.Add(hdr);
 
+            // ----- tabs: Stats / Badges / Matches (less scrolling) -----
+            var tabs = UIKit.Row(Align.Stretch).St(s =>
+            {
+                s.marginLeft = 16; s.marginRight = 16; s.marginTop = 14; s.backgroundColor = Pal.Night; UIKit.Radius(s, 14); UIKit.Pad(s, 4);
+            });
+            string[] tabNames = { "STATS", "BADGES · " + st.BadgesEarned, "MATCHES" };
+            for (int t = 0; t < 3; t++)
+            {
+                int ti = t;
+                bool sel = profileTab == t;
+                var tb = UIKit.Btn(tabNames[t], sel ? null : () => { profileTab = ti; ShowProfile(gm, back); },
+                    sel ? Pal.Yellow : Color.clear, sel ? Pal.Ink : Pal.MistLight, UIKit.Display, 15f, 42f, 10f);
+                tb.style.flexGrow = 1; tb.style.flexBasis = 0;
+                tabs.Add(tb);
+            }
+            body.Add(tabs);
+
+            if (profileTab == 0)
+            {
+                // the three numbers that matter, big
+                var hi = UIKit.Row(Align.Stretch).St(s => { s.marginLeft = 16; s.marginRight = 16; s.marginTop = 12; s.justifyContent = Justify.SpaceBetween; });
+                foreach (var (label, value, fg) in new[] { ("WINS", N(st.won), Green), ("WIN RATE", st.WinRate + "%", Pal.Ink), ("BEST STREAK", st.bestStreak.ToString(), Pal.H("#C25A10")) })
+                {
+                    var b = UIKit.Col().St(s =>
+                    {
+                        s.width = Length.Percent(31.8f); s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 10, 4, 10, 4); s.alignItems = Align.Center;
+                        s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.1f);
+                    });
+                    b.Add(UIKit.Disp(value, 32f, fg, TextAnchor.MiddleCenter));
+                    b.Add(UIKit.Strong(label, 12f, Pal.InkSoft, TextAnchor.MiddleCenter));
+                    hi.Add(b);
+                }
+                body.Add(hi);
+            }
+
             // ----- stats -----
             var online = Section("ONLINE MATCHES");
             online.Add(Grid(("PLAYED", N(st.played), Pal.H("#EEF2F6"), Pal.Ink), ("WON", N(st.won), Pal.H("#DFF0E5"), Green), ("WIN %", st.WinRate + "%", Pal.H("#FFF4C2"), Pal.Ink),
                             ("LOST", N(st.lost), Pal.H("#F9E1DC"), Red), ("STREAK", st.streak.ToString(), Pal.H("#FFE8D6"), Pal.H("#C25A10")), ("BEST STREAK", st.bestStreak.ToString(), Pal.H("#FFE8D6"), Pal.H("#C25A10"))));
-            body.Add(online);
+            if (profileTab == 0) body.Add(online);
 
             var fights = Section("PEN FIGHTS");
             fights.Add(Grid(("PENS KNOCKED OFF", N(st.knockOffs), Pal.H("#DFF0E5"), Green), ("MY PEN FELL", N(st.ownFalls), Pal.H("#F9E1DC"), Red), ("KNOCK-OFF RATIO", st.KnockRatio.ToString("0.0"), Pal.H("#EEF2F6"), Pal.Ink),
                             ("FLAWLESS WINS", N(st.flawless), Pal.H("#E6E0F5"), Purple), ("COMEBACKS", N(st.comebacks), Pal.H("#E6E0F5"), Purple), ("ONE-FLICK ROUNDS", N(st.oneFlick), Pal.H("#E6E0F5"), Purple)));
-            body.Add(fights);
+            if (profileTab == 0) body.Add(fights);
 
             var party = Section("3–4 PLAYER MATCHES");
             party.Add(Grid(("PLAYED", N(st.partyPlayed), Pal.H("#EEF2F6"), Pal.Ink), ("1ST PLACE", N(st.party1st), Pal.H("#FFF1C2"), Pal.H("#8A6410")), ("2ND PLACE", N(st.party2nd), Pal.H("#E9EDF1"), Pal.H("#5F6B78"))));
-            body.Add(party);
+            if (profileTab == 0) body.Add(party);
 
             var money = Section("MARKS");
             money.Add(GridN(2, ("WON FROM POTS", N(st.potWon), Pal.H("#DFF0E5"), Green), ("BIGGEST POT", N(st.biggestPot), Pal.H("#FFF1C2"), Pal.H("#8A6410"))));
@@ -267,7 +304,7 @@ namespace TuitionTakkar
             }
             else hd.Add(UIKit.Strong("win a match to set it", 12f, Soft));
             money.Add(hd);
-            body.Add(money);
+            if (profileTab == 0) body.Add(money);
 
             var desks = Section("WINS BY DESK");
             int most = 1;
@@ -291,7 +328,7 @@ namespace TuitionTakkar
             string fav = st.FavouriteDesk(out int favPlays);
             if (!string.IsNullOrEmpty(fav))
                 desks.Add(UIKit.Strong("favourite desk: " + (Desks.ById(fav)?.name ?? fav) + " · " + favPlays + " matches", 12f, Pal.InkSoft).St(s => s.marginTop = 8));
-            body.Add(desks);
+            if (profileTab == 0) body.Add(desks);
 
             // ----- badges strip -----
             var bsec = Section("BADGES");
@@ -311,13 +348,32 @@ namespace TuitionTakkar
                 brow.Add(cell);
             }
             bsec.Add(brow);
-            body.Add(bsec);
+            if (profileTab == 1)
+            {
+                // all badges right here, big and readable
+                bsec.Clear();
+                bsec.Add(UIKit.Disp("BADGES", 17f, Pal.Ink));
+                bsec.Add(UIKit.Strong(st.BadgesEarned + " of 60 earned · tap one to show it as your title", 13f, Pal.InkSoft).St(s => s.whiteSpace = WhiteSpace.Normal));
+                var gridB = UIKit.Row().St(s => { s.flexWrap = Wrap.Wrap; s.justifyContent = Justify.SpaceBetween; s.marginTop = 6; });
+                foreach (int i in order)
+                {
+                    var cell = UIKit.Col().St(s => { s.width = Length.Percent(31.8f); s.alignItems = Align.Center; s.marginTop = 12; });
+                    cell.Add(Medal(Badges.All[i].icon, st.badgeTier[i], 58f));
+                    cell.Add(UIKit.Strong(Badges.All[i].name, 11f, st.badgeTier[i] > 0 ? Pal.Ink : Soft, TextAnchor.MiddleCenter).St(s => { s.marginTop = 4; s.whiteSpace = WhiteSpace.Normal; }));
+                    gridB.Add(cell);
+                }
+                bsec.Add(gridB);
+                var allB = UIKit.Btn("BADGE DETAILS", () => ShowBadges(gm, () => ShowProfile(gm, back)), Pal.Yellow, Pal.Ink, UIKit.Display, 18f, 50f, 12f, Pal.H("#C7A928"));
+                allB.style.marginTop = 14;
+                bsec.Add(allB);
+                body.Add(bsec);
+            }
 
             var ladder = Section("BATCH LADDER & PENS");
             ladder.Add(Grid(("BATCH", (Ladder.BatchOf(save.ladderIndex) + 1).ToString(), Pal.H("#EEF2F6"), Pal.Ink), ("BOSSES BEATEN", N(st.bosses), Pal.H("#F9E1DC"), Red),
                             ("PENS OWNED", save.owned.Count + "/600", Pal.H("#EEF2F6"), Pal.Ink), ("PENS MADE", Badges.PensMade(save).ToString(), Pal.H("#E6E0F5"), Purple),
                             ("RAREST", RarestName(save), Pal.H("#FFF1C2"), Pal.H("#8A6410")), ("DAYS PLAYED", N(st.daysPlayed), Pal.H("#DFF0E5"), Green)));
-            body.Add(ladder);
+            if (profileTab == 0) body.Add(ladder);
 
             // ----- recent matches -----
             var rec = Section("RECENT MATCHES");
@@ -343,8 +399,8 @@ namespace TuitionTakkar
                 row.Add(UIKit.Disp(money2, 15f, m.free ? Soft : m.net >= 0 ? Green : Red));
                 rec.Add(row);
             }
-            rec.Add(UIKit.Strong("only you can see this list", 11f, Soft).St(s => s.marginTop = 6));
-            body.Add(rec);
+            rec.Add(UIKit.Strong("only you can see this list", 12f, Soft).St(s => s.marginTop = 6));
+            if (profileTab == 2) body.Add(rec);
 
             scroll.Add(body);
             root.Add(scroll);
@@ -427,7 +483,7 @@ namespace TuitionTakkar
             var save = gm.Save;
             var st = save.stats;
             var root = OnlineScreens.Screen();
-            root.Add(OnlineScreens.Header("BADGES", st.BadgesEarned + " of 60 earned · 20 badges × 3 levels", back));
+            root.Add(OnlineScreens.Header("BADGES", st.BadgesEarned + " / 60 earned", back));
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
@@ -479,13 +535,13 @@ namespace TuitionTakkar
                 }
                 head.Add(pips);
                 c.Add(head);
-                c.Add(UIKit.Strong(d.what + " · " + Badges.Goal(d, 0) + " / " + Badges.Goal(d, 1) + " / " + Badges.Goal(d, 2), 11f, Soft));
+                c.Add(UIKit.Strong(d.what, 12f, Soft));
                 var bar = UIKit.Row().St(s => s.marginTop = 5);
-                var tr = UIKit.El().St(s => { s.flexGrow = 1; s.height = 7; UIKit.Radius(s, 4); s.backgroundColor = Pal.H("#E1E6EA"); s.overflow = Overflow.Hidden; });
-                tr.Add(UIKit.El().St(s => { s.height = 7; s.width = Length.Percent(pct * 100f); s.backgroundColor = t >= 3 ? Green : Badges.Metal(t + 1); }));
+                var tr = UIKit.El().St(s => { s.flexGrow = 1; s.height = 10; UIKit.Radius(s, 5); s.backgroundColor = Pal.H("#E1E6EA"); s.overflow = Overflow.Hidden; });
+                tr.Add(UIKit.El().St(s => { s.height = 10; s.width = Length.Percent(pct * 100f); s.backgroundColor = t >= 3 ? Green : Badges.Metal(t + 1); }));
                 bar.Add(tr);
-                string progress = t >= 3 ? "done ✓" : Badges.Value(d, v) + "/" + Badges.Goal(d, next) + " · +" + N(Badges.Reward[t + 1]);
-                bar.Add(UIKit.Strong(progress, 10f, Pal.InkSoft).St(s => s.marginLeft = 6));
+                string progress = t >= 3 ? "done ✓" : Badges.Value(d, v) + "/" + Badges.Goal(d, next);
+                bar.Add(UIKit.Strong(progress, 12f, Pal.InkSoft).St(s => s.marginLeft = 6));
                 c.Add(bar);
                 row.Add(c);
                 if (t > 0)

@@ -121,7 +121,7 @@ namespace TuitionTakkar
     /// <summary>Small hand-drawn line icons: no-wifi, trophy, gear, people, robot.</summary>
     public class LineIcon : VisualElement
     {
-        public enum Kind { NoWifi, Trophy, Gear, People, Robot }
+        public enum Kind { NoWifi, Trophy, Gear, People, Robot, Pouch, Person, Phone, Medal }
 
         readonly Kind kind;
         readonly Color color;
@@ -201,6 +201,39 @@ namespace TuitionTakkar
                     p.BeginPath(); p.Arc(new Vector2(w * 0.37f, h * 0.9f), w * 0.26f, Deg(180), Deg(360)); p.Stroke();
                     p.BeginPath(); p.Arc(new Vector2(w * 0.7f, h * 0.37f), w * 0.11f, Deg(0), Deg(360)); p.ClosePath(); p.Stroke();
                     p.BeginPath(); p.Arc(new Vector2(w * 0.74f, h * 0.88f), w * 0.2f, Deg(200), Deg(360)); p.Stroke();
+                    break;
+                }
+                case Kind.Pouch:
+                {
+                    p.lineWidth = w * 0.08f;
+                    p.BeginPath();
+                    p.MoveTo(new Vector2(w * 0.12f, h * 0.36f)); p.LineTo(new Vector2(w * 0.88f, h * 0.36f));
+                    p.LineTo(new Vector2(w * 0.82f, h * 0.84f)); p.LineTo(new Vector2(w * 0.18f, h * 0.84f)); p.ClosePath(); p.Stroke();
+                    p.BeginPath(); p.MoveTo(new Vector2(w * 0.12f, h * 0.36f)); p.LineTo(new Vector2(w * 0.3f, h * 0.16f)); p.LineTo(new Vector2(w * 0.7f, h * 0.16f)); p.LineTo(new Vector2(w * 0.88f, h * 0.36f)); p.Stroke();
+                    p.BeginPath(); p.MoveTo(new Vector2(w * 0.4f, h * 0.56f)); p.LineTo(new Vector2(w * 0.6f, h * 0.56f)); p.Stroke();
+                    break;
+                }
+                case Kind.Person:
+                {
+                    p.lineWidth = w * 0.08f;
+                    p.BeginPath(); p.Arc(new Vector2(w * 0.5f, h * 0.32f), w * 0.17f, Deg(0), Deg(360)); p.ClosePath(); p.Stroke();
+                    p.BeginPath(); p.Arc(new Vector2(w * 0.5f, h * 0.92f), w * 0.32f, Deg(180), Deg(360)); p.Stroke();
+                    break;
+                }
+                case Kind.Phone:
+                {
+                    p.lineWidth = w * 0.08f;
+                    p.BeginPath();
+                    p.MoveTo(new Vector2(w * 0.28f, h * 0.1f)); p.LineTo(new Vector2(w * 0.72f, h * 0.1f));
+                    p.LineTo(new Vector2(w * 0.72f, h * 0.9f)); p.LineTo(new Vector2(w * 0.28f, h * 0.9f)); p.ClosePath(); p.Stroke();
+                    p.BeginPath(); p.MoveTo(new Vector2(w * 0.44f, h * 0.78f)); p.LineTo(new Vector2(w * 0.56f, h * 0.78f)); p.Stroke();
+                    break;
+                }
+                case Kind.Medal:
+                {
+                    p.lineWidth = w * 0.08f;
+                    p.BeginPath(); p.Arc(new Vector2(w * 0.5f, h * 0.4f), w * 0.24f, Deg(0), Deg(360)); p.ClosePath(); p.Stroke();
+                    p.BeginPath(); p.MoveTo(new Vector2(w * 0.38f, h * 0.6f)); p.LineTo(new Vector2(w * 0.32f, h * 0.92f)); p.LineTo(new Vector2(w * 0.5f, h * 0.82f)); p.LineTo(new Vector2(w * 0.68f, h * 0.92f)); p.LineTo(new Vector2(w * 0.62f, h * 0.6f)); p.Stroke();
                     break;
                 }
                 case Kind.Robot:
