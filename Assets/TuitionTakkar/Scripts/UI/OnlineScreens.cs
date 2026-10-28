@@ -147,6 +147,7 @@ namespace TuitionTakkar
                 suggestedName = SuggestName(gname);
                 gm.UI.HideOverlay();
                 Next(gm);
+                Friends.Boot(gm); // friend ID, notification token, public profile, pop-ups
             }
             catch (Exception e)
             {
@@ -631,9 +632,17 @@ namespace TuitionTakkar
             content.Add(board);
             content.Add(UIKit.Grow());
 
-            if (room.CanStart)
+            if (room.Full && found >= OnlineRoom.MinPlayers)
             {
-                var start = UIKit.PrimaryBtn(room.Full ? "START MATCH" : "START WITH " + found, () => DoStart(gm, room), 56f);
+                // Every seat taken: the match starts by itself (the host's phone starts it).
+                content.Add(UIKit.Disp("ALL CLASSMATES FOUND!", 22f, Pal.Green, TextAnchor.MiddleCenter));
+                var note = UIKit.Plain(room.EveryoneCanPay ? "starting the match…" : "waiting for everyone's entry fee…", 13f, Pal.BenchText, TextAnchor.MiddleCenter);
+                content.Add(note);
+                if (room.CanStart) AutoStart(gm, room, note);
+            }
+            else if (room.CanStart)
+            {
+                var start = UIKit.PrimaryBtn("START WITH " + found, () => DoStart(gm, room), 56f);
                 content.Add(start);
             }
             else if (room.InCharge && found >= OnlineRoom.MinPlayers)
@@ -762,6 +771,28 @@ namespace TuitionTakkar
             int h = 0;
             foreach (char ch in playerId ?? "") h = h * 31 + ch;
             return colors[Mathf.Abs(h) % colors.Length];
+        }
+
+        static string autoStartFor;
+        static Label autoNote;   // the countdown line on the screen showing right now (re-made on every repaint)
+        static int autoLeft;
+
+        /// <summary>Quick match with every seat filled: a short countdown, then the host's phone starts it.</summary>
+        static async void AutoStart(GameManager gm, OnlineRoom room, Label note)
+        {
+            autoNote = note;
+            string key = room.Code + ":" + room.JoinedAt;
+            if (autoStartFor == key) { note.text = "starting in " + Mathf.Max(0, autoLeft) + "…"; return; }
+            autoStartFor = key;
+            for (autoLeft = 3; autoLeft > 0; autoLeft--)
+            {
+                if (autoNote != null) autoNote.text = "starting in " + autoLeft + "…";
+                await System.Threading.Tasks.Task.Delay(1000);
+                if (room.Closed || room.Playing) { autoStartFor = null; return; }
+                if (!room.CanStart) { autoStartFor = null; return; }   // someone left: back to waiting
+            }
+            if (autoNote != null) autoNote.text = "starting the match…";
+            DoStart(gm, room);
         }
 
         static async void DoStart(GameManager gm, OnlineRoom room)
@@ -1009,6 +1040,7 @@ namespace TuitionTakkar
         {
             var o = UIKit.Col().St(s => { s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.6f); s.justifyContent = Justify.FlexEnd; });
             o.pickingMode = PickingMode.Position;
+            o.AddToClassList(UIRoot.SheetClass);
             var c = UIKit.Col().St(s =>
             {
                 s.backgroundColor = Pal.Paper; UIKit.Pad(s, 22, 20, 30, 20);

@@ -90,6 +90,7 @@ namespace TuitionTakkar
         {
             await InitAsync();
             var g = await GoogleSignIn.RequestAsync();
+            string before = Auth.PlayerId;
             try
             {
                 await Auth.LinkWithGoogleAsync(g.idToken);
@@ -99,6 +100,9 @@ namespace TuitionTakkar
                 Auth.SignOut(true);
                 await Auth.SignInWithGoogleAsync(g.idToken);
             }
+            // Switched to the player that already owns this Google account: the friend ID (and the
+            // friends connection) belonged to the old one.
+            if (Auth.PlayerId != before) { save.friendId = ""; Friends.Reset(); }
             save.googleLinked = true;
             save.devGuest = false;
             save.onlineGuest = false;

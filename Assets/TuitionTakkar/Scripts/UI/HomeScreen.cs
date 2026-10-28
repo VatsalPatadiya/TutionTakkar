@@ -16,6 +16,7 @@ namespace TuitionTakkar
         {
             var save = gm.Save;
             var root = UIKit.Col();
+            root.name = BackNav.HomeName;
             UIKit.Laminate(root);
             root.pickingMode = PickingMode.Position;
 

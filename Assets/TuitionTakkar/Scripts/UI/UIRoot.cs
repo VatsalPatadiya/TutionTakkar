@@ -18,6 +18,9 @@ namespace TuitionTakkar
         public VisualElement OverlayLayer { get; private set; }
         public HudView Hud { get; private set; }
 
+        /// <summary>Overlays with this class close on the phone's back gesture.</summary>
+        public const string SheetClass = "tt-sheet";
+
         PanelSettings panelSettings;
 
         public void Build(GameManager gm)

@@ -12,7 +12,7 @@ function gen() {
 const shard = (code) => "fid_" + code.substring(0, 2);
 
 module.exports = async ({ params, context, logger }) => {
-  const api = new DataApi(context);
+  const api = new DataApi({ accessToken: context.serviceToken });
   const { projectId, playerId } = context;
 
   const own = await api.getProtectedItems(projectId, playerId, ["friendId"]);

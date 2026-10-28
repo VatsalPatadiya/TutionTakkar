@@ -60,6 +60,7 @@ namespace TuitionTakkar
             World.Rig.Fit();
             DeepLinks.Init(this);
             Push.Init();
+            SocialRunner.Ensure(this);
             Reminders.Init();
             bool welcomeBack = Reminders.CheckComeback(Save);
             Reminders.Reschedule(Save);
@@ -69,6 +70,7 @@ namespace TuitionTakkar
                 bool invite = DeepLinks.HasPending;
                 ShowHome();
                 if (welcomeBack && !invite) UI.ShowOverlay(Reminders.WelcomeBack(this));
+                Friends.Boot(this); // signed-in players: invites and friend requests pop up from now on
             });
         }
 
@@ -123,6 +125,7 @@ namespace TuitionTakkar
 
         void Update()
         {
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape)) BackNav.Handle(this); // Android back button / back gesture
             // Development builds: report any frame that takes longer than 1/10 s, so a freeze on
             // the phone shows up on screen with what was happening at that moment.
             if (Debug.isDebugBuild && Time.unscaledDeltaTime > 0.1f && Time.frameCount > 120)
@@ -161,6 +164,7 @@ namespace TuitionTakkar
             World.ClearPens();
             UI.ShowScreen(HomeScreen.Build(this));
             DeepLinks.OnHomeShown();
+            FriendsUI.ShowQueued(this);
         }
 
         public void ShowRival()

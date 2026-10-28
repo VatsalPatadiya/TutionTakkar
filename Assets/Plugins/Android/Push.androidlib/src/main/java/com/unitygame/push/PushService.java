@@ -11,11 +11,14 @@ import com.google.firebase.messaging.RemoteMessage;
 
 /**
  * When the game is closed or in the background, Firebase shows the notification itself.
- * This only runs while the game is open, so the message still appears in the tray.
+ * This only runs while the game is open: invites and friend messages go straight to the game
+ * (it shows its own pop-up); anything else still appears in the tray.
  */
 public class PushService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage msg) {
+        if (PushBridge.deliverToGame(msg.getData())) return;
+
         RemoteMessage.Notification n = msg.getNotification();
         String title = n != null ? n.getTitle() : msg.getData().get("title");
         String body = n != null ? n.getBody() : msg.getData().get("body");
@@ -46,7 +49,7 @@ public class PushService extends FirebaseMessagingService {
 
     @Override
     public void onNewToken(String token) {
-        // Push.cs uploads it to Cloud Save next time the game opens (room invites reach this phone).
+        // Push.cs uploads it to Cloud Save (player data "fcmToken") so invites reach this phone.
         PushBridge.lastToken = token;
     }
 }

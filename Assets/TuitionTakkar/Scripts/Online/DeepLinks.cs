@@ -21,9 +21,10 @@ namespace TuitionTakkar
 
         static GameManager gm;
         static string pendingCode, pendingFrom;
+        static int pendingFriends = -1; // tapped a friend notification: Friends tab to open
         static bool ready;
 
-        public static bool HasPending => !string.IsNullOrEmpty(pendingCode);
+        public static bool HasPending => !string.IsNullOrEmpty(pendingCode) || pendingFriends >= 0;
 
         /// <summary>Invite link for a room code.</summary>
         public static string InviteUrl(string code, string fromName)
@@ -63,6 +64,12 @@ namespace TuitionTakkar
 
         static void Store(string url)
         {
+            // tuitiontakkar://friends or tuitiontakkar://friends/requests (friend notifications)
+            if (!string.IsNullOrEmpty(url) && url.IndexOf("://friends", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                pendingFriends = url.IndexOf("requests", StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0;
+                return;
+            }
             if (!Parse(url, out pendingCode, out pendingFrom)) return;
             Debug.Log("[TuitionTakkar] invite link for room " + pendingCode);
         }
@@ -89,6 +96,13 @@ namespace TuitionTakkar
             if (!HasPending || gm == null || !ready) return;
             // Mid-match: keep it for the next time the home screen shows.
             if (gm.Match != null && gm.Match.Running) return;
+            if (pendingFriends >= 0)
+            {
+                int tab = pendingFriends;
+                pendingFriends = -1;
+                FriendsUI.Show(gm, tab);
+                return;
+            }
             string code = pendingCode, from = pendingFrom;
             pendingCode = pendingFrom = null;
             OnlineScreens.JoinFromInvite(gm, code, from);

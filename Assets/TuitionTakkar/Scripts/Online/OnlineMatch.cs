@@ -494,7 +494,9 @@ namespace TuitionTakkar
                 st.borderTopLeftRadius = st.borderTopRightRadius = 22;
             });
             c.Add(UIKit.Disp("LEAVE THE MATCH?", 28f, Pal.Ink));
-            c.Add(UIKit.HandText("the match keeps going on the other phone. leaving counts as a loss.", 18f, Pal.Ink).St(st => st.marginTop = 6));
+            bool party = gm.Match.Setup != null && gm.Match.Setup.IsParty;
+            c.Add(UIKit.HandText(party ? "if you leave now, you lose and the others play on without you."
+                                       : "if you leave now, you lose and your opponent wins automatically.", 18f, Pal.Ink).St(st => { st.marginTop = 6; st.whiteSpace = WhiteSpace.Normal; }));
             var stay = UIKit.PrimaryBtn("KEEP PLAYING", () => gm.UI.HideOverlay(), 56f);
             stay.style.marginTop = 16;
             c.Add(stay);

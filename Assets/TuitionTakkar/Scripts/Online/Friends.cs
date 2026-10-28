@@ -49,8 +49,18 @@ namespace TuitionTakkar
         public static bool Ready { get; private set; }
         public static event Action Changed;
         public static event Action<RoomInvite> InviteReceived;
+        /// <summary>Someone sent me a friend request (player id, name).</summary>
+        public static event Action<string, string> RequestReceived;
+        /// <summary>Someone accepted the request I sent (player id, name).</summary>
+        public static event Action<string, string> RequestAccepted;
+
+        // Who I had asked, so a new friendship can be told apart from one I accepted myself.
+        static readonly HashSet<string> askedIds = new HashSet<string>();
+        // Pop-ups already shown (a friend event can arrive twice: Friends service + phone notification).
+        static readonly Dictionary<string, float> seen = new Dictionary<string, float>();
 
         static Task initTask;
+        static bool sdkStarted;
 
         public static bool Allowed(SaveData s) => OnlineServices.OnLeaderboard(s);
 
@@ -70,9 +80,22 @@ namespace TuitionTakkar
             try
             {
                 await OnlineServices.InitAsync();
-                await FriendsService.Instance.InitializeAsync(new Unity.Services.Friends.Options.InitializeOptions().WithEvents(true).WithMemberPresence(true).WithMemberProfile(true));
                 var f = FriendsService.Instance;
-                f.RelationshipAdded += _ => MainThread.Run(() => { UpdateCount(gm); Changed?.Invoke(); });
+                if (sdkStarted)
+                {
+                    // Second start (after switching account): the service is up, just reload the lists.
+                    await f.ForceRelationshipsRefreshAsync();
+                    Ready = true;
+                    UpdateCount(gm);
+                    await EnsureFriendIdAsync(gm.Save);
+                    await SetPresenceAsync(gm, "home");
+                    UploadPushToken();
+                    Changed?.Invoke();
+                    return;
+                }
+                await f.InitializeAsync(new Unity.Services.Friends.Options.InitializeOptions().WithEvents(true).WithMemberPresence(true).WithMemberProfile(true));
+                sdkStarted = true;
+                f.RelationshipAdded += e => MainThread.Run(() => { OnAdded(e?.Relationship); UpdateCount(gm); Changed?.Invoke(); });
                 f.RelationshipDeleted += _ => MainThread.Run(() => { UpdateCount(gm); Changed?.Invoke(); });
                 f.PresenceUpdated += _ => MainThread.Run(() => Changed?.Invoke());
                 f.MessageReceived += e =>
@@ -80,7 +103,7 @@ namespace TuitionTakkar
                     RoomInvite inv = null;
                     try { inv = e.GetAs<RoomInvite>(); } catch (Exception) { }
                     if (inv == null || inv.kind != "invite") return;
-                    MainThread.Run(() => InviteReceived?.Invoke(inv));
+                    MainThread.Run(() => ShowInvite(inv));
                 };
                 Ready = true;
                 UpdateCount(gm);
@@ -101,11 +124,93 @@ namespace TuitionTakkar
         {
             Ready = false;
             initTask = null;
+            askedIds.Clear();
+        }
+
+        /// <summary>
+        /// Starts friends quietly when the game opens or right after Google sign-in, so invites
+        /// and friend requests pop up on any screen (not only after opening Play Online).
+        /// </summary>
+        public static async void Boot(GameManager gm)
+        {
+            if (!Allowed(gm.Save)) return;
+            FriendsUI.Hook(gm);
+            SocialRunner.Ensure(gm);
+            try { await InitAsync(gm); }
+            catch (Exception e) { Debug.LogWarning("Friends boot: " + e.Message); }
+            ProfileCloud.Publish(gm.Save);
+        }
+
+        /// <summary>Back in the game after a while: catch up on requests and presence.</summary>
+        public static async void Refresh(GameManager gm)
+        {
+            if (!Ready) { Boot(gm); return; }
+            try { await FriendsService.Instance.ForceRelationshipsRefreshAsync(); } catch (Exception e) { Debug.LogWarning("Friends refresh: " + e.Message); }
+            await SetPresenceAsync(gm, gm.Match.Running ? "match" : "home");
+            UpdateCount(gm);
+            Changed?.Invoke();
+        }
+
+        static void OnAdded(Relationship r)
+        {
+            if (r?.Member == null) return;
+            string id = r.Member.Id;
+            if (r.Type == RelationshipType.FriendRequest)
+            {
+                bool incoming = r.Member.Role == MemberRole.Source;
+                foreach (var x in FriendsService.Instance.IncomingFriendRequests) if (x.Member.Id == id) incoming = true;
+                if (incoming) Notify("request:" + id, () => RequestReceived?.Invoke(id, NameOf(r)));
+            }
+            else if (r.Type == RelationshipType.Friend && askedIds.Contains(id))
+                Notify("accepted:" + id, () => RequestAccepted?.Invoke(id, NameOf(r)));
+        }
+
+        /// <summary>Runs a pop-up once per key per minute.</summary>
+        public static void Notify(string key, Action show)
+        {
+            float now = Time.realtimeSinceStartup;
+            if (seen.TryGetValue(key, out var at) && now - at < 60f) return;
+            seen[key] = now;
+            show?.Invoke();
+        }
+
+        /// <summary>A notification that arrived while the game was open (the phone hands it to the game).</summary>
+        public static void FromPush(Dictionary<string, string> d)
+        {
+            d.TryGetValue("kind", out var kind);
+            d.TryGetValue("from", out var from);
+            d.TryGetValue("fromId", out var fromId);
+            from = string.IsNullOrEmpty(from) ? "A friend" : from;
+            switch (kind)
+            {
+                case "invite":
+                    d.TryGetValue("code", out var code);
+                    if (string.IsNullOrEmpty(code)) return;
+                    var inv = new RoomInvite { code = code, from = from, fromId = fromId ?? "", at = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+                    if (d.TryGetValue("deskId", out var desk)) inv.deskId = desk;
+                    if (d.TryGetValue("seated", out var st) && int.TryParse(st, out var si)) inv.seated = si;
+                    if (d.TryGetValue("seats", out var ss) && int.TryParse(ss, out var sn)) inv.seats = sn;
+                    ShowInvite(inv);
+                    break;
+                case "friend_request":
+                    if (!string.IsNullOrEmpty(fromId)) Notify("request:" + fromId, () => RequestReceived?.Invoke(fromId, from));
+                    break;
+                case "friend_accepted":
+                    if (!string.IsNullOrEmpty(fromId)) Notify("accepted:" + fromId, () => RequestAccepted?.Invoke(fromId, from));
+                    break;
+            }
+        }
+
+        static void ShowInvite(RoomInvite inv)
+        {
+            if (inv == null || string.IsNullOrEmpty(inv.code)) return;
+            Notify("invite:" + inv.code + ":" + inv.fromId, () => InviteReceived?.Invoke(inv));
         }
 
         static void UpdateCount(GameManager gm)
         {
             if (!Ready) return;
+            foreach (var r in FriendsService.Instance.OutgoingFriendRequests) askedIds.Add(r.Member.Id);
             gm.Save.stats.friends = Mathf.Max(gm.Save.stats.friends, FriendsService.Instance.Friends.Count);
             gm.Save.Save();
             Badges.Check(gm.Save);
@@ -232,10 +337,28 @@ namespace TuitionTakkar
             try
             {
                 await FriendsService.Instance.AddFriendAsync(playerId);
+                if (!theyAsked) askedIds.Add(playerId);
                 Changed?.Invoke();
+                Tell(playerId, theyAsked ? "accepted" : "request");
                 return null;
             }
             catch (Exception e) { return Explain(e); }
+        }
+
+        /// <summary>Phone notification (or pop-up, if their game is open) for a request / accepted request.</summary>
+        static async void Tell(string playerId, string kind)
+        {
+            try
+            {
+                var gm = GameManager.I;
+                string me = gm != null ? OnlineServices.DisplayName(gm.Save) : "A classmate";
+                var r = await CloudCodeService.Instance.CallEndpointAsync<PushResult>("friend_push", new Dictionary<string, object>
+                {
+                    { "to", playerId }, { "kind", kind }, { "from", me },
+                });
+                if (r != null && !r.sent) Debug.Log("Friend push not sent: " + r.error);
+            }
+            catch (Exception e) { Debug.LogWarning("Friend push: " + e.Message); }
         }
 
         public static async Task<string> AcceptAsync(string playerId) => await RequestAsync(playerId);
@@ -286,38 +409,50 @@ namespace TuitionTakkar
                 code = room.Code, from = OnlineServices.DisplayName(gm.Save), fromId = OnlineServices.PlayerId,
                 deskId = room.Desk.id, seated = room.Players.Count, seats = room.Seats, at = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             };
+            // Both ways every time: the in-game message (instant when their game is open) and the
+            // phone notification (their presence can look "online" a while after they closed the game).
+            // Their phone shows one pop-up either way: duplicates are dropped.
+            bool messaged = false;
+            if (StateOf(friend) != State.Offline)
+            {
+                try { await FriendsService.Instance.MessageAsync(friend.Member.Id, inv); messaged = true; }
+                catch (Exception e) { Debug.LogWarning("Invite message: " + e.Message); }
+            }
             try
             {
-                if (StateOf(friend) != State.Offline)
-                {
-                    await FriendsService.Instance.MessageAsync(friend.Member.Id, inv);
-                    return null;
-                }
                 var r = await CloudCodeService.Instance.CallEndpointAsync<PushResult>("invite_push", new Dictionary<string, object>
                 {
                     { "to", friend.Member.Id }, { "code", inv.code }, { "from", inv.from }, { "desk", room.Desk.name },
-                    { "fee", room.Desk.fee }, { "seated", inv.seated }, { "seats", inv.seats },
+                    { "deskId", room.Desk.id }, { "fee", room.Desk.fee }, { "seated", inv.seated }, { "seats", inv.seats },
                 });
-                if (r != null && r.sent) return null;
+                if ((r != null && r.sent) || messaged) return null;
                 return r != null && !string.IsNullOrEmpty(r.error) ? r.error : "couldn't reach their phone. share the room code instead.";
             }
-            catch (Exception e) { return Explain(e); }
+            catch (Exception e) { return messaged ? null : Explain(e); }
         }
 
         // ---------- push token ----------
 
         /// <summary>Stores this phone's notification token (player data, private) so invites can reach it.</summary>
+        static bool uploading;
+
         public static async void UploadPushToken()
         {
             string token = Push.Token();
-            if (string.IsNullOrEmpty(token)) return;
+            if (string.IsNullOrEmpty(token) || uploading || !OnlineServices.SignedIn) return;
+            var gm = GameManager.I;
+            if (gm == null || !Allowed(gm.Save)) return;
             if (PlayerPrefs.GetString("tt_push_token_sent", "") == token + OnlineServices.PlayerId) return;
             try
             {
+                uploading = true;
                 await CloudSaveService.Instance.Data.Player.SaveAsync(new Dictionary<string, object> { { "fcmToken", token } });
                 PlayerPrefs.SetString("tt_push_token_sent", token + OnlineServices.PlayerId);
+                PlayerPrefs.Save();
+                Debug.Log("[TuitionTakkar] push token saved for this player");
             }
             catch (Exception e) { Debug.LogWarning("Push token: " + e.Message); }
+            uploading = false;
         }
 
         public static string Explain(Exception e)

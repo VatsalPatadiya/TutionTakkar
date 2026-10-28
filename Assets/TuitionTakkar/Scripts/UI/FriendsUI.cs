@@ -528,12 +528,110 @@ namespace TuitionTakkar
                 gm.UI.ShowOverlay(InvitePopup(gm, inv));
                 gm.Audio.Stamp();
             };
+            Friends.RequestReceived += (id, name) => ShowOrQueue(gm, () => RequestPopup(gm, id, name));
+            Friends.RequestAccepted += (id, name) => ShowOrQueue(gm, () => AcceptedPopup(gm, name));
+        }
+
+        static Func<VisualElement> queued;
+
+        /// <summary>Friend pop-ups wait until the match is over (never interrupt a match).</summary>
+        static void ShowOrQueue(GameManager gm, Func<VisualElement> build)
+        {
+            if (gm.Match.Running) { queued = build; return; }
+            gm.UI.ShowOverlay(build());
+            gm.Audio.Stamp();
+        }
+
+        /// <summary>Call when the home screen shows: a friend pop-up that arrived during a match.</summary>
+        public static void ShowQueued(GameManager gm)
+        {
+            if (queued == null || gm.Match.Running) return;
+            var b = queued;
+            queued = null;
+            gm.UI.ShowOverlay(b());
+        }
+
+        static VisualElement PopupCard(out VisualElement o, string tag)
+        {
+            o = UIKit.Col().St(s => { s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.62f); s.justifyContent = Justify.Center; UIKit.Pad(s, 0, 22, 60, 22); });
+            o.pickingMode = PickingMode.Position;
+            o.AddToClassList(UIRoot.SheetClass);
+            var card = UIKit.Col().St(s => { s.backgroundColor = Pal.Paper; UIKit.Radius(s, 20); UIKit.Pad(s, 18); });
+            UIKit.Rot(card, -1f);
+            card.Add(UIKit.Strong(tag, 12f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
+            {
+                s.alignSelf = Align.Center; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 4, 14, 4, 14); s.marginTop = -30; s.letterSpacing = 1f;
+            }));
+            o.Add(card);
+            UIRoot.PopIn(card);
+            return card;
+        }
+
+        static VisualElement Who(string id, string name, string line)
+        {
+            var top = UIKit.Row().St(s => s.marginTop = 8);
+            top.Add(UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(id), 54f));
+            var who = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
+            who.Add(UIKit.Disp(name.ToUpperInvariant(), 22f, Pal.Ink));
+            who.Add(UIKit.HandText(line, 17f, Pal.BenchText));
+            top.Add(who);
+            return top;
+        }
+
+        /// <summary>"X wants to be friends": accept, decline, or later.</summary>
+        static VisualElement RequestPopup(GameManager gm, string id, string name)
+        {
+            var card = PopupCard(out var o, "FRIEND REQUEST");
+            card.Add(Who(id, name, "wants to be friends!"));
+            var msg = UIKit.Strong("", 12f, Red, TextAnchor.MiddleCenter).St(s => { s.marginTop = 8; s.whiteSpace = WhiteSpace.Normal; s.display = DisplayStyle.None; });
+            var buttons = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 16; s.justifyContent = Justify.SpaceBetween; });
+            var accept = UIKit.Btn("ACCEPT", null, Green, Color.white, UIKit.Display, 22f, 56f, 16f, Pal.H("#134A37"));
+            accept.style.width = Length.Percent(56);
+            var decline = UIKit.Btn("DECLINE", null, Pal.H("#E1E6EA"), Pal.Ink, UIKit.Display, 18f, 56f, 16f, Pal.H("#B9C2C9"));
+            decline.style.width = Length.Percent(40);
+            accept.clicked += async () =>
+            {
+                accept.SetEnabled(false); decline.SetEnabled(false);
+                if (!Friends.Ready) { try { await Friends.InitAsync(gm); } catch (Exception) { } }
+                string e = await Friends.AcceptAsync(id);
+                if (e == null) { gm.Save.Save(); gm.UI.HideOverlay(); return; }
+                msg.text = e; msg.style.display = DisplayStyle.Flex;
+                accept.SetEnabled(true); decline.SetEnabled(true);
+            };
+            decline.clicked += async () =>
+            {
+                accept.SetEnabled(false); decline.SetEnabled(false);
+                await Friends.DeclineAsync(id);
+                gm.UI.HideOverlay();
+            };
+            buttons.Add(accept, decline);
+            card.Add(buttons);
+            card.Add(msg);
+            card.Add(UIKit.Btn("Later", () => gm.UI.HideOverlay(), Color.clear, Pal.Ink, UIKit.BodyBold, 15f, 44f, 12f).St(s => s.marginTop = 4));
+            return o;
+        }
+
+        /// <summary>"X accepted your friend request".</summary>
+        static VisualElement AcceptedPopup(GameManager gm, string name)
+        {
+            var card = PopupCard(out var o, "NEW FRIEND");
+            card.Add(Who("", name, "accepted your friend request!"));
+            card.Add(UIKit.HandText("you're friends now. save them a seat in your next room.", 16f, Pal.InkSoft).St(s => { s.marginTop = 10; s.whiteSpace = WhiteSpace.Normal; }));
+            var buttons = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 16; s.justifyContent = Justify.SpaceBetween; });
+            var view = UIKit.Btn("SEE FRIENDS", () => { gm.UI.HideOverlay(); Show(gm, 0); }, Green, Color.white, UIKit.Display, 20f, 56f, 16f, Pal.H("#134A37"));
+            view.style.width = Length.Percent(56);
+            var ok = UIKit.Btn("OK", () => gm.UI.HideOverlay(), Pal.H("#E1E6EA"), Pal.Ink, UIKit.Display, 18f, 56f, 16f, Pal.H("#B9C2C9"));
+            ok.style.width = Length.Percent(40);
+            buttons.Add(view, ok);
+            card.Add(buttons);
+            return o;
         }
 
         static VisualElement InvitePopup(GameManager gm, RoomInvite inv)
         {
             var o = UIKit.Col().St(s => { s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.62f); s.justifyContent = Justify.Center; UIKit.Pad(s, 0, 22, 60, 22); });
             o.pickingMode = PickingMode.Position;
+            o.AddToClassList(UIRoot.SheetClass);
             var card = UIKit.Col().St(s => { s.backgroundColor = Pal.Paper; UIKit.Radius(s, 20); UIKit.Pad(s, 18); });
             UIKit.Rot(card, -1f);
             card.Add(UIKit.Strong("ROOM INVITE", 12f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
@@ -556,7 +654,7 @@ namespace TuitionTakkar
             var dl = UIKit.Col();
             dl.Add(UIKit.Strong(d.Number + " · " + Desks.TierName(d.tier) + " DESK", 10f, Pal.H("#F2E2C8")));
             dl.Add(UIKit.Disp(d.name.ToUpperInvariant(), 19f, Color.white));
-            dl.Add(UIKit.Strong(inv.seated + " of " + inv.seats + " players · " + (d.Free ? "free" : "best of " + d.BestOf), 12f, Pal.H("#F2E2C8")));
+            dl.Add(UIKit.Strong((inv.seats > 0 ? inv.seated + " of " + inv.seats + " players · " : "") + (d.Free ? "free" : "best of " + d.BestOf), 12f, Pal.H("#F2E2C8")));
             desk.Add(dl);
             var fee = UIKit.Col().St(s => s.alignItems = Align.FlexEnd);
             fee.Add(UIKit.Strong("ENTRY", 10f, Pal.H("#F2E2C8")));

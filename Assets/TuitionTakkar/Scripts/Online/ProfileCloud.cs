@@ -75,19 +75,33 @@ namespace TuitionTakkar
         }
 
         /// <summary>Another player's public summary, or null (guest, not published, offline).</summary>
-        public static async Task<PublicProfile> LoadAsync(string playerId)
+        public static async Task<PublicProfile> LoadAsync(string playerId) => (await TryLoadAsync(playerId)).profile;
+
+        /// <summary>
+        /// Another player's public summary. failed = couldn't reach the server (not the same as a
+        /// guest, who simply has no profile). Tries twice before giving up.
+        /// </summary>
+        public static async Task<(PublicProfile profile, bool failed)> TryLoadAsync(string playerId)
         {
-            if (string.IsNullOrEmpty(playerId)) return null;
-            try
+            if (string.IsNullOrEmpty(playerId)) return (null, false);
+            for (int attempt = 0; attempt < 2; attempt++)
             {
-                await OnlineServices.InitAsync();
-                var res = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string> { Key },
-                    new Unity.Services.CloudSave.Models.Data.Player.LoadOptions(new PublicReadAccessClassOptions(playerId)));
-                if (res != null && res.TryGetValue(Key, out var item))
-                    return JsonUtility.FromJson<PublicProfile>(item.Value.GetAsString());
+                try
+                {
+                    await OnlineServices.InitAsync();
+                    var res = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string> { Key },
+                        new Unity.Services.CloudSave.Models.Data.Player.LoadOptions(new PublicReadAccessClassOptions(playerId)));
+                    if (res != null && res.TryGetValue(Key, out var item))
+                        return (JsonUtility.FromJson<PublicProfile>(item.Value.GetAsString()), false);
+                    return (null, false);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("Profile load (try " + (attempt + 1) + "): " + e.Message);
+                    if (attempt == 0) await Task.Delay(800);
+                }
             }
-            catch (Exception e) { Debug.LogWarning("Profile load: " + e.Message); }
-            return null;
+            return (null, true);
         }
     }
 }

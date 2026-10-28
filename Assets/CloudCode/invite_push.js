@@ -14,6 +14,7 @@ module.exports = async ({ params, context, logger, secretManager }) => {
   const desk = String(params.desk || "a desk").substring(0, 40);
   const fee = Number(params.fee || 0);
   const seated = Number(params.seated || 1), seats = Number(params.seats || 4);
+  const deskId = String(params.deskId || "").substring(0, 40);
   if (!to || !/^[A-Z0-9]{6}$/.test(code)) return { sent: false, error: "bad invite" };
   if (to === context.playerId) return { sent: false, error: "that's you" };
 
@@ -33,9 +34,15 @@ module.exports = async ({ params, context, logger, secretManager }) => {
     logger.warning("invite_push: friend check skipped: " + e.message);
   }
 
-  const api = new DataApi(context);
-  const items = await api.getItems(context.projectId, to, ["fcmToken"]);
-  const t = (items.data.results || []).find((r) => r.key === "fcmToken");
+  // Another player's data: only the server (service token) may read it.
+  const api = new DataApi({ accessToken: context.serviceToken });
+  let t;
+  try {
+    const items = await api.getItems(context.projectId, to, ["fcmToken"]);
+    t = (items.data.results || []).find((r) => r.key === "fcmToken");
+  } catch (e) {
+    logger.warning("invite_push: token read failed " + (e.response ? e.response.status : e.message));
+  }
   if (!t || !t.value) return { sent: false, error: "their phone hasn't turned on notifications yet. share the room code instead." };
 
   let account;
@@ -56,7 +63,7 @@ module.exports = async ({ params, context, logger, secretManager }) => {
       message: {
         token: String(t.value),
         notification: { title: `${from} saved you a seat ✏️`, body },
-        data: { link, channel: "invites" },
+        data: { link, channel: "invites", kind: "invite", code, from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title: `${from} saved you a seat ✏️`, body },
         android: { priority: "HIGH", ttl: "300s", notification: { channel_id: "invites" } },
       },
     }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
@@ -75,6 +82,7 @@ module.exports.params = {
   code: { type: "String", required: true },
   from: { type: "String", required: false },
   desk: { type: "String", required: false },
+  deskId: { type: "String", required: false },
   fee: { type: "NUMERIC", required: false },
   seated: { type: "NUMERIC", required: false },
   seats: { type: "NUMERIC", required: false },

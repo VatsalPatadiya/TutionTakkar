@@ -605,9 +605,22 @@ namespace TuitionTakkar
             var o = OnlineScreens.Sheet(out var c);
             c.Add(UIKit.HandText("opening " + name + "'s profile…", 18f, Pal.InkSoft));
             gm.UI.ShowOverlay(o);
-            var p = await ProfileCloud.LoadAsync(playerId);
+            var (p, failed) = await ProfileCloud.TryLoadAsync(playerId);
             if (o.panel == null) return;
             c.Clear();
+            if (failed)
+            {
+                // Couldn't reach the server: say so (don't call a signed-in player a guest).
+                c.Add(UIKit.Disp(name.ToUpperInvariant(), 24f, Pal.Ink));
+                c.Add(UIKit.HandText("couldn't load " + name + "'s profile. check your internet and try again.", 17f, Pal.InkSoft).St(s => { s.marginTop = 6; s.whiteSpace = WhiteSpace.Normal; }));
+                var retry = UIKit.PrimaryBtn("TRY AGAIN", () => { gm.UI.HideOverlay(); ShowOpponent(gm, playerId, name, pen); }, 54f);
+                retry.style.marginTop = 14;
+                c.Add(retry);
+                var shut = UIKit.Btn("CLOSE", () => gm.UI.HideOverlay(), Pal.Night, Color.white, UIKit.Display, 20f, 52f, 16f, null, null);
+                shut.style.marginTop = 10;
+                c.Add(shut);
+                return;
+            }
             bool guest = p == null;
             var top = UIKit.Row();
             top.Add(AvatarWithLevel(Initial(name), guest ? Pal.H("#C6E3B4") : OnlineScreens.AvatarColor(playerId), 60f, guest ? 0 : p.level, Pal.Paper));

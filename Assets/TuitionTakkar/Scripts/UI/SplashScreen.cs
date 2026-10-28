@@ -21,6 +21,7 @@ namespace TuitionTakkar
         public static void Show(GameManager gm, Action done)
         {
             var root = UIKit.El().St(s => s.backgroundColor = Pal.H("#E8E0CB"));
+            root.name = BackNav.SplashName;
             root.pickingMode = PickingMode.Position;
 
             // Chalkboard in its wooden frame, with the chalk ledge under it.

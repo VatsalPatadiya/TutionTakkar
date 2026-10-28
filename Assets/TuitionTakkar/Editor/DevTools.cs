@@ -223,6 +223,38 @@ namespace TuitionTakkar
             UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.ScrollView>(gm.UI.ScreenLayer).ForEach(sv => sv.scrollOffset += new Vector2(0, 700));
         }
 
+        [MenuItem("Tuition Takkar/Dev: Back gesture")]
+        static void Back()
+        {
+            var gm = GameManager.I;
+            if (!Application.isPlaying || gm == null) return;
+            BackNav.Handle(gm);
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Friend request pop-up")]
+        static void FakeRequest()
+        {
+            if (!Application.isPlaying || GameManager.I == null) return;
+            FriendsUI.Hook(GameManager.I);
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_request" }, { "from", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Friend accepted pop-up")]
+        static void FakeAccepted()
+        {
+            if (!Application.isPlaying || GameManager.I == null) return;
+            FriendsUI.Hook(GameManager.I);
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_accepted" }, { "from", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
+        }
+
+        [MenuItem("Tuition Takkar/Dev: Room invite pop-up")]
+        static void FakeInvite()
+        {
+            if (!Application.isPlaying || GameManager.I == null) return;
+            FriendsUI.Hook(GameManager.I);
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "invite" }, { "from", "Riya" }, { "fromId", "dev-1" }, { "code", "ABC" + Random.Range(100, 999) }, { "deskId", Desks.All[3].id }, { "seated", "1" }, { "seats", "2" } });
+        }
+
         [MenuItem("Tuition Takkar/Dev: Save game view screenshot")]
         static void Shot()
         {
