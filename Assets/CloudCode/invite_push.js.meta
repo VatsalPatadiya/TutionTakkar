@@ -1,7 +1,36 @@
 fileFormatVersion: 2
 guid: 2368e7bce90df4b85a0a4fae3e05a578
-DefaultImporter:
+ScriptedImporter:
+  internalIDToNameTable: []
   externalObjects: {}
+  serializedVersion: 2
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+  script: {fileID: 11500000, guid: fbc33bd6a5704c0881dc7a9ead54089b, type: 3}
+  Parameters:
+  - Name: to
+    ParameterType: 0
+    Required: 1
+  - Name: code
+    ParameterType: 0
+    Required: 1
+  - Name: from
+    ParameterType: 0
+    Required: 0
+  - Name: desk
+    ParameterType: 0
+    Required: 0
+  - Name: deskId
+    ParameterType: 0
+    Required: 0
+  - Name: fee
+    ParameterType: 1
+    Required: 0
+  - Name: seated
+    ParameterType: 1
+    Required: 0
+  - Name: seats
+    ParameterType: 1
+    Required: 0
+  Source: 0

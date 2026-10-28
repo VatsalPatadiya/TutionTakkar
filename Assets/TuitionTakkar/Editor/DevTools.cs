@@ -223,6 +223,20 @@ namespace TuitionTakkar
             UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.ScrollView>(gm.UI.ScreenLayer).ForEach(sv => sv.scrollOffset += new Vector2(0, 700));
         }
 
+        [MenuItem("Tuition Takkar/Dev: Find player TT-B7ZE7G")]
+        static async void FindTest()
+        {
+            if (!Application.isPlaying) { Debug.Log("[find test] enter Play mode first"); return; }
+            try
+            {
+                await OnlineServices.InitAsync();
+                var r = await Unity.Services.CloudCode.CloudCodeService.Instance.CallEndpointAsync<System.Collections.Generic.Dictionary<string, object>>("find_player",
+                    new System.Collections.Generic.Dictionary<string, object> { { "code", "TT-B7ZE7G" } });
+                foreach (var kv in r) Debug.Log("[find test] " + kv.Key + " = " + kv.Value);
+            }
+            catch (System.Exception e) { Debug.Log("[find test] failed: " + e); }
+        }
+
         [MenuItem("Tuition Takkar/Dev: Back gesture")]
         static void Back()
         {
