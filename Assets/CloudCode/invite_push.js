@@ -54,7 +54,13 @@ module.exports = async ({ params, context, logger, secretManager }) => {
     return { sent: false, error: "phone notifications aren't set up yet." };
   }
 
-  const access = await googleToken(account);
+  let access;
+  try { access = await googleToken(account); }
+  catch (e) {
+    const why = describe(e);
+    logger.error("invite_push: Google token failed " + why);
+    return { sent: false, error: "notifications aren't set up right (" + why + ")" };
+  }
   const body = fee > 0 ? `${desk} · ${fee.toLocaleString("en-IN")} marks entry · ${seated} of ${seats} seated. Join in the next 5 minutes!`
                        : `${desk} · free · ${seated} of ${seats} seated. Join in the next 5 minutes!`;
   const link = `tuitiontakkar://join/${code}?from=${encodeURIComponent(from)}`;
@@ -63,13 +69,13 @@ module.exports = async ({ params, context, logger, secretManager }) => {
       message: {
         token: String(t.value),
         notification: { title: `${from} saved you a seat ✏️`, body },
-        data: { link, channel: "invites", kind: "invite", code, from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title: `${from} saved you a seat ✏️`, body },
+        data: { link, channel: "invites", kind: "invite", code, fromName: from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title: `${from} saved you a seat ✏️`, body },
         android: { priority: "HIGH", ttl: "300s", notification: { channel_id: "invites" } },
       },
     }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
   } catch (e) {
     const status = e.response ? e.response.status : 0;
-    logger.warning("invite_push: FCM send failed " + status);
+    logger.warning("invite_push: FCM send failed " + describe(e));
     if (status === 404 || status === 400) return { sent: false, error: "their phone isn't reachable. share the room code instead." };
     return { sent: false, error: "couldn't send the notification. try again." };
   }
@@ -109,6 +115,17 @@ async function googleToken(acc) {
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
   cached = { token: res.data.access_token, until: Date.now() + (res.data.expires_in - 120) * 1000 };
   return cached.token;
+}
+
+// "404 UNREGISTERED: Requested entity was not found." from an axios error (or the plain message).
+function describe(e) {
+  if (e && e.response) {
+    const d = e.response.data || {};
+    const err = d.error || {};
+    const msg = typeof err === "string" ? err + (d.error_description ? " " + d.error_description : "") : (err.status || "") + " " + (err.message || "");
+    return (e.response.status + " " + msg).trim().substring(0, 200);
+  }
+  return String(e && e.message ? e.message : e).substring(0, 200);
 }
 
 function b64url(s) {

@@ -165,11 +165,14 @@ namespace TuitionTakkar
                 Notify("accepted:" + id, () => RequestAccepted?.Invoke(id, NameOf(r)));
         }
 
-        /// <summary>Runs a pop-up once per key per minute.</summary>
+        /// <summary>
+        /// Runs a pop-up, dropping the copy that arrives a moment later by the other route
+        /// (Friends service event + phone notification). A new request later still shows.
+        /// </summary>
         public static void Notify(string key, Action show)
         {
             float now = Time.realtimeSinceStartup;
-            if (seen.TryGetValue(key, out var at) && now - at < 60f) return;
+            if (seen.TryGetValue(key, out var at) && now - at < 8f) return;
             seen[key] = now;
             show?.Invoke();
         }
@@ -178,7 +181,8 @@ namespace TuitionTakkar
         public static void FromPush(Dictionary<string, string> d)
         {
             d.TryGetValue("kind", out var kind);
-            d.TryGetValue("from", out var from);
+            // "from" is reserved by Firebase, so the sender's name travels as "fromName".
+            if (!d.TryGetValue("fromName", out var from)) d.TryGetValue("from", out from);
             d.TryGetValue("fromId", out var fromId);
             from = string.IsNullOrEmpty(from) ? "A friend" : from;
             switch (kind)

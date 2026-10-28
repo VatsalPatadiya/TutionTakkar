@@ -237,6 +237,26 @@ namespace TuitionTakkar
             catch (System.Exception e) { Debug.Log("[find test] failed: " + e); }
         }
 
+        [MenuItem("Tuition Takkar/Dev: Test friend push to TT-B7ZE7G")]
+        static async void PushTest()
+        {
+            if (!Application.isPlaying) { Debug.Log("[push test] enter Play mode first"); return; }
+            try
+            {
+                await OnlineServices.InitAsync();
+                var cc = Unity.Services.CloudCode.CloudCodeService.Instance;
+                var f = await cc.CallEndpointAsync<System.Collections.Generic.Dictionary<string, object>>("find_player",
+                    new System.Collections.Generic.Dictionary<string, object> { { "code", "TT-B7ZE7G" } });
+                string pid = f != null && f.TryGetValue("playerId", out var v) ? v as string : null;
+                Debug.Log("[push test] player " + pid);
+                if (string.IsNullOrEmpty(pid)) return;
+                var r = await cc.CallEndpointAsync<System.Collections.Generic.Dictionary<string, object>>("friend_push",
+                    new System.Collections.Generic.Dictionary<string, object> { { "to", pid }, { "kind", "request" }, { "from", "Push test" } });
+                foreach (var kv in r) Debug.Log("[push test] " + kv.Key + " = " + kv.Value);
+            }
+            catch (System.Exception e) { Debug.Log("[push test] failed: " + e.Message); }
+        }
+
         [MenuItem("Tuition Takkar/Dev: Back gesture")]
         static void Back()
         {
@@ -250,7 +270,7 @@ namespace TuitionTakkar
         {
             if (!Application.isPlaying || GameManager.I == null) return;
             FriendsUI.Hook(GameManager.I);
-            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_request" }, { "from", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_request" }, { "fromName", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
         }
 
         [MenuItem("Tuition Takkar/Dev: Friend accepted pop-up")]
@@ -258,7 +278,7 @@ namespace TuitionTakkar
         {
             if (!Application.isPlaying || GameManager.I == null) return;
             FriendsUI.Hook(GameManager.I);
-            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_accepted" }, { "from", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "friend_accepted" }, { "fromName", "Riya" }, { "fromId", "dev-" + Random.Range(0, 99999) } });
         }
 
         [MenuItem("Tuition Takkar/Dev: Room invite pop-up")]
@@ -266,7 +286,7 @@ namespace TuitionTakkar
         {
             if (!Application.isPlaying || GameManager.I == null) return;
             FriendsUI.Hook(GameManager.I);
-            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "invite" }, { "from", "Riya" }, { "fromId", "dev-1" }, { "code", "ABC" + Random.Range(100, 999) }, { "deskId", Desks.All[3].id }, { "seated", "1" }, { "seats", "2" } });
+            Friends.FromPush(new System.Collections.Generic.Dictionary<string, string> { { "kind", "invite" }, { "fromName", "Riya" }, { "fromId", "dev-1" }, { "code", "ABC" + Random.Range(100, 999) }, { "deskId", Desks.All[3].id }, { "seated", "1" }, { "seats", "2" } });
         }
 
         [MenuItem("Tuition Takkar/Dev: Save game view screenshot")]

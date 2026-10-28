@@ -58,13 +58,14 @@ module.exports = async ({ params, context, logger, secretManager }) => {
       message: {
         token: String(t.value),
         notification: { title, body },
-        data: { link, channel: "invites", kind: "friend_" + kind, from, fromId: context.playerId, title, body },
+        data: { link, channel: "invites", kind: "friend_" + kind, fromName: from, fromId: context.playerId, title, body },
         android: { priority: "HIGH", notification: { channel_id: "invites" } },
       },
     }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
   } catch (e) {
-    logger.warning("friend_push: FCM send failed " + (e.response ? e.response.status : e.message));
-    return { sent: false, error: "send failed" };
+    const why = describe(e);
+    logger.warning("friend_push: FCM send failed " + why);
+    return { sent: false, error: "send failed: " + why };
   }
   sent[key] = now;
   return { sent: true };
@@ -97,6 +98,17 @@ async function googleToken(acc) {
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
   cached = { token: res.data.access_token, until: Date.now() + (res.data.expires_in - 120) * 1000 };
   return cached.token;
+}
+
+// "404 UNREGISTERED: Requested entity was not found." from an axios error (or the plain message).
+function describe(e) {
+  if (e && e.response) {
+    const d = e.response.data || {};
+    const err = d.error || {};
+    const msg = typeof err === "string" ? err + (d.error_description ? " " + d.error_description : "") : (err.status || "") + " " + (err.message || "");
+    return (e.response.status + " " + msg).trim().substring(0, 200);
+  }
+  return String(e && e.message ? e.message : e).substring(0, 200);
 }
 
 function b64url(s) {
