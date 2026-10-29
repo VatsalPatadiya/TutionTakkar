@@ -401,6 +401,37 @@ Goal: someone taps an invite link without the app, plays that match in the brows
 4. Make it smaller: strip unused desks and assets from the web build, and use lighter graphics.
 5. Deploy: `firebase deploy --only hosting` from `LinkSite/`. The owner runs this with their own Firebase login.
 
+### Scribble face avatars (planned, start after the 31 Oct usage reset)
+
+Owner wants every player (Google, Apple later, guest) to have a hand-drawn "scribble face" avatar, with 1000+ options, some free and some bought with marks.
+
+- **Style:** black ink lines plus one accent colour, like the doodle-avatar reference the owner shared. The art must be our own; the Freepik pack is a style reference only.
+- **Faces built from layered parts:**
+  - face shape, skin tone, hair (tinted), eyes, brows, nose, mouth, cheeks
+  - beard, glasses, earrings, hat or headband, top, background colour
+  - about 200 parts in all, which counts as "1000+ options" with colours
+- **Stored as a short code,** e.g. `f2.s3.h17.e4.m9.g0.t12.bg5`, in the public cloud profile (`ProfileCloud`). Owned items are saved with the account. The letter avatar stays as the fallback while a face loads.
+- **Default face:** a random face from free parts, seeded by player ID, plus a one-time "Make your face!" prompt.
+- **Free vs paid:**
+  - about 40% of parts are free (all face shapes and skin tones, basic features)
+  - paid tiers: common about 200, rare about 1,000, epic about 5,000 marks
+  - some items earned only (batch bosses, gold badges); seasonal items later
+  - marks live on the phone today; do the server wallet before selling anything for real money
+- **Editor screen:** big preview with a Randomize button, icon tabs per layer, a part grid with lock and price, and SAVE.
+- **Shown on:** home bar, profile, leaderboard and podium, friends, match chalkboard, pop-ups, web.
+- **Steps:**
+  1. About 60 vector parts, 12 sample faces and an editor mockup on the design canvas, for the owner's approval.
+  2. In the app: build, shop, cloud profile, everywhere, then a new APK.
+  3. Web rebuild and deploy.
+  4. Grow to about 200 parts (Claude or an artist, with a template).
+
+### Web version: notes from 29 Oct
+
+- Live: `/join/CODE` (new invite page) and `/play/?code=CODE` (Unity's standard page, guests only). A browser player and the app played a real match together.
+- **Web Google sign-in was built, then rolled back at the owner's request.** The owner preferred the original page. The files are kept in `Builds/_removed-web-signin` (WebGLTemplates/TT and Plugins/WebGL/TTGoogle.jslib); commit 8cc0765 has the code. If it's brought back, add only the sign-in sheet to Unity's standard page, with no layout changes. The Cloud Console origins for web.app and firebaseapp.com are already added.
+- **The "Maximum call stack size exceeded" crash after deploys** came from browsers mixing cached old and new files. Fixed in a86ea89: hashed file names every build, and `no-cache` on the HTML in `firebase.json`.
+- The owner deploys with `firebase deploy --only hosting` from `LinkSite/`, because Claude can't type into Terminal.
+
 ### Still to do
 
 - Confirm `total_wins` is set to **Total score** in the dashboard.
