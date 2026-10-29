@@ -17,15 +17,16 @@ namespace TuitionTakkar.EditorTools
         const string Output = "LinkSite/public/play";
         const string Info = "Builds/web-info.txt";
 
-        [MenuItem("Tuition Takkar/Build Web (into LinkSite/public/play)")]
+        [MenuItem("Tuition Takkar/Build Web Version")]
         static void Build()
         {
             Directory.CreateDirectory("Builds");
             File.WriteAllText(Info, "building...");
+            PlayerSettings.WebGL.template = "APPLICATION:Default";   // Unity's standard page (loading bar, fullscreen button)
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
-            PlayerSettings.WebGL.nameFilesAsHashes = false;
+            PlayerSettings.WebGL.nameFilesAsHashes = true;   // new file names every build, so browsers never mix versions
             var scenes = new System.Collections.Generic.List<string>();
             foreach (var s in EditorBuildSettings.scenes) if (s.enabled) scenes.Add(s.path);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
