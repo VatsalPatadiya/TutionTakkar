@@ -133,6 +133,8 @@ namespace TuitionTakkar
             gRow.Add(UIKit.Strong("Continue with Google", 18f, Pal.Ink).St(s => s.marginLeft = 10));
             google.Add(gRow);
             google.Add(tag);
+#if !UNITY_WEBGL || UNITY_EDITOR
+            // Browser players are guests for now (Google sign-in is the phone app's).
             card.Add(google);
             card.Add(Perk("get on the leaderboard", LineIcon.Kind.Medal));
 
@@ -141,6 +143,7 @@ namespace TuitionTakkar
             or.Add(UIKit.Strong("or", 13f, Pal.InkSoft).St(s => { s.marginLeft = 10; s.marginRight = 10; }));
             or.Add(UIKit.El().St(s => { s.flexGrow = 1; s.height = 2; s.backgroundColor = Pal.H("#D8DEE4"); }));
             card.Add(or);
+#endif
 
             var guest = UIKit.Btn("PLAY AS GUEST", () => DoGuest(gm), Pal.Yellow, Pal.Ink, UIKit.Display, 22f, 64f, 14f, Pal.H("#C7A928"), Pal.Ink);
             guest.style.marginTop = 14;

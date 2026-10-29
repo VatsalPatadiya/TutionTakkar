@@ -268,7 +268,6 @@ namespace TuitionTakkar
                     case "cancelled": return "sign-in cancelled.";
                     case "no_account": return "no Google account on this phone. add one in Settings, then try again.";
                     case "unsupported": return g.Message;
-                    case "webview": return g.Message;
                     default: return "Google sign-in didn't work. check your internet and try again.";
                 }
             }
