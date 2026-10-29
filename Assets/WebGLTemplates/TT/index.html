@@ -1,146 +1,169 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1C2C33">
-<title>Tuition Takkar · play in your browser</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@800;900&display=swap" rel="stylesheet">
-<style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#CBDDD0; overscroll-behavior:none;
-               background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 3px, transparent 3px 14px); }
-  /* The game fills the whole browser window, on phones and laptops alike. */
-  #game { position:absolute; inset:0; height:100%; width:100%; background:#1C2C33; }
-  #unity-canvas { width:100%; height:100%; display:block; touch-action:none; outline:none; }
-  #loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
-             background:#1C2C33; color:#fff; font-family:"Nunito", sans-serif; text-align:center; padding:24px; box-sizing:border-box; }
-  .logo { background:#FFE45C; color:#1F2A44; font-family:"Lilita One", sans-serif; font-size:32px; padding:6px 18px; transform:rotate(-2deg); box-shadow:0 4px 0 #C7A928; }
-  .bar { width:min(260px, 70%); height:14px; border-radius:7px; background:rgba(255,255,255,.15); overflow:hidden; }
-  .bar div { height:100%; width:0; background:#FFE45C; transition:width .2s; }
-  #tip { font-weight:800; font-size:15px; color:#CFE3D6; }
-  /* Google sign-in sheet, shown when the game asks for it. */
-  #gsheet { position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; background:rgba(16,24,28,.6); z-index:5; }
-  #gsheet .card { width:100%; max-width:440px; background:#FFFDF4; border-radius:22px 22px 0 0; padding:22px 20px 28px; box-sizing:border-box;
-                  font-family:"Nunito", sans-serif; color:#1F2A44; text-align:center; }
-  #gsheet h2 { font-family:"Lilita One", sans-serif; font-weight:400; font-size:28px; margin:0 0 6px; }
-  #gsheet p { margin:0 0 16px; font-weight:800; font-size:15px; color:#33424F; }
-  #gbtn { display:flex; justify-content:center; min-height:44px; }
-  #gcancel { margin-top:14px; width:100%; min-height:50px; border:3px solid #1F2A44; border-radius:14px; background:#fff;
-             font:900 17px "Nunito", sans-serif; color:#1F2A44; cursor:pointer; }
-</style>
-</head>
-<body>
-<div id="game">
-  <canvas id="unity-canvas" tabindex="-1"></canvas>
-  <div id="loading">
-    <span class="logo">TUITION TAKKAR</span>
-    <div class="bar"><div id="fill"></div></div>
-    <span id="tip">sharpening the pens…</span>
-  </div>
-  <div id="gsheet" role="dialog" aria-modal="true" aria-labelledby="gtitle">
-    <div class="card">
-      <h2 id="gtitle">SIGN IN WITH GOOGLE</h2>
-      <p>same account as the phone app</p>
-      <div id="gbtn"></div>
-      <button id="gcancel" type="button">Not now</button>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | {{{ PRODUCT_NAME }}}</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <style>
+      /* Unity's standard page, plus one thing: the Google sign-in sheet (hidden until the game asks). */
+      #unity-logo-title-footer { display:none }
+      #tt-gsheet { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(16,24,28,.6); z-index:10 }
+      #tt-gsheet .card { width:min(400px, 92vw); background:#FFFDF4; border-radius:20px; padding:22px 20px; box-sizing:border-box;
+                         font-family:arial, sans-serif; color:#1F2A44; text-align:center }
+      #tt-gsheet h2 { font-size:22px; margin:0 0 6px }
+      #tt-gsheet p { margin:0 0 16px; font-size:15px; color:#33424F }
+      #tt-gbtn { display:flex; justify-content:center; min-height:44px }
+      #tt-gcancel { margin-top:14px; width:100%; min-height:48px; border:2px solid #1F2A44; border-radius:12px; background:#fff;
+                    font:bold 16px arial, sans-serif; color:#1F2A44; cursor:pointer }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">{{{ PRODUCT_NAME }}}</div>
+      </div>
     </div>
-  </div>
-</div>
-<script>
-(function () {
-  // ---------- Google sign-in (called from the game through TTGoogle.jslib) ----------
-  var gisLoading = null, gisReady = false, gisClient = null, pending = null;
+    <div id="tt-gsheet" role="dialog" aria-modal="true" aria-labelledby="tt-gtitle">
+      <div class="card">
+        <h2 id="tt-gtitle">Sign in with Google</h2>
+        <p>same account as the phone app</p>
+        <div id="tt-gbtn"></div>
+        <button id="tt-gcancel" type="button">Not now</button>
+      </div>
+    </div>
+    <script>
+      // ---------- Google sign-in (the game calls this through Plugins/WebGL/TTGoogle.jslib) ----------
+      (function () {
+        var gisLoading = null, gisClient = null, pending = null;
+        function finish(ok, text) {
+          document.getElementById("tt-gsheet").style.display = "none";
+          var done = pending; pending = null;
+          if (done) done(ok, text);
+        }
+        function nameFrom(jwt) {
+          try {
+            var p = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+            return JSON.parse(decodeURIComponent(escape(atob(p)))).given_name || "";
+          } catch (e) { return ""; }
+        }
+        function loadGis() {
+          if (gisLoading) return gisLoading;
+          gisLoading = new Promise(function (resolve, reject) {
+            var s = document.createElement("script");
+            s.src = "https://accounts.google.com/gsi/client";
+            s.async = true;
+            s.onload = resolve;
+            s.onerror = function () { gisLoading = null; reject(); };
+            document.head.appendChild(s);
+          });
+          return gisLoading;
+        }
+        window.ttGoogleSignIn = function (clientId, done) {
+          if (pending) pending(false, "cancelled|replaced");
+          pending = done;
+          // Google blocks sign-in inside apps' built-in browsers (WhatsApp, Instagram, ...).
+          if (/FBAN|FBAV|Instagram|WhatsApp|Line\/|Snapchat|; wv\)/i.test(navigator.userAgent || "")) {
+            finish(false, "webview|Google doesn't allow sign-in inside this app's browser. Open the link in Chrome or Safari to sign in, or play as a guest.");
+            return;
+          }
+          // The sheet can't show over Unity's fullscreen mode, so leave it first.
+          if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+          loadGis().then(function () {
+            if (gisClient !== clientId) {
+              google.accounts.id.initialize({
+                client_id: clientId,
+                callback: function (resp) {
+                  if (resp && resp.credential) finish(true, resp.credential + "\n" + nameFrom(resp.credential));
+                  else finish(false, "failed|no token from Google");
+                },
+                auto_select: false,
+                cancel_on_tap_outside: false
+              });
+              gisClient = clientId;
+            }
+            var box = document.getElementById("tt-gbtn");
+            box.innerHTML = "";
+            google.accounts.id.renderButton(box, { theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 280 });
+            document.getElementById("tt-gsheet").style.display = "flex";
+          }, function () {
+            finish(false, "failed|couldn't reach Google. check your internet and try again.");
+          });
+        };
+        document.getElementById("tt-gcancel").onclick = function () { finish(false, "cancelled|"); };
+      })();
 
-  function inAppBrowser() {
-    var ua = navigator.userAgent || "";
-    return /FBAN|FBAV|Instagram|WhatsApp|Line\/|Snapchat|; wv\)/i.test(ua);
-  }
-  function finish(ok, text) {
-    document.getElementById("gsheet").style.display = "none";
-    var done = pending; pending = null;
-    if (done) done(ok, text);
-  }
-  function nameFrom(jwt) {
-    try {
-      var p = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-      return JSON.parse(decodeURIComponent(escape(atob(p)))).given_name || "";
-    } catch (e) { return ""; }
-  }
-  function loadGis() {
-    if (gisLoading) return gisLoading;
-    gisLoading = new Promise(function (resolve, reject) {
-      var s = document.createElement("script");
-      s.src = "https://accounts.google.com/gsi/client";
-      s.async = true;
-      s.onload = resolve;
-      s.onerror = function () { gisLoading = null; reject(); };
-      document.head.appendChild(s);
-    });
-    return gisLoading;
-  }
-
-  window.ttGoogleSignIn = function (clientId, done) {
-    if (pending) pending(false, "cancelled|replaced");
-    pending = done;
-    if (inAppBrowser()) {
-      finish(false, "webview|Google doesn't allow sign-in inside this app's browser. Open the link in Chrome or Safari to sign in, or play as a guest.");
-      return;
-    }
-    loadGis().then(function () {
-      if (!gisReady || gisClient !== clientId) {
-        google.accounts.id.initialize({
-          client_id: clientId,
-          callback: function (resp) {
-            if (resp && resp.credential) finish(true, resp.credential + "\n" + nameFrom(resp.credential));
-            else finish(false, "failed|no token from Google");
-          },
-          auto_select: false,
-          cancel_on_tap_outside: false
-        });
-        gisReady = true; gisClient = clientId;
+      // ---------- Unity's standard loader (unchanged) ----------
+      var canvas = document.querySelector("#unity-canvas");
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
       }
-      var box = document.getElementById("gbtn");
-      box.innerHTML = "";
-      google.accounts.id.renderButton(box, { theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 280 });
-      document.getElementById("gsheet").style.display = "flex";
-    }, function () {
-      finish(false, "failed|couldn't reach Google. check your internet and try again.");
-    });
-  };
-  document.getElementById("gcancel").onclick = function () { finish(false, "cancelled|"); };
-
-  // ---------- Unity ----------
-  var canvas = document.getElementById("unity-canvas");
-  var buildUrl = "Build";
-  var config = {
-    arguments: [],
-    dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
-    frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
-    codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
-    streamingAssetsUrl: "StreamingAssets",
-    companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
-    productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
-    productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
-    showBanner: function (msg, type) { if (type === "error") console.error(msg); else console.warn(msg); }
-  };
-  // Keep the page still while flicking: no pinch zoom, no pull-to-refresh, no long-press menu.
-  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
-  canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
-
-  var script = document.createElement("script");
-  script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
-  script.onload = function () {
-    createUnityInstance(canvas, config, function (progress) {
-      document.getElementById("fill").style.width = Math.round(100 * progress) + "%";
-    }).then(function () {
-      document.getElementById("loading").style.display = "none";
-    }).catch(function (message) {
-      document.getElementById("tip").textContent = "couldn't start the game: " + message;
-    });
-  };
-  document.body.appendChild(script);
-})();
-</script>
-</body>
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        showBanner: unityShowBanner,
+      };
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+      } else {
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+      document.querySelector("#unity-loading-bar").style.display = "block";
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          document.querySelector("#unity-loading-bar").style.display = "none";
+          document.querySelector("#unity-fullscreen-button").onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
 </html>
