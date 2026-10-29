@@ -17,11 +17,12 @@ namespace TuitionTakkar.EditorTools
         const string Output = "LinkSite/public/play";
         const string Info = "Builds/web-info.txt";
 
-        [MenuItem("Tuition Takkar/Build Web (into LinkSite/public/play)")]
+        [MenuItem("Tuition Takkar/Build Web Version")]
         static void Build()
         {
             Directory.CreateDirectory("Builds");
             File.WriteAllText(Info, "building...");
+            PlayerSettings.WebGL.template = "PROJECT:TT";   // Assets/WebGLTemplates/TT: portrait page, TT loading screen, Google sign-in
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
