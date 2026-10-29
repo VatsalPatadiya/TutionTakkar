@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- top_: neck + crew-neck tee (light from upper left, shade on right) -->
+  <g id="top">
+    <path d="M229,336 C228,362 227,390 226,416 C244,426 268,427 287,415 C286,390 285,362 284,336 Z" fill="#00FF00" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M229,346 C244,362 268,364 284,348 L285,384 C266,374 246,374 228,386 Z" fill="#00B000"/>
+    <path d="M58,512 C60,454 108,422 194,409 C214,422 236,429 257,429 C278,428 299,421 318,408 C402,421 452,455 454,512 Z" fill="#00FFFF" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M318,410 C402,423 450,456 452,510 L392,510 C392,470 370,442 318,422 Z" fill="#00B0B0"/>
+    <path d="M196,412 C216,426 238,432 257,432 C278,432 298,425 316,411 L322,418 C302,434 280,441 257,441 C234,441 212,434 190,418 Z" fill="#00B0B0" stroke="#1B1B1B" stroke-width="3"/>
+    <path d="M116,468 C120,486 122,500 121,510" stroke="#00B0B0" stroke-width="4"/>
+  </g>
+  <!-- face_: ears + round soft head with cel shade -->
+  <g id="face">
+    <path d="M154,220 C128,208 116,240 126,262 C133,277 146,281 157,272 Z" fill="#00FF00" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M142,236 C135,246 138,258 147,263" stroke="#00B000" stroke-width="4"/>
+    <path d="M358,220 C384,208 396,240 386,262 C379,277 366,281 355,272 Z" fill="#00FF00" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M370,236 C377,246 374,258 365,263" stroke="#00B000" stroke-width="4"/>
+    <path d="M256,108 C324,106 366,154 366,220 C366,276 350,322 316,350 C298,364 278,370 256,370 C234,370 214,364 196,350 C162,322 146,276 146,220 C146,154 188,110 256,108 Z" fill="#00FF00" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M342,176 C362,206 364,268 342,316 C326,344 298,360 268,366 C300,348 326,318 338,280 C348,246 349,208 342,176 Z" fill="#00B000"/>
+    <path d="M160,192 C190,168 226,162 256,162 C290,162 324,168 352,192 C330,181 296,177 256,178 C218,178 184,182 160,192 Z" fill="#00B000"/>
+  </g>
+  <!-- cheeks_ -->
+  <g id="cheeks">
+    <ellipse cx="196" cy="290" rx="20" ry="11" fill="#F4A6A0" fill-opacity="0.6"/>
+    <ellipse cx="316" cy="290" rx="20" ry="11" fill="#F4A6A0" fill-opacity="0.6"/>
+  </g>
+  <!-- eyes_: big almond eyes, IRIS placeholder #0000FF -->
+  <g id="eyes">
+    <path d="M191,210 C202,203 224,203 234,211" stroke="#00B000" stroke-width="3"/>
+    <path d="M187,234 C194,215 229,213 237,231 C229,248 197,250 187,234 Z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/>
+    <circle cx="212" cy="233" r="13" fill="#0000FF"/>
+    <circle cx="212" cy="233" r="6.5" fill="#1B1B1B"/>
+    <circle cx="216" cy="228" r="4" fill="#FFFFFF"/>
+    <circle cx="207" cy="238" r="2" fill="#FFFFFF"/>
+    <path d="M184,234 C192,211 231,208 240,230" stroke="#1B1B1B" stroke-width="5.5"/>
+    <path d="M321,210 C310,203 288,203 278,211" stroke="#00B000" stroke-width="3"/>
+    <path d="M325,234 C318,215 283,213 275,231 C283,248 315,250 325,234 Z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/>
+    <circle cx="300" cy="233" r="13" fill="#0000FF"/>
+    <circle cx="300" cy="233" r="6.5" fill="#1B1B1B"/>
+    <circle cx="304" cy="228" r="4" fill="#FFFFFF"/>
+    <circle cx="295" cy="238" r="2" fill="#FFFFFF"/>
+    <path d="M328,234 C320,211 281,208 272,230" stroke="#1B1B1B" stroke-width="5.5"/>
+  </g>
+  <!-- brows_: tapered -->
+  <g id="brows">
+    <path d="M190,203 C200,191 220,187 235,193 C237,196 235,199 231,198 C218,195 204,197 193,206 Z" fill="#FF00FF" stroke="#1B1B1B" stroke-width="2"/>
+    <path d="M322,203 C312,191 292,187 277,193 C275,196 277,199 281,198 C294,195 308,197 319,206 Z" fill="#FF00FF" stroke="#1B1B1B" stroke-width="2"/>
+  </g>
+  <!-- nose_: soft shadow nose -->
+  <g id="nose">
+    <path d="M262,250 C269,266 273,280 268,290 C264,295 258,295 253,292 C262,287 266,277 260,252 Z" fill="#00B000"/>
+    <path d="M244,286 C249,294 263,295 269,286" stroke="#1B1B1B" stroke-width="3"/>
+  </g>
+  <!-- mouth_: soft closed smile -->
+  <g id="mouth">
+    <path d="M229,313 C243,325 271,325 285,311" stroke="#1B1B1B" stroke-width="4"/>
+    <path d="M226,310 C228,312 229,314 229,316" stroke="#1B1B1B" stroke-width="3"/>
+    <path d="M241,329 C250,334 264,334 272,328" stroke="#00B000" stroke-width="4"/>
+  </g>
+  <!-- hair_: voluminous side-swept short hair with shade clumps -->
+  <g id="hair">
+    <path d="M144,214 C132,150 166,96 236,86 C276,80 330,88 358,126 C376,150 376,186 368,214 C362,190 352,170 336,158 C318,168 290,170 262,164 C236,176 204,178 182,170 C164,182 152,196 144,214 Z" fill="#FF00FF" stroke="#1B1B1B" stroke-width="4.5"/>
+    <path d="M176,128 C206,104 248,96 290,104 C252,110 220,122 194,146 Z" fill="#B000B0"/>
+    <path d="M334,122 C354,142 364,172 364,202 C354,182 344,168 334,158 C342,146 342,134 334,122 Z" fill="#B000B0"/>
+    <path d="M222,108 C250,122 270,140 280,162" stroke="#B000B0" stroke-width="3.5"/>
+    <path d="M286,104 C306,118 320,136 326,156" stroke="#B000B0" stroke-width="3.5"/>
+  </g>
+</svg>

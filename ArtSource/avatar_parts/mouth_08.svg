@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M222,306 C240,312 272,312 290,306 C287,332 272,344 256,344 C240,344 225,332 222,306 Z" fill="#1B1B1B" stroke="#1B1B1B" stroke-width="3"/>
+  <path d="M240,338 C246,330 266,330 272,338 C266,343 248,344 240,338 Z" fill="#E5483A"/>
+  <path d="M224,309 C242,314 270,314 289,309 C288,316 287,320 285,323 C266,326 246,326 227,323 C225,319 224,314 224,309 Z" fill="#FFFFFF"/>
+  <path d="M226,317 C244,321 268,321 287,317" stroke="#1B1B1B" stroke-width="2"/>
+  <rect x="230" y="315" width="8" height="7" rx="2" fill="#1B1B1B"/>
+  <rect x="242" y="315" width="8" height="7" rx="2" fill="#1B1B1B"/>
+  <rect x="254" y="315" width="8" height="7" rx="2" fill="#1B1B1B"/>
+  <rect x="266" y="315" width="8" height="7" rx="2" fill="#1B1B1B"/>
+  <rect x="277" y="315" width="8" height="7" rx="2" fill="#1B1B1B"/>
+  <path d="M222,306 C240,312 272,312 290,306 C287,332 272,344 256,344 C240,344 225,332 222,306 Z" stroke="#1B1B1B" stroke-width="3"/>
+</svg>

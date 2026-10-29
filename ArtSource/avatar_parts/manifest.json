@@ -1,0 +1,473 @@
+{
+  "version": 2,
+  "style": "cel-shaded cartoon v2",
+  "parts": [
+    {
+      "id": "face_01",
+      "layer": "face",
+      "name": "Round",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "face_02",
+      "layer": "face",
+      "name": "Oval",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "face_03",
+      "layer": "face",
+      "name": "Square jaw",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "face_04",
+      "layer": "face",
+      "name": "Heart",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "face_05",
+      "layer": "face",
+      "name": "Long",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_01",
+      "layer": "eyes",
+      "name": "Dot",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_02",
+      "layer": "eyes",
+      "name": "Classic",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_03",
+      "layer": "eyes",
+      "name": "Sleepy",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_04",
+      "layer": "eyes",
+      "name": "Happy",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_05",
+      "layer": "eyes",
+      "name": "Big round",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "eyes_06",
+      "layer": "eyes",
+      "name": "Wink",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "eyes_07",
+      "layer": "eyes",
+      "name": "Side glance",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "eyes_08",
+      "layer": "eyes",
+      "name": "Starry",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "eyes_09",
+      "layer": "eyes",
+      "name": "Lashes",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_01",
+      "layer": "brows",
+      "name": "Soft arc",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_02",
+      "layer": "brows",
+      "name": "Thick straight",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_03",
+      "layer": "brows",
+      "name": "Angry",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_04",
+      "layer": "brows",
+      "name": "Raised",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_05",
+      "layer": "brows",
+      "name": "Bushy",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "brows_06",
+      "layer": "brows",
+      "name": "Unibrow",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "nose_01",
+      "layer": "nose",
+      "name": "Soft",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "nose_02",
+      "layer": "nose",
+      "name": "Small curve",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "nose_03",
+      "layer": "nose",
+      "name": "Button",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "nose_04",
+      "layer": "nose",
+      "name": "Long",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "nose_05",
+      "layer": "nose",
+      "name": "Nostrils",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_01",
+      "layer": "mouth",
+      "name": "Smile",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_02",
+      "layer": "mouth",
+      "name": "Big grin",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_03",
+      "layer": "mouth",
+      "name": "Red lips",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_04",
+      "layer": "mouth",
+      "name": "Open O",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_05",
+      "layer": "mouth",
+      "name": "Tongue out",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "mouth_06",
+      "layer": "mouth",
+      "name": "Smirk",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_07",
+      "layer": "mouth",
+      "name": "Flat",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "mouth_08",
+      "layer": "mouth",
+      "name": "Braces",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "cheeks_01",
+      "layer": "cheeks",
+      "name": "Blush",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "cheeks_02",
+      "layer": "cheeks",
+      "name": "Freckles",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "cheeks_03",
+      "layer": "cheeks",
+      "name": "Rosy",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "hair_01",
+      "layer": "hair",
+      "name": "Short crop",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "hair_02",
+      "layer": "hair",
+      "name": "Side part",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "hair_03",
+      "layer": "hair",
+      "name": "Spiky",
+      "tier": "rare",
+      "price": 1000
+    },
+    {
+      "id": "hair_04",
+      "layer": "hair",
+      "name": "Afro",
+      "tier": "free",
+      "price": 0,
+      "hasBack": true
+    },
+    {
+      "id": "hair_05",
+      "layer": "hair",
+      "name": "Bun",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "hair_06",
+      "layer": "hair",
+      "name": "Bob with fringe",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "hair_07",
+      "layer": "hair",
+      "name": "Long wavy",
+      "tier": "free",
+      "price": 0,
+      "hasBack": true
+    },
+    {
+      "id": "hair_08",
+      "layer": "hair",
+      "name": "Curly short",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "hair_09",
+      "layer": "hair",
+      "name": "Ponytail",
+      "tier": "free",
+      "price": 0,
+      "hasBack": true
+    },
+    {
+      "id": "hair_10",
+      "layer": "hair",
+      "name": "Buzz cut",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "beard_01",
+      "layer": "beard",
+      "name": "Thin moustache",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "beard_02",
+      "layer": "beard",
+      "name": "Curly moustache",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "beard_03",
+      "layer": "beard",
+      "name": "Stubble",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "glasses_01",
+      "layer": "glasses",
+      "name": "Round",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "glasses_02",
+      "layer": "glasses",
+      "name": "Square",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "glasses_03",
+      "layer": "glasses",
+      "name": "Sunglasses",
+      "tier": "rare",
+      "price": 1000
+    },
+    {
+      "id": "earrings_01",
+      "layer": "earrings",
+      "name": "Red studs",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "earrings_02",
+      "layer": "earrings",
+      "name": "Red hoops",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "top_01",
+      "layer": "top",
+      "name": "Striped turtleneck",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "top_02",
+      "layer": "top",
+      "name": "Collar shirt",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "top_03",
+      "layer": "top",
+      "name": "Hoodie",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "top_04",
+      "layer": "top",
+      "name": "Polka dots",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "top_05",
+      "layer": "top",
+      "name": "School uniform",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "top_06",
+      "layer": "top",
+      "name": "Black turtleneck",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "hat_01",
+      "layer": "hat",
+      "name": "Red headband",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "hat_02",
+      "layer": "hat",
+      "name": "Cap",
+      "tier": "common",
+      "price": 200
+    },
+    {
+      "id": "hat_03",
+      "layer": "hat",
+      "name": "Turban",
+      "tier": "free",
+      "price": 0,
+      "hidesHair": true
+    },
+    {
+      "id": "hat_04",
+      "layer": "hat",
+      "name": "Hijab",
+      "tier": "free",
+      "price": 0,
+      "hidesHair": true
+    },
+    {
+      "id": "bg_01",
+      "layer": "bg",
+      "name": "Plain",
+      "tier": "free",
+      "price": 0
+    },
+    {
+      "id": "bg_02",
+      "layer": "bg",
+      "name": "Confetti",
+      "tier": "common",
+      "price": 200
+    }
+  ]
+}
