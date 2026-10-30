@@ -89,7 +89,7 @@ namespace TuitionTakkar
             else
             {
                 var mine = new System.Collections.Generic.List<PenDef>();
-                foreach (var id in save.owned) mine.Add(Catalog.Pen(id));
+                foreach (var id in save.owned) mine.Add(PenVersions.Apply(Catalog.Pen(id), PenVersions.CurrentVersion(save, id)));
                 body.Add(Grid(gm, mine, true));
                 var more = UIKit.Row().St(s => { s.marginTop = 6; s.justifyContent = Justify.SpaceBetween; });
                 more.Add(UIKit.Btn("Tuck shop ›", () => gm.ShowPouch(1), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 15f, 48f, 12f, null, Pal.Ink).St(s => s.width = Length.Percent(48)));
@@ -247,6 +247,20 @@ namespace TuitionTakkar
             c.Add(PenIcon.Build(pen, 140f));
             c.Add(UIKit.Disp(pen.name.ToUpperInvariant(), 18f, Pal.Ink).St(s => s.marginTop = 8));
             c.Add(RarityRow(pen));
+            if (!pen.custom && !PenParts.IsCustom(pen.id))
+            {
+                int current = PenVersions.CurrentVersion(save, pen.id);
+                int unlocked = PenVersions.Unlocked(save, pen.id);
+                var vrow = UIKit.Row().St(s => s.marginTop = 4);
+                vrow.Add(UIKit.Strong("V" + current, 10f, Color.white, TextAnchor.MiddleCenter)
+                    .St(s => { s.backgroundColor = Pal.Ink; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 4); s.letterSpacing = 0.4f; }));
+                if (current < unlocked)
+                    vrow.Add(UIKit.Btn("UPGRADE", () => gm.UI.ShowOverlay(VersionSheet(gm, pen)),
+                        Pal.Yellow, Pal.Ink, UIKit.BodyBold, 10f, 22f, 10f).St(s => s.marginLeft = 6));
+                else if (unlocked < PenVersions.MaxVersion)
+                    vrow.Add(UIKit.Plain("V" + (current + 1) + " at level " + PenVersions.LevelFor(current + 1), 10f, Pal.InkSoft).St(s => s.marginLeft = 6));
+                c.Add(vrow);
+            }
             if (usesInk)
             {
                 c.Add(UIKit.Strong(ink <= 0 ? "OUT OF INK" : ink <= Economy.InkLowAt ? "INK LOW" : "INK " + ink + "/" + Economy.InkTank, 12f,
@@ -436,6 +450,60 @@ namespace TuitionTakkar
                 save.SetInk(pen.id, Economy.InkTank);
                 save.Save();
                 gm.Audio.Stamp();
+                gm.ShowPouch(0);
+            }));
+            return o;
+        }
+
+        static VisualElement VersionSheet(GameManager gm, PenDef pen)
+        {
+            var save = gm.Save;
+            int current = PenVersions.CurrentVersion(save, pen.id);
+            int next = current + 1;
+            int cost = PenVersions.CostFor(next);
+            bool afford = save.marks >= cost;
+            var baseDef = Catalog.Pen(pen.id);
+            var currentDef = PenVersions.Apply(baseDef, current);
+            var nextDef = PenVersions.Apply(baseDef, next);
+            var o = Sheet(gm, out var p);
+
+            p.Add(UIKit.Disp("UPGRADE TO V" + next, 26f, Pal.Ink).St(s => s.marginTop = 0));
+            p.Add(UIKit.HandText("better stats, a new look.", 16f, Pal.Ink).St(s => s.marginTop = 2));
+
+            var compare = UIKit.Row(Align.Stretch).St(s => { s.marginTop = 12; s.justifyContent = Justify.SpaceBetween; });
+            void Side(PenDef d, string label)
+            {
+                var col = UIKit.Col().St(s => { s.width = Length.Percent(48); s.alignItems = Align.Center; });
+                col.Add(UIKit.Strong(label, 11f, Pal.InkSoft).St(s => s.letterSpacing = 0.5f));
+                col.Add(PenIcon.Build(d, 120f).St(s => s.marginTop = 4));
+                compare.Add(col);
+            }
+            Side(currentDef, "NOW · V" + current);
+            Side(nextDef, "AFTER · V" + next);
+            p.Add(compare);
+
+            var stats = UIKit.Col().St(s => s.marginTop = 12);
+            stats.Add(UIKit.StatBar("Weight", nextDef.statWeight, Pal.Ink, Pal.GraphLine));
+            stats.Add(UIKit.StatBar("Grip", nextDef.statGrip, Pal.Ink, Pal.GraphLine).St(s => s.marginTop = 6));
+            stats.Add(UIKit.StatBar("Spin", nextDef.statSpin, Pal.Ink, Pal.GraphLine).St(s => s.marginTop = 6));
+            p.Add(stats);
+            p.Add(Ledger(save.marks, cost, "V" + next + " upgrade"));
+
+            var errorLabel = UIKit.Plain("", 12f, Pal.Red, TextAnchor.MiddleCenter).St(s => s.marginTop = 8);
+            if (!afford) errorLabel.text = "you need " + (cost - save.marks) + " more marks";
+            p.Add(errorLabel);
+
+            p.Add(SheetButtons(gm, "UPGRADE FOR " + cost, afford, () =>
+            {
+                if (!PenVersions.TryUpgrade(save, pen.id, out string error))
+                {
+                    errorLabel.text = error;
+                    return;
+                }
+                save.Save();
+                gm.Audio.Stamp();
+                Haptics.Win();
+                gm.UI.HideOverlay();
                 gm.ShowPouch(0);
             }));
             return o;
