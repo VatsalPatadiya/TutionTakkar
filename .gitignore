@@ -35,3 +35,9 @@ Keystore/
 
 # Web build output (rebuild with Tuition Takkar > Build Web Version)
 LinkSite/public/play/
+
+# Stray WebGL build leftovers at project root (DoNotShip debug data)
+/Data/
+
+# Firebase CLI local deploy cache
+LinkSite/.firebase/
