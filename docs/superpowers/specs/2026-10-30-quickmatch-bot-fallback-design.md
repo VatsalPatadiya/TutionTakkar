@@ -70,6 +70,36 @@ the matched opponent).
   level from one of these pools so cheaper desks get easy bots and
   high-tier desks get hard ones. Exact mapping (which pool, how many buckets)
   is left to the builder — it's a tuning choice, not a product one.
+- **Bot seats and the desk pot (Claude's call, owner asked Claude to decide):**
+  a bot has no wallet and never really "pays in," so bot-filled matches skip
+  the desk's pot/fee system entirely rather than fabricating the bot's share
+  of the pot. Concretely: the human is not charged the desk's entry fee when
+  the match ends up bot-filled, there is no pot to win, and the reward is a
+  flat payout in the same shape as Practice's (`Economy.cs`'s 10/20/35-by-
+  difficulty pattern), scaled by the desk's tier instead of Practice
+  difficulty. This avoids minting marks from nothing and avoids charging a
+  human a stake they can't actually contest for. If a party room is a mix of
+  real players and bots, this still applies — no pot forms, flat payout only
+  — since a partial-pot (real players' fees only) would need its own payout
+  rule with no clear existing precedent to follow.
+- **Bot wins and the leaderboard (Claude's call):** beating a bot updates the
+  winner's personal `StatsTracker`/`PlayerStats` (wins, streak) and Online
+  Level XP (`OnlineLevel`), so the match still feels like it counted — but it
+  does **not** report to the public `total_wins`/`weekly_wins` leaderboards
+  (`OnlineMatch.ReportWinAsync`). Those numbers are what other players
+  compare against; letting bot wins move them would make off-hours Quick
+  Match a reliable way to farm leaderboard rank with no real opponent, which
+  the game already avoids elsewhere (Pass & Play intentionally pays nothing,
+  for the same reason — see `docs/PROJECT_GUIDE.md` §5, §6).
+- **Bot display name (Claude's call):** neither existing bot pool has a safe
+  name to show. `Catalog.Rivals`' ten names (Monty, Pinky, ... Vikram) are
+  already shown by name in Batch Ladder, so reusing one risks a player
+  recognizing it and realizing the "opponent" is a bot — directly breaking
+  the no-tell goal. `Catalog.PracticeBots` has no name field at all. Add a
+  small new pool of fake display names, styled like real online names (e.g.
+  "RiyaFlicks"), and pick one at random per bot — reusing only the skill
+  profile (aim/power/caution/aggression) from the Rival/Practice pools, not
+  their names.
 
 ## Constraints
 

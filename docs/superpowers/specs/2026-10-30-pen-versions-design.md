@@ -55,6 +55,23 @@ feature.
   just reaching the required Online Level.
 - The level gate is the same Online Level used for desk access today —
   explicitly confirmed, not a new or separate level track.
+- **Versions only affect bot matches, not real PvP (Claude's call, owner
+  asked Claude to decide):** a pen's version changes its stats in Batch
+  Ladder, Practice, and bot-filled Quick Match seats. In real human-vs-human
+  Desk matches, every player's pen uses its base (V1-equivalent) stats
+  regardless of actual unlocked version — the version's look still shows
+  cosmetically in PvP, just without the stat change. Reasoning: online
+  matches today resolve a pen's stats as one fixed value looked up by pen id
+  alone, identical on every device (`OnlineMatch.cs`: `Catalog.Pen(...)` by
+  id, no per-player modifier) — this is a deliberate existing invariant that
+  keeps every phone's physics simulation bit-identical with no server. Also,
+  Desks have a level *floor* but no level ceiling or level-matched pairing,
+  so letting versions raise PvP stats would let a high-level player with a
+  maxed pen sit at the same paid desk as a player who only just qualifies —
+  turning what was pitched as a progression reward into a pay/grind-to-win
+  edge in a wagered mode. Keeping the stat effect bot-only avoids both the
+  new sync work and that fairness problem; the owner should know this means
+  "upgrade your pen" never changes who wins a human-vs-human Desk match.
 
 ## Open / left to the builder
 
