@@ -12,6 +12,14 @@ namespace TuitionTakkar
         public int ink;
     }
 
+    /// <summary>A pen's unlocked version (1-3), by pen id. JsonUtility can't save dictionaries.</summary>
+    [Serializable]
+    public class PenVersion
+    {
+        public string id;
+        public int version;
+    }
+
     [Serializable]
     public class SaveData
     {
@@ -26,6 +34,8 @@ namespace TuitionTakkar
         public bool hapticsOn = true;
         /// <summary>Ink per pen. A pen with no entry has a full tank (older saves, new pens).</summary>
         public List<PenInk> inks = new List<PenInk>();
+        /// <summary>Unlocked version per pen (classic/shop pens only). A pen with no entry is V1.</summary>
+        public List<PenVersion> penVersions = new List<PenVersion>();
         /// <summary>Local date (yyyy-MM-dd) the daily double was last used.</summary>
         public string lastDoubleDay = "";
 
