@@ -82,6 +82,10 @@ namespace TuitionTakkar
                     var p = room.Find(id);
                     s.pens[i] = Catalog.Pen(OnlineRoom.PenOf(p));
                     s.names[i] = OnlineRoom.NameOf(p);
+                    // A pen's unlocked version only ever matters against a bot, never real PvP —
+                    // so it applies here only to the local player's own seat, only when this room has bots.
+                    if (i == l.LocalIndex && room.Bots.Count > 0)
+                        s.pens[i] = PenVersions.Apply(s.pens[i], PenVersions.CurrentVersion(gm.Save, OnlineRoom.PenOf(p)));
                 }
             }
             // Same pen twice? Recolour the later one, identically on every phone.
