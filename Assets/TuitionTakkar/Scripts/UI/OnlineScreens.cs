@@ -532,6 +532,7 @@ namespace TuitionTakkar
             root.Add(content);
 
             bool started = false;
+            var revealedBotSeats = new System.Collections.Generic.HashSet<int>();
             void Paint()
             {
                 if (room.Closed) return;
@@ -545,7 +546,7 @@ namespace TuitionTakkar
                 var sub = header.Query<Label>().Last();
                 if (sub != null) sub.text = room.Seats + " players · " + room.Desk.name;
                 content.Clear();
-                if (room.IsQuick) PaintQuick(gm, room, content);
+                if (room.IsQuick) PaintQuick(gm, room, content, revealedBotSeats);
                 else PaintPrivate(gm, room, content);
             }
 
@@ -612,7 +613,10 @@ namespace TuitionTakkar
             return row;
         }
 
-        static void PaintQuick(GameManager gm, OnlineRoom room, VisualElement content)
+        /// <summary>Quick Match search runs this long before any still-empty seats get bots.</summary>
+        const float BotFallbackAfter = 38f;
+
+        static void PaintQuick(GameManager gm, OnlineRoom room, VisualElement content, System.Collections.Generic.HashSet<int> revealedBotSeats)
         {
             content.Add(DeskRow(gm, room, false).St(s => s.marginBottom = 12));
             var board = UIKit.Col().St(s =>
@@ -622,6 +626,9 @@ namespace TuitionTakkar
             board.Add(UIKit.HandText("finding classmates…", 20f, Color.white));
             int found = room.Players.Count;
             float waited = Time.realtimeSinceStartup - room.JoinedAt;
+            if (room.InCharge && waited >= BotFallbackAfter && room.Bots.Count == 0 && found < room.Seats)
+                _ = room.FillWithBotsAsync();
+            var bots = room.Bots;
             var bar = UIKit.Row().St(s => { s.marginTop = 8; s.justifyContent = Justify.SpaceBetween; });
             bar.Add(UIKit.Strong(found + " of " + room.Seats + " found", 14f, Pal.Yellow));
             bar.Add(UIKit.Strong(Clock(waited), 14f, Pal.MistLight));
@@ -632,13 +639,30 @@ namespace TuitionTakkar
 
             var list = UIKit.Col().St(s => s.marginTop = 14);
             for (int i = 0; i < room.Seats; i++)
-                list.Add(i < found ? SeatRow(room, room.Players[i], true) : EmptySeat("looking for a classmate…", true));
+            {
+                if (i < found) { list.Add(SeatRow(room, room.Players[i], true)); continue; }
+                int botIndex = i - found;
+                if (botIndex < bots.Count)
+                {
+                    var seat = bots[botIndex];
+                    if (revealedBotSeats.Add(i))
+                    {
+                        var placeholder = UIKit.Col();
+                        list.Add(placeholder);
+                        SeatShuffle.Play(placeholder, seat.name, Catalog.Pen(seat.penId), true);
+                    }
+                    else list.Add(SeatRow(seat.name, Catalog.Pen(seat.penId), true, seat.name));
+                    continue;
+                }
+                list.Add(EmptySeat("looking for a classmate…", true));
+            }
             board.Add(list);
             board.Add(UIKit.HandText("tip: watch your own pen near the edge. a flick that sends you off loses.", 15f, Pal.H("#E6EFE9")).St(s => s.marginTop = 12));
             content.Add(board);
             content.Add(UIKit.Grow());
 
-            if (room.Full && found >= OnlineRoom.MinPlayers)
+            bool full = room.Full || (bots.Count > 0 && found + bots.Count >= room.Seats);
+            if (full && found >= OnlineRoom.MinPlayers)
             {
                 // Every seat taken: the match starts by itself (the host's phone starts it).
                 content.Add(UIKit.Disp("ALL CLASSMATES FOUND!", 22f, Pal.Green, TextAnchor.MiddleCenter));
@@ -740,22 +764,39 @@ namespace TuitionTakkar
         {
             string name = OnlineRoom.NameOf(p);
             bool me = p.Id == room.MyId;
+            var row = SeatRow(name, Catalog.Pen(OnlineRoom.PenOf(p)), dark, p.Id);
+            if (me) UIKit.Border(row.style, 2f, Pal.Yellow);
+            var nameLabel = row.Q<Label>("seatName");
+            if (nameLabel != null && me) nameLabel.text = name + " (you)";
+            var nr = row.Q<VisualElement>("seatNameRow");
+            if (nr != null)
+            {
+                if (!OnlineRoom.CanPay(p))
+                    nr.Add(UIKit.Strong("CAN'T PAY", 10f, Color.white, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Red; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
+                if (p.Id == room.Owner && !room.IsQuick)
+                    nr.Add(UIKit.Strong("HOST", 10f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
+            }
+            return row;
+        }
+
+        /// <summary>The shared seat visual: avatar, name and pen icon, with nothing player-specific —
+        /// used for both a real player's seat and a disguised bot's seat, so the two render identically.</summary>
+        internal static VisualElement SeatRow(string name, PenDef pen, bool dark, string avatarKey)
+        {
             var row = UIKit.Row().St(s =>
             {
                 s.marginTop = 8; UIKit.Pad(s, 8, 12, 8, 10); UIKit.Radius(s, 12);
                 s.backgroundColor = dark ? new Color(1, 1, 1, 0.1f) : Color.white;
-                if (me) UIKit.Border(s, 2f, Pal.Yellow);
             });
-            row.Add(UIKit.Avatar(Initial(name), AvatarColor(p.Id), 36f));
+            row.Add(UIKit.Avatar(Initial(name), AvatarColor(avatarKey), 36f));
             var col = UIKit.Col().St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; });
             var nr = UIKit.Row();
-            nr.Add(UIKit.Strong(name + (me ? " (you)" : ""), 15f, dark ? Color.white : Pal.Ink));
-            if (!OnlineRoom.CanPay(p))
-                nr.Add(UIKit.Strong("CAN'T PAY", 10f, Color.white, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Red; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
-            if (p.Id == room.Owner && !room.IsQuick)
-                nr.Add(UIKit.Strong("HOST", 10f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginLeft = 6; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 6); }));
+            nr.name = "seatNameRow";
+            var nameLabel = UIKit.Strong(name, 15f, dark ? Color.white : Pal.Ink);
+            nameLabel.name = "seatName";
+            nr.Add(nameLabel);
             col.Add(nr);
-            col.Add(PenIcon.Build(Catalog.Pen(OnlineRoom.PenOf(p)), 110f).St(s => s.marginTop = 2));
+            col.Add(PenIcon.Build(pen, 110f).St(s => s.marginTop = 2));
             row.Add(col);
             return row;
         }
