@@ -68,6 +68,24 @@ namespace TuitionTakkar
 
         public void SendQuit() => Send("quit", MatchId);
 
+        /// <summary>A bot has no Lobby player slot of its own, so its shot/rest go into Lobby Data
+        /// (via the room's acting host) instead of the normal per-player write.</summary>
+        public async void SendBotShot(string botId, int turn, int shooter, BenchWorld world, Shot s)
+        {
+            var sb = new StringBuilder();
+            sb.Append(MatchId).Append('|').Append(turn).Append('|').Append(shooter).Append('|')
+              .Append(EncodePens(Capture(world))).Append('|')
+              .Append(F(s.strikeT)).Append('|').Append(F(s.dir.x)).Append('|').Append(F(s.dir.z)).Append('|').Append(F(s.power));
+            try { await Room.SetBotDataAsync(botId, new Dictionary<string, string> { { "shot", sb.ToString() } }); }
+            catch (Exception e) { Debug.LogWarning("Online bot shot: " + e.Message); }
+        }
+
+        public async void SendBotRest(string botId, int turn, int shooter, NetPen[] pens)
+        {
+            try { await Room.SetBotDataAsync(botId, new Dictionary<string, string> { { "rest", MatchId + "|" + turn + "|" + shooter + "|" + EncodePens(pens) } }); }
+            catch (Exception e) { Debug.LogWarning("Online bot rest: " + e.Message); }
+        }
+
         /// <summary>
         /// This player's clock ran out once too often (past the auto-shot limit): they lose.
         /// The others see it through "quit" and carry on (2 players: the other one wins).
@@ -165,9 +183,18 @@ namespace TuitionTakkar
         /// <summary>A message from this match by the player at that pen index, split on '|'.</summary>
         string[] Read(string key, int index)
         {
-            var p = Room.Find(PlayerIdAt(index));
-            if (p == null) return null;
-            string v = OnlineRoom.PlayerData(p, key, null);
+            string id = PlayerIdAt(index);
+            string v;
+            if (OnlineBot.IsBotId(id))
+            {
+                v = Room.BotData(id, key, null);
+            }
+            else
+            {
+                var p = Room.Find(id);
+                if (p == null) return null;
+                v = OnlineRoom.PlayerData(p, key, null);
+            }
             if (string.IsNullOrEmpty(v)) return null;
             var parts = v.Split('|');
             return parts.Length > 0 && parts[0] == MatchId ? parts : null;
