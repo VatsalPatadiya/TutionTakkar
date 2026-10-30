@@ -67,9 +67,22 @@ namespace TuitionTakkar
             var s = new MatchSetup(n) { mode = MatchMode.Online, localIndex = l.LocalIndex, net = l };
             for (int i = 0; i < n; i++)
             {
-                var p = room.Find(l.PlayerIdAt(i));
-                s.pens[i] = Catalog.Pen(OnlineRoom.PenOf(p));
-                s.names[i] = OnlineRoom.NameOf(p);
+                string id = l.PlayerIdAt(i);
+                if (OnlineBot.IsBotId(id))
+                {
+                    var seat = room.Bots[OnlineBot.IndexFromId(id)];
+                    s.pens[i] = Catalog.Pen(seat.penId);
+                    s.names[i] = seat.name;
+                    s.isBot[i] = true;
+                    s.botProfiles[i] = seat.skill;
+                    s.botIds[i] = id;
+                }
+                else
+                {
+                    var p = room.Find(id);
+                    s.pens[i] = Catalog.Pen(OnlineRoom.PenOf(p));
+                    s.names[i] = OnlineRoom.NameOf(p);
+                }
             }
             // Same pen twice? Recolour the later one, identically on every phone.
             var recolours = new[] { ("#2A9D8F", "#16324F"), ("#C8414B", "#1F2A44"), ("#7B5EA7", "#4A3570") };
@@ -84,7 +97,7 @@ namespace TuitionTakkar
 
             // Sit down: the entry fee goes into the pot now that the match is really starting.
             s.desk = room.Desk;
-            s.feePaid = Mathf.Clamp(s.desk.fee, 0, gm.Save.marks);
+            s.feePaid = s.HasBots ? 0 : Mathf.Clamp(s.desk.fee, 0, gm.Save.marks);
             if (s.feePaid > 0)
             {
                 gm.Save.marks -= s.feePaid;
@@ -125,7 +138,7 @@ namespace TuitionTakkar
             });
             col.Add(tier);
             col.Add(UIKit.Disp(d.name.ToUpperInvariant(), 26f, Color.white, TextAnchor.MiddleCenter).St(st => st.marginTop = 6));
-            if (d.Free)
+            if (d.Free || s.HasBots)
                 col.Add(UIKit.HandText("friendly desk · nothing at stake", 17f, Pal.MistLight, TextAnchor.MiddleCenter));
             else
             {
@@ -260,7 +273,7 @@ namespace TuitionTakkar
             root.Add(buttons);
 
             gm.UI.ShowScreen(root);
-            if (iWon) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
+            if (iWon && !s.HasBots) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
             ProfileScreens.ShowPendingBadges(gm, 2200);
             _ = Friends.SetPresenceAsync(gm, "home");
         }
@@ -346,7 +359,7 @@ namespace TuitionTakkar
 
             gm.UI.ShowScreen(root);
             gm.Audio.Stamp();
-            if (iWon && real) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
+            if (iWon && real && !s.HasBots) { ReportWin(gm, winsText, rankLine); Reminders.AskAfterWin(gm); }
             ProfileScreens.ShowPendingBadges(gm, 2200);
             _ = Friends.SetPresenceAsync(gm, "home");
         }
@@ -388,7 +401,7 @@ namespace TuitionTakkar
             var d = s.desk;
             var p = new Payout { fee = s.feePaid, start = gm.Save.marks + s.feePaid };
             if (!real) return p;
-            p.staked = d != null && !d.Free;
+            p.staked = d != null && !d.Free && !s.HasBots;
             if (p.staked) p.won = d.Prize(s.Players, place);
             else p.won = place == 1 ? Economy.OnlineWin : place == 2 && s.Players > 2 ? Economy.OnlineSecond : Economy.LossConsolation;
             p.net = p.won - p.fee;
