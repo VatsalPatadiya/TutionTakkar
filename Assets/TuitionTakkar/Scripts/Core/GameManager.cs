@@ -59,6 +59,7 @@ namespace TuitionTakkar
             ApplySettings();
             World.Rig.Fit();
             DeepLinks.Init(this);
+            WebRoutes.Init(this);
             Push.Init();
             SocialRunner.Ensure(this);
             Reminders.Init();
@@ -163,6 +164,7 @@ namespace TuitionTakkar
             World.ClearPens();
             UI.ShowScreen(HomeScreen.Build(this));
             DeepLinks.OnHomeShown();
+            WebRoutes.OnHome();
             FriendsUI.ShowQueued(this);
             // First visit: show the player the face we drew them (once), unless another pop-up is up.
             if (!Save.faceIntroSeen)

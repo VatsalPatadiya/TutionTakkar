@@ -44,9 +44,29 @@ namespace TuitionTakkar
         static void Next(GameManager gm)
         {
             var s = gm.Save;
-            if (!OnlineServices.HasAccount(s)) gm.UI.ShowScreen(SignIn(gm));
+            if (!OnlineServices.HasAccount(s))
+            {
+                // Browser Quick Match link: no sign-in choice, just a guest seat.
+                if (webQuick > 0 && WebRoutes.On) { DoGuest(gm); return; }
+                gm.UI.ShowScreen(SignIn(gm));
+            }
             else if (OnlineServices.NameProblem(s.onlineName) != null) gm.UI.ShowScreen(Name(gm));
+            else if (webQuick > 0)
+            {
+                seats = Mathf.Clamp(webQuick, 2, OnlineMatch.MaxPlayers);
+                webQuick = 0;
+                DoQuick(gm, Desks.All[0]);
+            }
             else ShowPlay(gm);
+        }
+
+        static int webQuick;
+
+        /// <summary>The web address asked for a Quick Match with this many players (/play/quick?players=3).</summary>
+        public static void QuickFromWeb(GameManager gm, int players)
+        {
+            webQuick = players;
+            Enter(gm);
         }
 
         public static void ShowPlay(GameManager gm)
@@ -526,6 +546,7 @@ namespace TuitionTakkar
         public static void ShowRoom(GameManager gm, OnlineRoom room)
         {
             var root = Screen();
+            WebRoutes.Room(room);
             var header = Header(room.IsQuick ? "QUICK MATCH" : "PRIVATE ROOM", room.Seats + " players · " + room.Desk.name, () => Leave(gm, room));
             root.Add(header);
             var content = UIKit.Col().St(s => { s.flexGrow = 1; UIKit.Pad(s, 20, 20, 24, 20); });

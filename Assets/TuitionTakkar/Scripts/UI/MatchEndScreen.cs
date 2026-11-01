@@ -132,6 +132,14 @@ namespace TuitionTakkar
             root.Add(right);
             left.style.marginTop = 10; left.style.height = 50;
             root.Add(left);
+            if (WebRoutes.On)
+            {
+                WebRoutes.Result();
+                // Browser players: the full game (ladder, pen shop, friends) is in the app.
+                var app = UIKit.Btn("GET THE APP · keep your marks", () => Application.OpenURL(WebRoutes.PlayStore), Pal.Yellow, Pal.Ink, UIKit.BodyBold, 15f, 46f, 14f);
+                app.style.marginTop = 10;
+                root.Add(app);
+            }
             return root;
         }
         /// <summary>"Match win +20 / Knock-offs +15 / First win today ×2 / TOTAL +70" and the next pen to save for.</summary>
