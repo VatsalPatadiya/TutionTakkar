@@ -103,7 +103,7 @@ namespace TuitionTakkar
             Desk = d;
             PartyDesk = party;
             deskW = (party ? GameConfig.PartyDeskSize : GameConfig.DeskWidth) * d.size;
-            deskD = (party ? GameConfig.PartyDeskSize : GameConfig.DeskDepth) * d.size;
+            deskD = (party ? GameConfig.PartyDeskDepth : GameConfig.DeskDepth) * d.size;
             BuildDesk();
 
             floor.GetComponent<MeshRenderer>().sharedMaterial = DeskArt.Make(DeskArt.Floor(d), new Vector2(30f, 30f), 0.7f);
@@ -176,13 +176,13 @@ namespace TuitionTakkar
             if (Pens.Length == 0 || Pens[0] == null) return;
             if (Pens.Length > 2)
             {
-                // Party desk: pens in a ring, player 0 nearest the bottom, each lying across its side.
+                // Party desk: pens in an oval that matches the desk shape (same room to every edge), player 0 nearest the bottom, each lying across its side.
                 int n = Pens.Length;
                 for (int i = 0; i < n; i++)
                 {
                     float theta = -90f + 360f * i / n;
                     float r = theta * Mathf.Deg2Rad;
-                    var pos = new Vector3(Mathf.Cos(r) * GameConfig.PartyStartRadius, PenFactory.RestHeight(Pens[i].Def), Mathf.Sin(r) * GameConfig.PartyStartRadius);
+                    var pos = new Vector3(Mathf.Cos(r) * GameConfig.PartyStartRadius, PenFactory.RestHeight(Pens[i].Def), Mathf.Sin(r) * GameConfig.PartyStartRadius * (GameConfig.PartyDeskDepth / GameConfig.PartyDeskSize));
                     Pens[i].Place(pos, Quaternion.Euler(0f, -(theta + 90f) + (i % 2 == 0 ? jitter : -jitter), 0f));
                 }
                 return;

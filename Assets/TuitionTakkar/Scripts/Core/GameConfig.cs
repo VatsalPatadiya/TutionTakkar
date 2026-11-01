@@ -104,8 +104,10 @@ namespace TuitionTakkar
         /// One more time-out after that and they lose the match (or their pen is out).
         /// </summary>
         public const int OnlineMaxAutoShots = 3;
-        /// <summary>3–4 player online desk: a square two-seater (52 x 52 cm).</summary>
+        /// <summary>3–4 player desk width (52 cm). Depth is <see cref="PartyDeskDepth"/>.</summary>
         public const float PartyDeskSize = 0.52f * WorldScale;
+        /// <summary>3–4 player desk front-to-back: deeper than wide (52 x 66 cm), so there is room to line up shots.</summary>
+        public const float PartyDeskDepth = 0.66f * WorldScale;
         /// <summary>How far from the middle each pen starts on the party desk.</summary>
         public const float PartyStartRadius = 0.15f * WorldScale;
         public const float TurnTimeUrgent = 10f;
