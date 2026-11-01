@@ -33,6 +33,9 @@ namespace TuitionTakkar
         public OnlineLink net;
         /// <summary>Online: the desk played at (look, rules, entry fee). Null offline.</summary>
         public DeskDef desk;
+        /// <summary>Online: each seat's face code and level (for the VS screen). May be null.</summary>
+        public string[] faces;
+        public int[] levels;
         /// <summary>Online: marks this phone paid to sit down (0 at a friendly desk).</summary>
         public int feePaid;
     }

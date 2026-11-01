@@ -19,7 +19,7 @@ namespace TuitionTakkar
             if (seats != null) seats.SetValue(null, 2);
             t.GetMethod("DoQuick", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
              .Invoke(null, new object[] { gm, Desks.Home });
-            foreach (var (ms, name) in new[] { (12000, "1-waiting"), (16000, "2-intro"), (6000, "3-match"), (12000, "4-bot-turn") })
+            foreach (var (ms, name) in new[] { (3000, "1-waiting"), (3000, "1b-waiting"), (19600, "2-landing"), (600, "2b-landing"), (900, "3-coins"), (500, "3b-coins"), (700, "4-pot"), (3500, "5-match") })
             {
                 await System.Threading.Tasks.Task.Delay(ms);
                 ScreenCapture.CaptureScreenshot("Builds/bot-test/" + name + ".png");

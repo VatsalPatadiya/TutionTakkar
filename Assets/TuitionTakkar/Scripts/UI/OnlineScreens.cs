@@ -624,28 +624,10 @@ namespace TuitionTakkar
 
         static void PaintQuick(GameManager gm, OnlineRoom room, VisualElement content)
         {
-            content.Add(DeskRow(gm, room, false).St(s => s.marginBottom = 12));
-            var board = UIKit.Col().St(s =>
-            {
-                s.backgroundColor = Chalk; UIKit.Pad(s, 18, 16, 18, 16); UIKit.Radius(s, 10); UIKit.Border(s, 5f, ChalkEdge);
-            });
-            board.Add(UIKit.HandText("finding classmates…", 20f, Color.white));
+            // 8 Ball Pool-style: me VS flicking classmate cards; joiners land on their card.
             int found = room.Players.Count;
             float waited = Time.realtimeSinceStartup - room.JoinedAt;
-            var bar = UIKit.Row().St(s => { s.marginTop = 8; s.justifyContent = Justify.SpaceBetween; });
-            bar.Add(UIKit.Strong(found + " of " + room.Seats + " found", 14f, Pal.Yellow));
-            bar.Add(UIKit.Strong(Clock(waited), 14f, Pal.MistLight));
-            board.Add(bar);
-            var track = UIKit.El().St(s => { s.height = 8; s.marginTop = 6; UIKit.Radius(s, 4); s.backgroundColor = new Color(1, 1, 1, 0.15f); s.overflow = Overflow.Hidden; });
-            track.Add(UIKit.El().St(s => { s.height = 8; s.width = Length.Percent(100f * found / Mathf.Max(1, room.Seats)); s.backgroundColor = Pal.Yellow; }));
-            board.Add(track);
-
-            var list = UIKit.Col().St(s => s.marginTop = 14);
-            for (int i = 0; i < room.Seats; i++)
-                list.Add(i < found ? SeatRow(room, room.Players[i], true) : EmptySeat("looking for a classmate…", true));
-            board.Add(list);
-            board.Add(UIKit.HandText("tip: watch your own pen near the edge. a flick that sends you off loses.", 15f, Pal.H("#E6EFE9")).St(s => s.marginTop = 12));
-            content.Add(board);
+            content.Add(VsScreen.Waiting(gm, room));
             content.Add(UIKit.Grow());
 
             if (room.Full && found >= OnlineRoom.MinPlayers)

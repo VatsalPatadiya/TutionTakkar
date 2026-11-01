@@ -70,6 +70,8 @@ namespace TuitionTakkar
         static readonly string[] BotPens = { Catalog.StarterId, "zippy07", "trigrip", "steel", "gelglide" };
 
         /// <summary>A name that looks like any other player's: a guest ID or a nickname.</summary>
+        public static string RandomName(System.Random r) => BotName(r);
+
         static string BotName(System.Random r)
         {
             if (r.NextDouble() < 0.45)
@@ -109,10 +111,17 @@ namespace TuitionTakkar
             var s = new MatchSetup(n) { mode = MatchMode.Online, localIndex = 0, net = null, desk = room.Desk, bot = BotFor(room.Desk) };
             s.pens[0] = Catalog.Pen(gm.Save.equipped) ?? Catalog.Pen(Catalog.StarterId);
             s.names[0] = OnlineServices.DisplayName(gm.Save);
+            int myLv = OnlineLevel.Level(gm.Save.onlineXp);
+            s.faces = new string[n];
+            s.levels = new int[n];
+            s.faces[0] = AvatarParts.MyCode(gm.Save);
+            s.levels[0] = myLv;
             for (int i = 1; i < n; i++)
             {
                 s.isBot[i] = true;
                 s.names[i] = BotName(r);
+                s.faces[i] = AvatarParts.Random(r).ToString();
+                s.levels[i] = Mathf.Max(1, myLv + r.Next(-3, 4));
                 var pen = Catalog.Pen(BotPens[r.Next(BotPens.Length)]);
                 for (int j = 0; j < i; j++)
                     if (pen.id == s.pens[j].id) { pen = pen.Recolor(Pal.H(i == 1 ? "#2A9D8F" : i == 2 ? "#C8414B" : "#7B5EA7"), Pal.H("#1F2A44")); break; }
@@ -127,9 +136,9 @@ namespace TuitionTakkar
                 gm.Save.marks -= s.feePaid;
                 gm.Save.Save();
             }
-            gm.UI.ShowScreen(Intro(s));
+            gm.UI.ShowScreen(VsScreen.Intro(s, true));
             _ = Friends.SetPresenceAsync(gm, "match", s.desk != null ? s.desk.name : "");
-            gm.UI.ScreenLayer.schedule.Execute(() => gm.StartMatch(s)).StartingIn(2200);
+            gm.UI.ScreenLayer.schedule.Execute(() => gm.StartMatch(s)).StartingIn(3600);
         }
 
         public static void Begin(GameManager gm, OnlineRoom room)
@@ -147,6 +156,14 @@ namespace TuitionTakkar
                 var p = room.Find(l.PlayerIdAt(i));
                 s.pens[i] = Catalog.Pen(OnlineRoom.PenOf(p));
                 s.names[i] = OnlineRoom.NameOf(p);
+            }
+            s.faces = new string[n];
+            s.levels = new int[n];
+            for (int i = 0; i < n; i++)
+            {
+                var p = room.Find(l.PlayerIdAt(i));
+                s.faces[i] = p != null ? OnlineRoom.FaceOf(p) : "";
+                s.levels[i] = p != null ? OnlineRoom.LevelOf(p) : 0;
             }
             // Same pen twice? Recolour the later one, identically on every phone.
             var recolours = new[] { ("#2A9D8F", "#16324F"), ("#C8414B", "#1F2A44"), ("#7B5EA7", "#4A3570") };
@@ -168,7 +185,7 @@ namespace TuitionTakkar
                 gm.Save.Save();
             }
 
-            gm.UI.ShowScreen(Intro(s));
+            gm.UI.ShowScreen(room.IsQuick ? VsScreen.Intro(s, false) : Intro(s));
             _ = Friends.SetPresenceAsync(gm, "match", s.desk != null ? s.desk.name : "");
             gm.UI.ScreenLayer.schedule.Execute(() =>
             {

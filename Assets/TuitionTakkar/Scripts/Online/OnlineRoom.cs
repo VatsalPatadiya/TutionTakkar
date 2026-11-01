@@ -81,6 +81,7 @@ namespace TuitionTakkar
         public static string NameOf(Player p) => PlayerData(p, "name", "Player");
         public static string PenOf(Player p) => PlayerData(p, "pen", Catalog.StarterId);
         public static string FaceOf(Player p) => PlayerData(p, "face", "");
+        public static int LevelOf(Player p) => int.TryParse(PlayerData(p, "lv", "0"), out int v) ? v : 0;
         /// <summary>The player can pay this room's entry fee ("1"), or not ("0").</summary>
         public static bool CanPay(Player p) => PlayerData(p, "ok", "1") == "1";
 
@@ -108,6 +109,7 @@ namespace TuitionTakkar
             { "name", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, OnlineServices.DisplayName(gm.Save)) },
             { "pen", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, gm.Save.equipped) },
             { "face", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, AvatarParts.MyCode(gm.Save)) },
+            { "lv", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, OnlineLevel.Level(gm.Save.onlineXp).ToString()) },
             { "ok", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, canPay ? "1" : "0") },
         });
 
