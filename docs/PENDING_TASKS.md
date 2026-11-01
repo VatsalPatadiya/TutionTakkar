@@ -72,9 +72,7 @@ Suggested order: **7 → 8 → 9 → 2 → 1 → 6 → avatars (3) → 4 → 5.*
 ### 2. Quick match: no player found → play a bot (medium)
 - **Now:** quick match waits for real players. The host may start with fewer after `OnlineRoom.QuickStartAfter` (45 s), but with only one player nothing starts.
 - **Do:** after about **20–25 s** with no opponent, start against a **bot** whose difficulty matches the **desk level**: easy on the first desks, harder on expensive ones. Reuse the existing ladder/practice bot (`MatchController` `BotTurn`, `setup.isBot`).
-- **Open questions for the owner (ask before building):**
-  1. Show it as a bot (a small "bot" tag), or disguise it as a classmate? My recommendation: show it, since the players are kids and paid desks are involved.
-  2. Entry fee against a bot: normal fee and prize, or refund the fee and give a smaller prize?
+- **Decided:** the bot is hidden (no tag, looks like a classmate) and the entry fee is not refunded (normal fee and prize).
 - **Done when:** a solo player on any desk always gets a match within about 25 s, the bot's difficulty follows the desk, and fees and pots behave as decided. It must work on web too.
 
 ### 1. Web quick match flow (medium)
@@ -156,15 +154,20 @@ Suggested order: **7 → 8 → 9 → 2 → 1 → 6 → avatars (3) → 4 → 5.*
 
 ---
 
-## 3. Open questions for the owner (ask first)
+## 3. Owner's decisions (1 Nov 2026), no need to ask again
 
-1. **Bot in quick match:** show a "bot" tag or hide it? Normal fee and prize, or refund?
-2. **"Doodle art":** redraw the avatars in black-ink doodle style, or a doodle look for the whole game?
-3. **Table depth:** visual 3D depth, or more space for 3–4 players?
-4. **Base URL:** full web home page, or redirect to `/play/`?
+1. **Bot in quick match:** the bot is **hidden**: it looks like a normal classmate, with no "bot" tag. The **entry fee is not refunded**; normal fee and prize. (Revisit if marks are ever sold for real money; disclosure rules may apply.)
+2. **"Doodle art":** use the **existing avatar set** in `ArtSource/avatar_parts/` (63 parts, style v2). No redraw.
+3. **Table depth:** for **3-4 player matches the desk is longer front-to-back** (more room between pens), and the camera adjusts so the whole desk fits. 2-player stays as it is. Physics must stay identical on every device.
+4. **Base web address:** a **full web home page** at `/`, and **every web screen has its own address**, with the browser back button working between them:
+   - `/` home
+   - `/play/quick` quick match
+   - `/play/room/ABC123` room
+   - `/play/result` result
+   - `/join/ABC123` invite stays as it is
 
----
+   Use the History API (pushState/popstate) through a small `.jslib`, plus Firebase rewrites so these addresses load the game page. Keep Unity's standard web page as is.
 
 ## 4. Prompt to start the new account
 
-> I'm continuing my Unity game Tuition Takkar. Please read `docs/PENDING_TASKS.md` first, then `docs/PROJECT_GUIDE.md`. Ask me the open questions in section 3, then work through the 9-point list in the suggested order (7 → 8 → 9 → 2 → 1 → 6 → 3 → 4 → 5). Show me mockups or before/after screenshots before changing any UI, keep the current UI style, commit to `main` after each finished task, and keep explanations simple. Never ask me to paste passwords or keys into chat.
+> I'm continuing my Unity game Tuition Takkar. Please read `docs/PENDING_TASKS.md` first, then `docs/PROJECT_GUIDE.md`. Follow the owner's decisions in section 3, then work through the 9-point list in the suggested order (7 → 8 → 9 → 2 → 1 → 6 → 3 → 4 → 5). Show me mockups or before/after screenshots before changing any UI, keep the current UI style, commit to `main` after each finished task, and keep explanations simple. Never ask me to paste passwords or keys into chat.
