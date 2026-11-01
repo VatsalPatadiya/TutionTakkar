@@ -99,8 +99,6 @@ namespace TuitionTakkar
         public const float CustomBudget = 1.84f;
         /// <summary>The power bar's full scale.</summary>
         public const float MaxPower = 2f;
-        /// <summary>Stat (0..1) to physics ranges, shared by every pen built from parts.</summary>
-        public const float MassMin = .0085f, MassMax = .0235f, FrictionMin = .18f, FrictionMax = .62f, DampingHigh = 1.25f, DampingLow = .5f;
 
         // ---------- one pen's parts ----------
 
@@ -180,9 +178,9 @@ namespace TuitionTakkar
                 hasClip = t.hasClip && p.cap != 2,
                 bounce = t.bounce,
                 // The same mapping the classic pens follow: weight -> mass, grip -> friction, spin -> less damping.
-                mass = Mathf.Lerp(MassMin, MassMax, st.weight),
-                friction = Mathf.Lerp(FrictionMin, FrictionMax, st.grip),
-                angularDamping = Mathf.Lerp(DampingHigh, DampingLow, st.spin),
+                mass = Mathf.Lerp(.0085f, .0235f, st.weight),
+                friction = Mathf.Lerp(.18f, .62f, st.grip),
+                angularDamping = Mathf.Lerp(1.25f, .5f, st.spin),
                 comOffset = Caps[Mathf.Clamp(p.cap, 0, Caps.Length - 1)].comOffset,
                 statWeight = st.weight,
                 statGrip = st.grip,

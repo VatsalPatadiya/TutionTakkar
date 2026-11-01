@@ -14,15 +14,11 @@ namespace TuitionTakkar
             pens = new PenDef[players];
             names = new string[players];
             isBot = new bool[players];
-            botProfiles = new BotProfile[players];
-            botIds = new string[players];
         }
 
         public int Players => pens.Length;
         /// <summary>3–4 player online match: one round, last pen standing.</summary>
         public bool IsParty => pens.Length > 2;
-        /// <summary>Any seat is a bot filling in for a missing online opponent (Quick Match fallback).</summary>
-        public bool HasBots => System.Array.Exists(isBot, b => b);
 
         public MatchMode mode;
         public RivalDef rival;           // ladder only
@@ -31,10 +27,6 @@ namespace TuitionTakkar
         public readonly PenDef[] pens;
         public readonly string[] names;
         public readonly bool[] isBot;
-        /// <summary>Online Quick Match fallback bots only: this seat's skill, null for every other seat.</summary>
-        public readonly BotProfile[] botProfiles;
-        /// <summary>Online Quick Match fallback bots only: this seat's synthetic room id ("bot:0"...), null otherwise.</summary>
-        public readonly string[] botIds;
         /// <summary>Online: which pen index is this phone's player (0 or 1).</summary>
         public int localIndex;
         /// <summary>Online: the room link that sends and receives shots. Null offline.</summary>
@@ -157,12 +149,8 @@ namespace TuitionTakkar
             Shooting = false;
             HoldPens(true);
             gm.UI.Hud.SetTurn(setup, shooter);
-            if (setup.isBot[shooter])
-            {
-                if (!Online || setup.net.Room.InCharge) StartCoroutine(BotTurn());
-                else turnTimer = StartCoroutine(RemoteTurn());
-            }
-            else if (Online && !LocalTurn) turnTimer = StartCoroutine(RemoteTurn());
+            if (Online && !LocalTurn) turnTimer = StartCoroutine(RemoteTurn());
+            else if (setup.isBot[shooter]) StartCoroutine(BotTurn());
             else
             {
                 gm.Input.Enable(gm.World.Pens[shooter], OnHumanShot);
@@ -236,8 +224,7 @@ namespace TuitionTakkar
         IEnumerator BotTurn()
         {
             yield return new WaitForSeconds(GameConfig.BotThinkMin);
-            var profile = setup.botProfiles[shooter] ?? setup.bot;
-            yield return PlanAndFire(FairBot(profile), false);
+            yield return PlanAndFire(FairBot(setup.bot), false);
         }
 
         /// <summary>
@@ -298,7 +285,6 @@ namespace TuitionTakkar
         {
             turnNo++;
             if (Online && LocalTurn) setup.net.SendShot(turnNo, shooter, gm.World, s);
-            else if (Online && setup.isBot[shooter] && setup.net.Room.InCharge) setup.net.SendBotShot(setup.botIds[shooter], turnNo, shooter, gm.World, s);
             shots++;
             lastPower = s.power;
             Shooting = true;
@@ -383,12 +369,10 @@ namespace TuitionTakkar
         /// </summary>
         IEnumerator SyncRest()
         {
-            bool botTurnMine = Online && setup.isBot[shooter] && setup.net.Room.InCharge;
-            if (LocalTurn || botTurnMine)
+            if (LocalTurn)
             {
                 var mine = OnlineLink.Capture(gm.World);
-                if (botTurnMine) setup.net.SendBotRest(setup.botIds[shooter], turnNo, shooter, mine);
-                else setup.net.SendRest(turnNo, shooter, mine);
+                setup.net.SendRest(turnNo, shooter, mine);
                 OnlineLink.Apply(gm.World, mine); // zero the leftover drift exactly like the other phone does
                 yield return new WaitForFixedUpdate();
                 yield break;

@@ -86,36 +86,6 @@ namespace TuitionTakkar
         /// <summary>The desk this room plays at (entry fee, rules, look).</summary>
         public DeskDef Desk => Desks.ById(Data("desk", "primary")) ?? Desks.All[0];
 
-        /// <summary>Quick Match bot seats, filled once real-player search times out. Decoded fresh
-        /// from Lobby Data each access, so every device sees the same roster the moment it refreshes.</summary>
-        public List<BotSeat> Bots => OnlineBot.DecodeAll(Data("bots", ""));
-
-        /// <summary>Fills every still-empty seat with a bot, sized to this desk's tier. Host-only,
-        /// Quick Match-only, and a no-op once a roster already exists.</summary>
-        public async Task FillWithBotsAsync()
-        {
-            if (!InCharge || !IsQuick || Playing || Bots.Count > 0) return;
-            int missing = Seats - Players.Count;
-            if (missing <= 0) return;
-            var seats = OnlineBot.PickSeats(missing, Desk.tier);
-            Lobby = await LobbyService.Instance.UpdateLobbyAsync(Lobby.Id, new UpdateLobbyOptions
-            {
-                Data = new Dictionary<string, DataObject> { { "bots", new DataObject(DataObject.VisibilityOptions.Member, OnlineBot.EncodeAll(seats)) } },
-            });
-            Changed?.Invoke();
-        }
-
-        /// <summary>Writes some of a bot's data (shots, results) into Lobby Data, since a bot has no
-        /// real Lobby player slot to write its own player data into.</summary>
-        public async Task SetBotDataAsync(string botId, Dictionary<string, string> values)
-        {
-            var data = new Dictionary<string, DataObject>();
-            foreach (var kv in values) data[botId + "_" + kv.Key] = new DataObject(DataObject.VisibilityOptions.Member, kv.Value);
-            Lobby = await LobbyService.Instance.UpdateLobbyAsync(Lobby.Id, new UpdateLobbyOptions { Data = data });
-        }
-
-        public string BotData(string botId, string key, string fallback = "") => Data(botId + "_" + key, fallback);
-
         public bool EveryoneCanPay
         {
             get
@@ -337,8 +307,6 @@ namespace TuitionTakkar
             if (!IsHost) return;
             var order = new List<string>();
             foreach (var p in Players) order.Add(p.Id);
-            var bots = Bots;
-            for (int i = 0; i < bots.Count; i++) order.Add(OnlineBot.BotId(i));
             Lobby = await LobbyService.Instance.UpdateLobbyAsync(Lobby.Id, new UpdateLobbyOptions
             {
                 IsLocked = true,

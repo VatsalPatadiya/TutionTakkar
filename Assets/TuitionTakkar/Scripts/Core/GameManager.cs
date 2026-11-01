@@ -208,8 +208,7 @@ namespace TuitionTakkar
         public void StartLadder(RivalDef rival)
         {
             var s = new MatchSetup { mode = MatchMode.Ladder, rival = rival, bot = rival.bot };
-            var basePen = PlayerPenForMatch();
-            s.pens[0] = PenVersions.Apply(basePen, PenVersions.CurrentVersion(Save, basePen.id));
+            s.pens[0] = PlayerPenForMatch();
             s.pens[1] = Catalog.Pen(rival.penId);
             // Mirror match? Give the rival a recoloured copy so the pens are easy to tell apart.
             if (s.pens[0].id == s.pens[1].id) s.pens[1] = s.pens[1].Recolor(Pal.H("#2A9D8F"), Pal.H("#16324F"));
@@ -223,8 +222,7 @@ namespace TuitionTakkar
         {
             level = Mathf.Clamp(level, 0, Catalog.PracticeBots.Length - 1);
             var s = new MatchSetup { mode = MatchMode.Practice, bot = Catalog.PracticeBots[level], practiceLevel = level };
-            var basePen = PlayerPenForMatch();
-            s.pens[0] = PenVersions.Apply(basePen, PenVersions.CurrentVersion(Save, basePen.id));
+            s.pens[0] = PlayerPenForMatch();
             s.pens[1] = Catalog.Pen(Catalog.StarterId).Recolor(Pal.H("#2A9D8F"), Pal.H("#16324F"));
             s.names[0] = "You";
             s.names[1] = Catalog.PracticeNames[level] + " bot";
