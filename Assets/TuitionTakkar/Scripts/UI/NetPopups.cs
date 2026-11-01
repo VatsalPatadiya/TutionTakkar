@@ -183,15 +183,26 @@ namespace TuitionTakkar
                 }
                 case Kind.Gear:
                 {
+                    // A real gear (8 flat teeth around a ring, hole in the middle), so it can't be read as a sun.
                     var c = new Vector2(w * 0.5f, h * 0.5f);
-                    p.lineWidth = w * 0.09f;
-                    p.BeginPath(); p.Arc(c, w * 0.16f, Deg(0), Deg(360)); p.ClosePath(); p.Stroke();
+                    p.lineWidth = w * 0.085f;
+                    p.lineJoin = LineJoin.Round;
+                    float ro = w * 0.43f, ri = w * 0.31f;
+                    p.BeginPath();
                     for (int i = 0; i < 8; i++)
                     {
-                        float a = i * 45f * Mathf.Deg2Rad;
-                        var d = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                        p.BeginPath(); p.MoveTo(c + d * w * 0.28f); p.LineTo(c + d * w * 0.42f); p.Stroke();
+                        float a0 = i * 45f;
+                        float[] ang = { a0 - 13f, a0 - 8f, a0 + 8f, a0 + 13f };
+                        float[] rad = { ri, ro, ro, ri };
+                        for (int k = 0; k < 4; k++)
+                        {
+                            float a = ang[k] * Mathf.Deg2Rad;
+                            var pt = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rad[k];
+                            if (i == 0 && k == 0) p.MoveTo(pt); else p.LineTo(pt);
+                        }
                     }
+                    p.ClosePath(); p.Stroke();
+                    p.BeginPath(); p.Arc(c, w * 0.12f, Deg(0), Deg(360)); p.ClosePath(); p.Stroke();
                     break;
                 }
                 case Kind.People:

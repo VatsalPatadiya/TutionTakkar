@@ -36,6 +36,7 @@ namespace TuitionTakkar
         float power;
         Vector3 dir;
         int lastStep;
+        int lastHapticStep; // 0..10, one tick per 10% of power
 
         public bool Enabled => pen != null;
 
@@ -129,6 +130,7 @@ namespace TuitionTakkar
             power = 0f;
             dir = Vector3.zero;
             lastStep = 0;
+            lastHapticStep = 0;
             UpdateVisual(screen, e.position);
             e.StopPropagation();
         }
@@ -157,6 +159,9 @@ namespace TuitionTakkar
                 if (step > lastStep) GameEvents.RaiseAimStep(step);
                 lastStep = step;
             }
+            int hStep = Mathf.FloorToInt(power * 10f + 0.0001f);
+            if (hStep > lastHapticStep) Haptics.Stretch(hStep);
+            lastHapticStep = hStep;
             UpdateVisual(screen, e.position);
         }
 

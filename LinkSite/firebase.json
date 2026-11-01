@@ -10,6 +10,18 @@
       {
         "source": "/join/**",
         "destination": "/join.html"
+      },
+      {
+        "source": "/play/quick",
+        "destination": "/play/index.html"
+      },
+      {
+        "source": "/play/room/**",
+        "destination": "/play/index.html"
+      },
+      {
+        "source": "/play/result",
+        "destination": "/play/index.html"
       }
     ],
     "headers": [
@@ -24,6 +36,24 @@
       },
       {
         "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/play/@(quick|result)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/play/room/**",
         "headers": [
           {
             "key": "Cache-Control",

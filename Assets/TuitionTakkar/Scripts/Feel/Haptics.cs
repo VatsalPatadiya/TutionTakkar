@@ -85,6 +85,19 @@ namespace TuitionTakkar
         }
 
         public static void AimTick() => Pulse(8, 90);
+
+        static float lastStretch;
+        /// <summary>
+        /// While pulling the pen back: one tick per 10% of power (step 1..10), longer and
+        /// stronger as the pull grows, and a firm bump at full power. Spaced at least 35 ms apart.
+        /// </summary>
+        public static void Stretch(int step)
+        {
+            if (step >= 10) { Pulse(28, 230); lastStretch = Time.unscaledTime; return; }
+            if (Time.unscaledTime - lastStretch < 0.035f) return;
+            lastStretch = Time.unscaledTime;
+            Pulse(10 + step, 70 + step * 14);
+        }
         public static void Release(float power) => Pulse(10 + (int)(power * 6f), 120 + (int)(power * 80f));
         public static void Clack(float speed) { if (speed > 0.45f) Pulse(9, 180); }
         public static void Fall() => Pulse(40, 255, true);

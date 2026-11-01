@@ -22,7 +22,7 @@ namespace TuitionTakkar.EditorTools
         {
             Directory.CreateDirectory("Builds");
             File.WriteAllText(Info, "building...");
-            PlayerSettings.WebGL.template = "APPLICATION:Default";   // Unity's standard page (loading bar, fullscreen button)
+            PlayerSettings.WebGL.template = "PROJECT:TTStd";   // Unity's standard page, plus <base href="/play/"> so /play/room/ABC123 works
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;

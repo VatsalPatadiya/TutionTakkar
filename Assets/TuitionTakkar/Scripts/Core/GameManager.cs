@@ -118,8 +118,7 @@ namespace TuitionTakkar
             };
             GameEvents.AimStep += step =>
             {
-                Audio.AimTick(step);
-                Haptics.AimTick();
+                Audio.AimTick(step); // the buzz while pulling is Haptics.Stretch (FlickInput)
             };
         }
 
