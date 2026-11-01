@@ -27,6 +27,7 @@ namespace TuitionTakkar.EditorTools
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.nameFilesAsHashes = true;   // new file names every build, so browsers never mix versions
+            PlayerSettings.runInBackground = true;         // keep playing when the browser window loses focus (a hidden tab still pauses)
             var scenes = new System.Collections.Generic.List<string>();
             foreach (var s in EditorBuildSettings.scenes) if (s.enabled) scenes.Add(s.path);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions

@@ -58,12 +58,22 @@ namespace TuitionTakkar
             sb.Append(MatchId).Append('|').Append(turn).Append('|').Append(shooter).Append('|')
               .Append(EncodePens(Capture(world))).Append('|')
               .Append(F(s.strikeT)).Append('|').Append(F(s.dir.x)).Append('|').Append(F(s.dir.z)).Append('|').Append(F(s.power));
-            Send("shot", sb.ToString());
+            SendTurn("shot", turn, sb.ToString());
         }
+
+        /// <summary>
+        /// Shots and rests go in the usual key (older apps read that) and also in a slot by turn
+        /// number, so a slower phone (often the web) can still read turn N after turn N+1 was sent,
+        /// for example when the next round starts with the same shooter.
+        /// </summary>
+        void SendTurn(string key, int turn, string value) =>
+            Send(new Dictionary<string, string> { { key, value }, { key + (turn % TurnSlots), value } }, key);
+
+        const int TurnSlots = 3;
 
         public void SendRest(int turn, int shooter, NetPen[] pens)
         {
-            Send("rest", MatchId + "|" + turn + "|" + shooter + "|" + EncodePens(pens));
+            SendTurn("rest", turn, MatchId + "|" + turn + "|" + shooter + "|" + EncodePens(pens));
         }
 
         public void SendQuit() => Send("quit", MatchId);
@@ -116,7 +126,9 @@ namespace TuitionTakkar
         public bool NetFailing { get; private set; }
 
         /// <summary>Keeps retrying for as long as the connection-lost popup allows (about 40 s).</summary>
-        async void Send(string key, string value)
+        void Send(string key, string value) => Send(new Dictionary<string, string> { { key, value } }, key);
+
+        async void Send(Dictionary<string, string> values, string key)
         {
             float start = Time.realtimeSinceStartup;
             int attempt = 0;
@@ -125,7 +137,7 @@ namespace TuitionTakkar
                 attempt++;
                 try
                 {
-                    await Room.SetMyDataAsync(new Dictionary<string, string> { { key, value } });
+                    await Room.SetMyDataAsync(values);
                     NetFailing = false;
                     return;
                 }
@@ -144,8 +156,8 @@ namespace TuitionTakkar
         {
             pens = null;
             shot = default;
-            var parts = Read("shot", shooter);
-            if (parts == null || parts.Length < 8 || parts[1] != turn.ToString()) return false;
+            var parts = ReadTurn("shot", shooter, turn);
+            if (parts == null || parts.Length < 8) return false;
             pens = DecodePens(parts[3]);
             if (pens == null) return false;
             float dx = P(parts[5]), dz = P(parts[6]);
@@ -156,10 +168,25 @@ namespace TuitionTakkar
         public bool TryGetRest(int turn, int shooter, out NetPen[] pens)
         {
             pens = null;
-            var parts = Read("rest", shooter);
-            if (parts == null || parts.Length < 4 || parts[1] != turn.ToString()) return false;
+            var parts = ReadTurn("rest", shooter, turn);
+            if (parts == null || parts.Length < 4) return false;
             pens = DecodePens(parts[3]);
             return pens != null;
+        }
+
+        /// <summary>This turn's message: the latest one, or (if a newer turn already replaced it) its turn slot.</summary>
+        string[] ReadTurn(string key, int index, int turn)
+        {
+            string t = turn.ToString();
+            var parts = Read(key, index);
+            if (parts != null && parts.Length > 1 && parts[1] == t) return parts;
+            var slot = Read(key + (turn % TurnSlots), index);
+            if (slot != null && slot.Length > 1 && slot[1] == t)
+            {
+                Debug.Log("[TuitionTakkar] online: read " + key + " for turn " + turn + " from its slot (a newer one was already sent)");
+                return slot;
+            }
+            return null;
         }
 
         /// <summary>A message from this match by the player at that pen index, split on '|'.</summary>

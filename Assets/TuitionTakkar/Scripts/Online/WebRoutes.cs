@@ -18,11 +18,13 @@ namespace TuitionTakkar
         [DllImport("__Internal")] static extern void TT_WebInit();
         [DllImport("__Internal")] static extern void TT_WebGo(string path, int replace);
         [DllImport("__Internal")] static extern int TT_WebBackCount();
+        [DllImport("__Internal")] static extern int TT_WebShownCount();
         public const bool On = true;
 #else
         static void TT_WebInit() { }
         static void TT_WebGo(string path, int replace) { }
         static int TT_WebBackCount() => 0;
+        static int TT_WebShownCount() => 0;
         public const bool On = false;
 #endif
         public const string PlayStore = "https://play.google.com/store/apps/details?id=com.unitygame.tuitiontakkar";
@@ -82,6 +84,13 @@ namespace TuitionTakkar
         /// <summary>The browser's back button was pressed.</summary>
         static void Poll()
         {
+            // The tab was hidden (browsers pause the game) and is visible again: catch up with the room now.
+            if (TT_WebShownCount() > 0)
+            {
+                Debug.Log("[TuitionTakkar] web: tab visible again, resyncing the room");
+                OnlineMatch.OnResume();
+                OnlineRoom.Current?.OnResume();
+            }
             if (TT_WebBackCount() <= 0) return;
             if (gm.Match != null && gm.Match.Running)
             {
