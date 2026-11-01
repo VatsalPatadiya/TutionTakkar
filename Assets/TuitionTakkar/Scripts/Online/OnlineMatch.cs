@@ -55,6 +55,83 @@ namespace TuitionTakkar
             try { await l.Room.LeaveAsync(); } catch (Exception) { }
         }
 
+        // =====================================================================
+        // Quick Match with nobody else around: classmates played by the computer
+        // =====================================================================
+
+        /// <summary>Quick Match, still alone after this long: the empty seats are filled by computer classmates.</summary>
+        public const float BotFillAfter = 25f;
+
+        static readonly string[] BotNames =
+        {
+            "Aarav", "Riya", "Kabir", "Ishaan", "Ananya", "Vihaan", "Diya", "Arjun", "Meera", "Rohan", "Sara", "Kunal",
+            "Neha", "Yash", "Tanvi", "Aditya", "Pooja", "Dev", "Isha", "Karan", "Zoya", "Aryan", "Nisha", "Om",
+        };
+        static readonly string[] BotPens = { Catalog.StarterId, "zippy07", "trigrip", "steel", "gelglide" };
+
+        /// <summary>A name that looks like any other player's: a guest ID or a nickname.</summary>
+        static string BotName(System.Random r)
+        {
+            if (r.NextDouble() < 0.45)
+            {
+                const string chars = "abcdefghijkmnpqrstuvwxyz23456789";
+                var sb = new System.Text.StringBuilder(OnlineServices.GuestPrefix);
+                for (int i = 0; i < 6; i++) sb.Append(chars[r.Next(chars.Length)]);
+                return sb.ToString();
+            }
+            string n = BotNames[r.Next(BotNames.Length)];
+            int style = r.Next(4);
+            return style == 0 ? n : style == 1 ? n + r.Next(1, 99) : style == 2 ? n + "_" + r.Next(2008, 2016) : n.ToLowerInvariant() + r.Next(10, 999);
+        }
+
+        /// <summary>Easy on the first desks, close to the "Hard" practice bot on the most expensive ones.</summary>
+        static BotProfile BotFor(DeskDef d)
+        {
+            float t = d == null ? 0f : Mathf.Clamp01(d.index / (float)Mathf.Max(1, Desks.All.Count - 1));
+            var a = Catalog.PracticeBots[0];
+            var b = Catalog.PracticeBots[2];
+            return new BotProfile(
+                Mathf.Lerp(a.aimNoiseDeg, b.aimNoiseDeg, t), Mathf.Lerp(a.powerNoise, b.powerNoise, t),
+                Mathf.Lerp(a.caution, b.caution, t), Mathf.Lerp(a.aggression, b.aggression, t), Mathf.Lerp(a.mistakeChance, b.mistakeChance, t));
+        }
+
+        /// <summary>
+        /// Leaves the empty Quick Match room and starts the same desk, fee and pot against computer
+        /// classmates that look like real players (owner's decision: no bot label, fee is paid as usual).
+        /// </summary>
+        public static void BeginWithBots(GameManager gm, OnlineRoom room)
+        {
+            link?.Detach();
+            link = null;
+            DropReactions();
+            int n = Mathf.Clamp(room.Seats, 2, MaxPlayers);
+            var r = new System.Random();
+            var s = new MatchSetup(n) { mode = MatchMode.Online, localIndex = 0, net = null, desk = room.Desk, bot = BotFor(room.Desk) };
+            s.pens[0] = Catalog.Pen(gm.Save.equipped) ?? Catalog.Pen(Catalog.StarterId);
+            s.names[0] = OnlineServices.DisplayName(gm.Save);
+            for (int i = 1; i < n; i++)
+            {
+                s.isBot[i] = true;
+                s.names[i] = BotName(r);
+                var pen = Catalog.Pen(BotPens[r.Next(BotPens.Length)]);
+                for (int j = 0; j < i; j++)
+                    if (pen.id == s.pens[j].id) { pen = pen.Recolor(Pal.H(i == 1 ? "#2A9D8F" : i == 2 ? "#C8414B" : "#7B5EA7"), Pal.H("#1F2A44")); break; }
+                s.pens[i] = pen;
+            }
+            LastMatchId = "bots-" + r.Next();
+            _ = room.LeaveAsync();
+
+            s.feePaid = Mathf.Clamp(s.desk.fee, 0, gm.Save.marks);
+            if (s.feePaid > 0)
+            {
+                gm.Save.marks -= s.feePaid;
+                gm.Save.Save();
+            }
+            gm.UI.ShowScreen(Intro(s));
+            _ = Friends.SetPresenceAsync(gm, "match", s.desk != null ? s.desk.name : "");
+            gm.UI.ScreenLayer.schedule.Execute(() => gm.StartMatch(s)).StartingIn(2200);
+        }
+
         public static void Begin(GameManager gm, OnlineRoom room)
         {
             link?.Detach();

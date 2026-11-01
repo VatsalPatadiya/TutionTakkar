@@ -224,6 +224,8 @@ namespace TuitionTakkar
         IEnumerator BotTurn()
         {
             yield return new WaitForSeconds(GameConfig.BotThinkMin);
+            // Quick Match classmates played by the computer: think like a person would.
+            if (setup.mode == MatchMode.Online) yield return new WaitForSeconds(UnityEngine.Random.Range(1.2f, 3.8f));
             yield return PlanAndFire(FairBot(setup.bot), false);
         }
 

@@ -558,6 +558,16 @@ namespace TuitionTakkar
             };
             room.Changed += onChange;
             room.Ended += onEnd;
+            // Quick Match and still nobody else after a while: computer classmates take the empty seats.
+            if (room.IsQuick)
+                root.schedule.Execute(() =>
+                {
+                    if (started || root.panel == null || room.Closed || room.Playing || room.Players.Count > 1) return;
+                    if (Time.realtimeSinceStartup - room.JoinedAt < OnlineMatch.BotFillAfter) return;
+                    if (Desks.Check(gm.Save, room.Desk, true) != Desks.Block.None) return;
+                    started = true;
+                    OnlineMatch.BeginWithBots(gm, room);
+                }).Every(1000);
             root.RegisterCallback<DetachFromPanelEvent>(_ =>
             {
                 room.Changed -= onChange;
