@@ -100,7 +100,7 @@ namespace TuitionTakkar
                 {
                     s.marginTop = 12; UIKit.Pad(s, 10, 14, 10, 14); UIKit.Radius(s, 14); UIKit.Border(s, 2f, Pal.H("#4E6670"));
                 });
-                next.Add(UIKit.Avatar(m.nextRival.initial, m.nextRival.avatar, 40f));
+                next.Add(Faces.Avatar(AvatarParts.RivalCode(m.nextRival), m.nextRival.initial, m.nextRival.avatar, 44f));
                 var nc = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
                 nc.Add(UIKit.Strong("Next: " + m.nextRival.name, 15f, Color.white),
                     UIKit.Plain(Ladder.BatchName(Ladder.BatchOf(gm.Save.ladderIndex)) + " · rival " + (Ladder.PosInBatch(gm.Save.ladderIndex) + 1) + " of " + Ladder.PerBatch

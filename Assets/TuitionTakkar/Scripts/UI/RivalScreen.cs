@@ -40,11 +40,11 @@ namespace TuitionTakkar
 
             var vs = UIKit.Row().St(s => s.justifyContent = Justify.SpaceAround);
             string me = OnlineServices.HasAccount(save) ? OnlineServices.DisplayName(save) : "You";
-            vs.Add(Person(me, myPen.name, me.Substring(0, 1).ToUpperInvariant(), Pal.Yellow));
+            vs.Add(Person(me, myPen.name, me.Substring(0, 1).ToUpperInvariant(), Pal.Yellow, AvatarParts.MyCode(gm.Save)));
             var vsLabel = UIKit.Disp("VS", 40f, Pal.Red, TextAnchor.MiddleCenter);
             UIKit.Rot(vsLabel, -6f);
             vs.Add(vsLabel);
-            vs.Add(Person(rival.name, theirPen.name, rival.initial, rival.avatar));
+            vs.Add(Person(rival.name, theirPen.name, rival.initial, rival.avatar, AvatarParts.RivalCode(rival)));
             card.Add(vs);
 
             var pens = UIKit.Col().St(s => { s.alignItems = Align.Center; s.marginTop = 18; });
@@ -114,10 +114,10 @@ namespace TuitionTakkar
             return row;
         }
 
-        static VisualElement Person(string name, string pen, string initial, Color c)
+        static VisualElement Person(string name, string pen, string initial, Color c, string face = null)
         {
             var col = UIKit.Col().St(s => { s.alignItems = Align.Center; s.width = 110; });
-            col.Add(UIKit.Avatar(initial, c));
+            col.Add(Faces.Avatar(face, initial, c, 72f));
             col.Add(UIKit.Strong(name, 15f, Pal.Ink, TextAnchor.MiddleCenter).St(s => s.marginTop = 6));
             col.Add(UIKit.Plain(pen, 13f, Pal.InkSoft, TextAnchor.MiddleCenter));
             return col;

@@ -164,6 +164,9 @@ namespace TuitionTakkar
             UI.ShowScreen(HomeScreen.Build(this));
             DeepLinks.OnHomeShown();
             FriendsUI.ShowQueued(this);
+            // First visit: show the player the face we drew them (once), unless another pop-up is up.
+            if (!Save.faceIntroSeen)
+                UI.ScreenLayer.schedule.Execute(() => { if (UI.OverlayLayer.childCount == 0 && !Match.Running) FaceEditor.MaybeIntro(this); }).StartingIn(900);
         }
 
         public void ShowRival()

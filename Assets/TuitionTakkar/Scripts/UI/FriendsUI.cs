@@ -103,7 +103,9 @@ namespace TuitionTakkar
         static VisualElement AvatarStatus(string name, string playerId, Friends.State? st, float size = 42f)
         {
             var holder = UIKit.El().St(s => { s.width = size; s.height = size; s.flexShrink = 0; });
-            holder.Add(UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(playerId), size));
+            var av = UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(playerId), size);
+            Faces.ForPlayer(av, playerId);
+            holder.Add(av);
             if (st.HasValue)
                 holder.Add(UIKit.El().St(s =>
                 {
@@ -378,7 +380,7 @@ namespace TuitionTakkar
                 var p = await ProfileCloud.LoadAsync(pid);
                 string name = p != null ? p.name : "Player";
                 var card = UIKit.Row().St(s => { s.marginTop = 14; s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 14); });
-                card.Add(UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(pid), 54f));
+                card.Add(Faces.Avatar(p?.face, ProfileScreens.Initial(name), OnlineScreens.AvatarColor(pid), 54f));
                 var c = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
                 c.Add(UIKit.Disp(name.ToUpperInvariant(), 20f, Pal.Ink));
                 var cr = UIKit.Row().St(s => s.marginTop = 4);
@@ -570,7 +572,9 @@ namespace TuitionTakkar
         static VisualElement Who(string id, string name, string line)
         {
             var top = UIKit.Row().St(s => s.marginTop = 8);
-            top.Add(UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(id), 54f));
+            var wav = UIKit.Avatar(ProfileScreens.Initial(name), OnlineScreens.AvatarColor(id), 54f);
+            Faces.ForPlayer(wav, id);
+            top.Add(wav);
             var who = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; });
             who.Add(UIKit.Disp(name.ToUpperInvariant(), 22f, Pal.Ink));
             who.Add(UIKit.HandText(line, 17f, Pal.BenchText));
@@ -639,7 +643,9 @@ namespace TuitionTakkar
                 s.alignSelf = Align.Center; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 4, 14, 4, 14); s.marginTop = -30; s.letterSpacing = 1f;
             }));
             var top = UIKit.Row().St(s => s.marginTop = 8);
-            top.Add(UIKit.Avatar(ProfileScreens.Initial(inv.from), OnlineScreens.AvatarColor(inv.fromId), 54f));
+            var iav = UIKit.Avatar(ProfileScreens.Initial(inv.from), OnlineScreens.AvatarColor(inv.fromId), 54f);
+            Faces.ForPlayer(iav, inv.fromId);
+            top.Add(iav);
             var who = UIKit.Col().St(s => s.marginLeft = 12);
             who.Add(UIKit.Disp(inv.from.ToUpperInvariant(), 22f, Pal.Ink));
             who.Add(UIKit.HandText("saved you a seat!", 17f, Pal.BenchText));

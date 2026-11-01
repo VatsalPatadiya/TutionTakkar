@@ -51,6 +51,14 @@ namespace TuitionTakkar
         /// <summary>Permanent player ID for friends (TT-XXXXXX), from Cloud Code. Google players only.</summary>
         public string friendId = "";
 
+        // ---------- face avatar ----------
+        /// <summary>My face code (AvatarParts). Empty = my default random face.</summary>
+        public string face = "";
+        /// <summary>Face parts and colours bought with marks (ids like "hair_03" or "color:hairc:6").</summary>
+        public List<string> faceOwned = new List<string>();
+        /// <summary>The one-time "this is you! make your face" sheet has been shown.</summary>
+        public bool faceIntroSeen;
+
         // ---------- reminders ----------
         /// <summary>Settings switch for the 7 PM reminders.</summary>
         public bool remindersOn = true;

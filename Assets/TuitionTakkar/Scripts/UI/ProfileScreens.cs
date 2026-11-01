@@ -75,10 +75,10 @@ namespace TuitionTakkar
         }
 
         /// <summary>The level number on a small blue disc at the avatar's corner.</summary>
-        static VisualElement AvatarWithLevel(string initial, Color bg, float size, int level, Color edge)
+        static VisualElement AvatarWithLevel(string initial, Color bg, float size, int level, Color edge, string face = null)
         {
             var holder = UIKit.El().St(s => { s.width = size; s.height = size; s.flexShrink = 0; });
-            holder.Add(UIKit.Avatar(initial, bg, size));
+            holder.Add(Faces.Avatar(face, initial, bg, size));
             if (level > 0)
             {
                 float d = Mathf.Round(size * 0.4f);
@@ -208,7 +208,15 @@ namespace TuitionTakkar
             });
             var top = UIKit.Row();
             string name = OnlineServices.DisplayName(save);
-            top.Add(AvatarWithLevel(Initial(name), Pal.Yellow, 76f, lv, Pal.Night));
+            var mine = AvatarWithLevel(Initial(name), Pal.Yellow, 76f, lv, Pal.Night, AvatarParts.MyCode(save));
+            // A small pencil on my face: tap to change it.
+            mine.Add(UIKit.Strong("EDIT", 10f, Pal.Ink, TextAnchor.MiddleCenter).St(s =>
+            {
+                s.position = Position.Absolute; s.left = -4; s.bottom = -4; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 2, 6, 2, 6); UIKit.Radius(s, 8);
+                UIKit.Border(s, 2f, Pal.Night);
+            }));
+            mine.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); FaceEditor.Show(gm, () => ShowProfile(gm, back)); });
+            top.Add(mine);
             var who = UIKit.Col().St(s => { s.marginLeft = 14; s.flexShrink = 1; });
             who.Add(UIKit.Disp(name.ToUpperInvariant(), 26f, Color.white));
             string title = Badges.Title(save);
@@ -679,7 +687,7 @@ namespace TuitionTakkar
             }
             bool guest = p == null;
             var top = UIKit.Row();
-            top.Add(AvatarWithLevel(Initial(name), guest ? Pal.H("#C6E3B4") : OnlineScreens.AvatarColor(playerId), 60f, guest ? 0 : p.level, Pal.Paper));
+            top.Add(AvatarWithLevel(Initial(name), guest ? Pal.H("#C6E3B4") : OnlineScreens.AvatarColor(playerId), 60f, guest ? 0 : p.level, Pal.Paper, guest ? null : p.face));
             var who = UIKit.Col().St(s => { s.marginLeft = 12; s.flexShrink = 1; s.flexGrow = 1; });
             who.Add(UIKit.Disp(name.ToUpperInvariant(), 24f, Pal.Ink));
             var chips = UIKit.Row().St(s => s.marginTop = 5);

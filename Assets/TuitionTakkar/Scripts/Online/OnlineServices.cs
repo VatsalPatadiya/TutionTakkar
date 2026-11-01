@@ -186,6 +186,7 @@ namespace TuitionTakkar
             public string name;
             public int wins;
             public bool me;
+            public string id;    // player id (for their face)
         }
 
         /// <summary>
@@ -255,6 +256,7 @@ namespace TuitionTakkar
             name = Clean(e.PlayerName),
             wins = (int)e.Score,
             me = SignedIn && e.PlayerId == Auth.PlayerId,
+            id = e.PlayerId,
         };
 
         /// <summary>A short, friendly message for an exception from any online call.</summary>

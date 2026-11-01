@@ -27,7 +27,7 @@ namespace TuitionTakkar
             var sizesType = asm.GetType("UnityEditor.GameViewSizes");
             var single = typeof(ScriptableSingleton<>).MakeGenericType(sizesType);
             var sizes = single.GetProperty("instance").GetValue(null);
-            var group = sizesType.GetMethod("GetGroup").Invoke(sizes, new object[] { (int)GameViewSizeGroupType.Android });
+            var group = sizesType.GetProperty("currentGroup").GetValue(sizes); // the active platform (Android or Web)
             var gType = group.GetType();
             int total = (int)gType.GetMethod("GetTotalCount").Invoke(group, null);
             int index = -1;

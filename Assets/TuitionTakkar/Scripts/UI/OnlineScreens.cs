@@ -301,7 +301,7 @@ namespace TuitionTakkar
                 var pair = UIKit.Row(Align.Stretch).St(s => { s.justifyContent = Justify.SpaceBetween; s.marginBottom = 16; });
                 var me = UIKit.Row().St(s => { s.width = Length.Percent(48.5f); s.height = 64; s.backgroundColor = Pal.Paper; UIKit.Radius(s, 16); UIKit.Pad(s, 0, 10, 0, 10); s.borderBottomWidth = 4; s.borderBottomColor = new Color(0.12f, 0.16f, 0.27f, 0.12f); });
                 var av = UIKit.El().St(s => { s.width = 42; s.height = 42; s.flexShrink = 0; });
-                av.Add(UIKit.Avatar(ProfileScreens.Initial(OnlineServices.DisplayName(save)), Pal.Yellow, 42f));
+                av.Add(Faces.Mine(save, ProfileScreens.Initial(OnlineServices.DisplayName(save)), 42f));
                 var lvd = UIKit.El().St(s => { s.position = Position.Absolute; s.right = -5; s.bottom = -4; s.width = 22; s.height = 22; UIKit.Radius(s, 11); s.backgroundColor = Pal.Pouch; UIKit.Border(s, 2f, Pal.Paper); s.alignItems = Align.Center; s.justifyContent = Justify.Center; });
                 lvd.Add(UIKit.Disp(lvl.ToString(), 11f, Color.white, TextAnchor.MiddleCenter));
                 av.Add(lvd);
@@ -756,7 +756,7 @@ namespace TuitionTakkar
                 s.backgroundColor = dark ? new Color(1, 1, 1, 0.1f) : Color.white;
                 if (me) UIKit.Border(s, 2f, Pal.Yellow);
             });
-            row.Add(UIKit.Avatar(Initial(name), AvatarColor(p.Id), 36f));
+            row.Add(Faces.Avatar(OnlineRoom.FaceOf(p), Initial(name), AvatarColor(p.Id), 40f));
             var col = UIKit.Col().St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; });
             var nr = UIKit.Row();
             nr.Add(UIKit.Strong(name + (me ? " (you)" : ""), 15f, dark ? Color.white : Pal.Ink));
@@ -929,7 +929,9 @@ namespace TuitionTakkar
                 var colour = i == 0 ? Pal.H("#E6B422") : i == 1 ? Pal.H("#B7C0C7") : Pal.H("#C8875A");
                 var col = UIKit.Col().St(s => { s.width = Length.Percent(32); s.alignItems = Align.Center; });
                 if (i == 0) col.Add(new LineIcon(LineIcon.Kind.Trophy, 26f, 26f, Pal.H("#C99A12")).St(s => s.marginBottom = 2));
-                col.Add(UIKit.Avatar(Initial(r.name), r.me ? Pal.Yellow : Pal.Sky, i == 0 ? 60f : 50f).St(s => UIKit.Border(s, 3f, colour)));
+                var pav = UIKit.Avatar(Initial(r.name), r.me ? Pal.Yellow : Pal.Sky, i == 0 ? 60f : 50f).St(s => UIKit.Border(s, 3f, colour));
+                Faces.ForPlayer(pav, r.id);
+                col.Add(pav);
                 col.Add(UIKit.Strong(r.name, 13f, Pal.Ink, TextAnchor.MiddleCenter).St(s => { s.marginTop = 4; s.overflow = Overflow.Hidden; s.maxWidth = Length.Percent(100); }));
                 col.Add(UIKit.Strong(r.wins + " wins", 12f, Pal.InkSoft, TextAnchor.MiddleCenter));
                 var step = UIKit.Col().St(s =>
@@ -954,7 +956,9 @@ namespace TuitionTakkar
                 });
                 var medal = r.rank == 1 ? Pal.H("#E6B422") : r.rank == 2 ? Pal.H("#B7C0C7") : r.rank == 3 ? Pal.H("#C8875A") : Pal.InkSoft;
                 row.Add(UIKit.Disp("#" + r.rank, 20f, medal).St(s => s.width = 54));
-                row.Add(UIKit.Avatar(Initial(r.name), r.me ? Color.white : Pal.Sky, 32f));
+                var rav = UIKit.Avatar(Initial(r.name), r.me ? Color.white : Pal.Sky, 34f);
+                if (r.rank <= 20 || r.me) Faces.ForPlayer(rav, r.id); // faces for the top of the board (one profile each)
+                row.Add(rav);
                 row.Add(UIKit.Strong(r.name, 15f, Pal.Ink).St(s => { s.marginLeft = 10; s.flexGrow = 1; s.flexShrink = 1; }));
                 row.Add(UIKit.Disp(r.wins.ToString(), 22f, Pal.Ink));
                 row.Add(UIKit.Strong(" WINS", 10f, Pal.InkSoft));

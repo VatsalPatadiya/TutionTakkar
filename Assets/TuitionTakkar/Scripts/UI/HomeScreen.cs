@@ -29,7 +29,9 @@ namespace TuitionTakkar
             var prof = UIKit.Row();
             bool account = OnlineServices.HasAccount(save);
             string who = account ? OnlineServices.DisplayName(save) : "Guest";
-            prof.Add(UIKit.Avatar(who.Substring(0, 1).ToUpperInvariant(), Pal.Yellow, 38f));
+            var me = Faces.Mine(save, who.Substring(0, 1).ToUpperInvariant(), 44f);
+            me.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); FaceEditor.Show(gm); });
+            prof.Add(me);
             var pcol = UIKit.Col().St(s => s.marginLeft = 10);
             pcol.Add(UIKit.Strong(who, 15f, Color.white));
             var signIn = UIKit.Btn(account ? "Online" : "Sign in", () => gm.ShowOnline(), Pal.H("#3E7CB1"), Color.white, UIKit.BodyBold, 11f, 22f, 11f);
@@ -89,7 +91,7 @@ namespace TuitionTakkar
             var lrow = UIKit.Row().St(s => s.justifyContent = Justify.SpaceBetween);
             var r = save.CurrentRival;
             int lp = Ladder.PosInBatch(save.ladderIndex);
-            lrow.Add(UIKit.Avatar(r.initial, r.avatar, 50f));
+            lrow.Add(Faces.Avatar(AvatarParts.RivalCode(r), r.initial, r.avatar, 52f));
             var lcol = UIKit.Col().St(s => { s.flexGrow = 1; s.flexShrink = 1; s.marginLeft = 10; s.marginRight = 8; });
             lcol.Add(UIKit.Disp("BATCH LADDER", 24f, Pal.Ink));
             var nx = UIKit.Row();

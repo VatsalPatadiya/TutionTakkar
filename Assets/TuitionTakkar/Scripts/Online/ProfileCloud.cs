@@ -16,6 +16,7 @@ namespace TuitionTakkar
         public int level, played, won, bestStreak, knockOffs, flawless;
         public int highestTier = -1;
         public string pen = "";
+        public string face = "";
         public int[] badgeIds = new int[0];
         public int[] badgeTiers = new int[0];
         public string friendId = "";
@@ -47,6 +48,7 @@ namespace TuitionTakkar
                 played = st.played, won = st.won, bestStreak = st.bestStreak, knockOffs = st.knockOffs, flawless = st.flawless,
                 highestTier = st.HighestTierWon,
                 pen = ProfileScreens.ShowcasePen(s).id,
+                face = AvatarParts.MyCode(s),
                 badgeIds = top.ConvertAll(x => x.i).ToArray(),
                 badgeTiers = top.ConvertAll(x => x.t).ToArray(),
             };
