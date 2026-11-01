@@ -12,6 +12,10 @@ namespace TuitionTakkar
     {
         public static readonly string[] Codes = { "nice", "close", "oops", "gg" };
         public static readonly string[] Texts = { "Nice shot!", "So close!", "Oops", "GG" };
+        /// <summary>Emoji stickers (drawn, not system emojis). Older apps don't know these codes and simply ignore them.</summary>
+        public static readonly string[] EmojiCodes = { "e_laugh", "e_wow", "e_cry", "e_angry", "e_thumb", "e_fire" };
+        static readonly DoodleIcon.Kind[] EmojiKinds =
+            { DoodleIcon.Kind.Laugh, DoodleIcon.Kind.Wow, DoodleIcon.Kind.Cry, DoodleIcon.Kind.Angry, DoodleIcon.Kind.ThumbsUp, DoodleIcon.Kind.Fire };
         const float Cooldown = 3f;
 
         public readonly VisualElement Root;
@@ -50,6 +54,23 @@ namespace TuitionTakkar
                 s.position = Position.Absolute; s.right = 12; s.bottom = bottom + 52f; s.alignItems = Align.FlexEnd;
                 s.display = DisplayStyle.None;
             });
+            // Emoji stickers: two rows of three, above the words.
+            var grid = UIKit.Col().St(s => { s.backgroundColor = Pal.Paper; UIKit.Border(s, 2f, Pal.Ink); UIKit.Radius(s, 18); UIKit.Pad(s, 6); });
+            for (int row = 0; row < 2; row++)
+            {
+                var r = UIKit.Row();
+                for (int k = 0; k < 3; k++)
+                {
+                    int idx = row * 3 + k;
+                    string code = EmojiCodes[idx];
+                    var b = UIKit.Btn("", () => Send(code), Color.clear, Pal.Ink, UIKit.BodyBold, 10f, 48f, 12f);
+                    b.style.width = 48; UIKit.Pad(b.style, 3);
+                    b.Add(new DoodleIcon(EmojiKinds[idx], 42f));
+                    r.Add(b);
+                }
+                grid.Add(r);
+            }
+            menu.Add(grid);
             for (int i = 0; i < Codes.Length; i++)
             {
                 string code = Codes[i];
@@ -107,8 +128,9 @@ namespace TuitionTakkar
 
         void Show(string who, string code, bool mine)
         {
+            int emoji = System.Array.IndexOf(EmojiCodes, code);
             string text = TextFor(code);
-            if (string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(text) && emoji < 0) return;
             var bubble = UIKit.Row().St(s =>
             {
                 s.marginTop = 6; UIKit.Pad(s, 8, 14, 8, 14); UIKit.Radius(s, 18);
@@ -116,7 +138,18 @@ namespace TuitionTakkar
             });
             bubble.pickingMode = PickingMode.Ignore;
             bubble.Add(UIKit.Strong(who + ": ", 14f, Pal.InkSoft));
-            bubble.Add(UIKit.Strong(text, 16f, Pal.Ink));
+            bubble.style.alignItems = Align.Center;
+            if (emoji >= 0)
+            {
+                var icon = new DoodleIcon(EmojiKinds[emoji], 56f);
+                bubble.Add(icon);
+                // A little bounce on top of the pop-in.
+                icon.schedule.Execute(() => icon.style.scale = new Scale(new Vector3(1.25f, 1.25f, 1f))).StartingIn(120);
+                icon.schedule.Execute(() => icon.style.scale = new Scale(Vector3.one)).StartingIn(260);
+                icon.style.transitionProperty = new System.Collections.Generic.List<StylePropertyName> { new StylePropertyName("scale") };
+                icon.style.transitionDuration = new System.Collections.Generic.List<TimeValue> { new TimeValue(0.14f, TimeUnit.Second) };
+            }
+            else bubble.Add(UIKit.Strong(text, 16f, Pal.Ink));
             UIKit.Rot(bubble, Random.Range(-3f, 3f));
             UIKit.PassThrough(bubble);
             while (bubbles.childCount >= 3) bubbles.RemoveAt(0);

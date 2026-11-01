@@ -50,34 +50,44 @@ namespace TuitionTakkar
 
         static string Short(string n) => string.IsNullOrEmpty(n) ? "" : n.Length > 13 ? n.Substring(0, 12) + "…" : n;
 
-        static List<string> pool;
 
-        /// <summary>A few random classmate faces for the flicking card (made once).</summary>
-        static List<string> Pool()
-        {
-            if (pool != null) return pool;
-            pool = new List<string>();
-            var r = new System.Random(12345);
-            for (int i = 0; i < 8; i++) pool.Add(AvatarParts.Random(r).ToString());
-            return pool;
-        }
-
-        /// <summary>Flicks a card through random faces and names. stopAfter &lt; 0: forever (until the card leaves the screen).</summary>
+        /// <summary>
+        /// Spins a card through doodle stickers while searching (no fake names or levels). steps &lt; 0:
+        /// forever (until the card leaves the screen); otherwise it slows down and calls land, which
+        /// shows the real classmate's face, name and level.
+        /// </summary>
         static void Flick(VisualElement disc, Label name, Label level, Action land = null, int steps = -1)
         {
-            var faces = Pool();
             var r = new System.Random();
-            int i = 0;
+            float sz = disc.style.width.value.value;
+            if (sz <= 0f) sz = 64f;
+            var doodle = new DoodleIcon(DoodleIcon.Stickers[0], sz * 0.66f);
+            doodle.style.position = Position.Absolute;
+            doodle.style.left = doodle.style.top = sz * 0.17f;
+            foreach (var ch in disc.Children()) ch.style.display = DisplayStyle.None;
+            disc.Add(doodle);
+            name.text = "· · ·";
+            if (level != null) level.parent.style.display = DisplayStyle.None;
+            int i = 0, last = -1;
             void Step()
             {
                 if (disc.panel == null) return;
-                Faces.Fill(disc, faces[r.Next(faces.Count)]);
-                name.text = Short(OnlineMatch.RandomName(r));
-                if (level != null) { level.text = (r.Next(1, 40)).ToString(); level.parent.style.display = DisplayStyle.Flex; }
+                int k;
+                do k = r.Next(DoodleIcon.Stickers.Length); while (k == last);
+                last = k;
+                doodle.SetKind(DoodleIcon.Stickers[k]);
+                disc.style.backgroundImage = StyleKeyword.None;
+                disc.style.backgroundColor = DoodleIcon.StickerBacks[k];
                 i++;
-                if (steps >= 0 && i >= steps) { land?.Invoke(); return; }
-                // Fast, then slowing down for the last few flicks.
-                long wait = steps < 0 ? 90 : 65 + (long)(Mathf.Max(0, i - (steps - 6)) * 38);
+                if (steps >= 0 && i >= steps)
+                {
+                    doodle.RemoveFromHierarchy();
+                    foreach (var ch in disc.Children()) ch.style.display = DisplayStyle.Flex;
+                    land?.Invoke();
+                    return;
+                }
+                // Steady while searching; on a match, slows down for the last few spins.
+                long wait = steps < 0 ? 140 : 75 + (long)(Mathf.Max(0, i - (steps - 6)) * 40);
                 disc.schedule.Execute(Step).StartingIn(wait);
             }
             disc.schedule.Execute(Step).StartingIn(30);
@@ -142,8 +152,10 @@ namespace TuitionTakkar
                     var p = players[i];
                     bool me = p.Id == room.MyId;
                     int lv = me ? myLevel : OnlineRoom.LevelOf(p);
-                    card = Card(OnlineRoom.FaceOf(p), OnlineRoom.NameOf(p) + (me ? "" : ""), lv, size, me, me ? -2f : 2f, out var disc, out var nl, out var ll);
-                    if (!me && landed.Add(p.Id))
+                    bool landing = !me && !landed.Contains(p.Id);
+                    // A classmate who just joined starts as a sticker (no face yet), then lands on them.
+                    card = Card(landing ? null : OnlineRoom.FaceOf(p), landing ? "" : OnlineRoom.NameOf(p), landing ? 0 : lv, size, me, me ? -2f : 2f, out var disc, out var nl, out var ll);
+                    if (landing && landed.Add(p.Id))
                     {
                         // New classmate: flick a little, then land on them.
                         string face = OnlineRoom.FaceOf(p), name = OnlineRoom.NameOf(p);
@@ -232,7 +244,8 @@ namespace TuitionTakkar
                 int lv = s.levels != null && i < s.levels.Length ? s.levels[i] : 0;
                 string name = me ? "You" : s.names[i];
                 var col = UIKit.Col().St(st => { st.alignItems = Align.Center; st.marginLeft = st.marginRight = two ? 2 : 6; st.marginBottom = two ? 0 : 10; });
-                var card = Card(face, name, lv, size, me, me ? -2f : 2f, out var disc, out var nl, out var ll);
+                bool spin = landOthers && !me;
+                var card = Card(spin ? null : face, spin ? "" : name, spin ? 0 : lv, size, me, me ? -2f : 2f, out var disc, out var nl, out var ll);
                 col.Add(card);
                 if (fee > 0)
                 {
