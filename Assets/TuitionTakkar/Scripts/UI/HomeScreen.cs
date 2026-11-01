@@ -228,6 +228,7 @@ namespace TuitionTakkar
             c.Add(Toggle("Sound", () => save.soundOn, v => save.soundOn = v, gm).St(s => s.marginTop = 12));
             c.Add(Toggle("Vibration", () => save.hapticsOn, v => save.hapticsOn = v, gm).St(s => s.marginTop = 10));
             c.Add(Toggle("Reminders (7 pm)", () => save.remindersOn, v => Reminders.SetOn(save, v), gm).St(s => s.marginTop = 10));
+            if (!WebRoutes.On) c.Add(SuggestBox.SettingsRow(gm)); // ideas come from signed-in app players
             var done = UIKit.PrimaryBtn("DONE", () => gm.UI.HideOverlay(), 52f);
             done.style.marginTop = 18;
             c.Add(done);
@@ -267,6 +268,7 @@ namespace TuitionTakkar
         {
             var o = UIKit.Col().St(s => { s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.6f); s.justifyContent = Justify.FlexEnd; });
             o.pickingMode = PickingMode.Position;
+            o.AddToClassList(UIRoot.SheetClass);
             var c = UIKit.Col().St(s =>
             {
                 s.backgroundColor = Pal.Paper; UIKit.Pad(s, 22, 20, 28, 20);

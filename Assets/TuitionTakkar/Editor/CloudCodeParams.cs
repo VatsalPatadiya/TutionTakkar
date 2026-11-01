@@ -27,6 +27,7 @@ namespace TuitionTakkar.EditorTools
                 ("fee", Num, false), ("seated", Num, false), ("seats", Num, false),
             }),
             ("Assets/CloudCode/friend_push.js", new[] { ("to", Str, true), ("kind", Str, true), ("from", Str, false) }),
+            ("Assets/CloudCode/send_suggestion.js", new[] { ("text", Str, true), ("kind", Str, false), ("name", Str, false), ("version", Str, false), ("platform", Str, false) }),
         };
 
         [MenuItem("Tuition Takkar/Set Cloud Code Parameters")]
