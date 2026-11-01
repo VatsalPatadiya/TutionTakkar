@@ -59,6 +59,7 @@ namespace TuitionTakkar
 
             this.gm = gm;
             Root.RegisterCallback<GeometryChangedEvent>(_ => ApplyLayout());
+            KeyboardLift.Attach(Root);
         }
 
         GameManager gm;

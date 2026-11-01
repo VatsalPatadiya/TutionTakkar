@@ -91,7 +91,7 @@ namespace TuitionTakkar
         public const float SettleTimeout = 6f;
 
         // Match
-        public static int RoundsToWin => Desks.RoundsToWin; // per desk: best of 3 or 5 (offline: best of 5)
+        public static int RoundsToWin => Desks.RoundsToWin; // best of 5 everywhere (first to 3)
 
         // Turn timer (T1-T3 designs): a human gets this long to shoot, then the game shoots for them.
         public const float TurnTimeLimit = 60f;

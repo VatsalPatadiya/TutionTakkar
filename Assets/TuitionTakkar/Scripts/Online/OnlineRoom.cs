@@ -389,6 +389,20 @@ namespace TuitionTakkar
         }
 
         /// <summary>Room-code / join errors in words a player understands.</summary>
+        /// <summary>Why joining failed: "gone" (closed / no such code), "started", "full" or "other".</summary>
+        public static string JoinProblem(Exception e)
+        {
+            if (e is AggregateException ae && ae.InnerException != null) e = ae.InnerException;
+            if (e is LobbyServiceException le)
+                switch (le.Reason)
+                {
+                    case LobbyExceptionReason.LobbyNotFound: return "gone";
+                    case LobbyExceptionReason.LobbyFull: return "full";
+                    case LobbyExceptionReason.LobbyLocked: return "started";
+                }
+            return "other";
+        }
+
         public static string Explain(Exception e)
         {
             if (e is AggregateException ae && ae.InnerException != null) e = ae.InnerException;

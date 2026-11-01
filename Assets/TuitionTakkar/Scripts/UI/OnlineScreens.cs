@@ -102,7 +102,7 @@ namespace TuitionTakkar
             }
             catch (Exception e)
             {
-                gm.UI.ShowOverlay(Error(gm, "CAN'T JOIN", OnlineRoom.Explain(e)));
+                gm.UI.ShowOverlay(JoinFailed(gm, e, code, null));
             }
         }
 
@@ -530,7 +530,7 @@ namespace TuitionTakkar
                 }
                 catch (Exception e)
                 {
-                    gm.UI.ShowOverlay(Error(gm, "CAN'T JOIN", OnlineRoom.Explain(e)));
+                    gm.UI.ShowOverlay(JoinFailed(gm, e, code, invited ? from : null, !invited));
                 }
             };
             c.Add(go);
@@ -1070,6 +1070,55 @@ namespace TuitionTakkar
             var card = UIKit.Col().St(s => { s.backgroundColor = Pal.Paper; UIKit.Pad(s, 18, 26, 18, 26); UIKit.Radius(s, 16); });
             card.Add(UIKit.HandText(text, 20f, Pal.Ink, TextAnchor.MiddleCenter));
             o.Add(card);
+            return o;
+        }
+
+        /// <summary>
+        /// Joining a room didn't work: say why in plain words (closed, already started, full)
+        /// and offer something to do next instead of a dead end.
+        /// </summary>
+        static VisualElement JoinFailed(GameManager gm, Exception e, string code, string from, bool typed = false)
+        {
+            string kind = OnlineRoom.JoinProblem(e);
+            if (kind == "other") return Error(gm, "CAN'T JOIN", OnlineRoom.Explain(e));
+            string host = string.IsNullOrEmpty(from) ? "your friend" : from;
+            string title, msg;
+            switch (kind)
+            {
+                case "started":
+                    title = "MATCH ALREADY STARTED";
+                    msg = host + "'s room is already playing. jump into a quick match, or make your own room.";
+                    break;
+                case "full":
+                    title = "ROOM IS FULL";
+                    msg = "every seat in " + host + "'s room is taken. try a quick match, or make your own room.";
+                    break;
+                default:
+                    title = typed ? "NO ROOM FOUND" : "THIS ROOM HAS CLOSED";
+                    msg = typed ? "no room with code " + code + ". it may have closed, or a letter is off."
+                                : (string.IsNullOrEmpty(from) ? "this room" : from + "'s room") + " isn't open any more. play a quick match, or make your own room and invite them back.";
+                    break;
+            }
+            var o = Sheet(out var c);
+            c.Add(UIKit.Disp(title, 28f, Pal.Ink));
+            c.Add(UIKit.HandText(msg, 18f, Pal.Ink).St(s => { s.marginTop = 6; s.whiteSpace = WhiteSpace.Normal; }));
+            if (typed)
+            {
+                var again = UIKit.PrimaryBtn("TRY ANOTHER CODE", () => gm.UI.ShowOverlay(JoinSheet(gm)), 54f);
+                again.style.marginTop = 16;
+                c.Add(again);
+            }
+            var quick = typed ? UIKit.Btn("Quick match", null, Pal.Night, Color.white, UIKit.BodyBold, 16f, 50f, 14f)
+                              : UIKit.PrimaryBtn("QUICK MATCH", null, 54f);
+            quick.clicked += () => { gm.UI.HideOverlay(); ShowPlay(gm); DeskScreens.ShowChooser(gm, DeskScreens.Mode.Quick); };
+            quick.style.marginTop = typed ? 10 : 16;
+            c.Add(quick);
+            var make = UIKit.Btn("Make my own room", () => { gm.UI.HideOverlay(); ShowPlay(gm); DoCreate(gm); }, Color.white, Pal.Ink, UIKit.BodyBold, 16f, 50f, 14f, null, Pal.Ink);
+            make.style.marginTop = 10;
+            c.Add(make);
+            var home = UIKit.Btn("Home", () => gm.ShowHome(), Color.clear, Pal.Ink, UIKit.BodyBold, 15f, 44f, 12f);
+            home.style.marginTop = 4;
+            c.Add(home);
             return o;
         }
 

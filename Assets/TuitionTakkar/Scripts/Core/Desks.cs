@@ -25,7 +25,7 @@ namespace TuitionTakkar
         public int fee;                // marks each player pays; 0 = friendly
         public int level;              // online level needed
         public float turnSeconds;
-        public int roundsToWin;        // 2 = best of 3, 3 = best of 5 (3–4 players: always one round)
+        public int roundsToWin;        // 3 = best of 5 on every desk (3–4 players: always one round)
         public float size = 1f;        // top desks are smaller: less room to hide
 
         // ---------- look ----------
@@ -188,7 +188,7 @@ namespace TuitionTakkar
                     index = i, id = id, name = name, where = where, tier = tier, fee = Fees[i],
                     level = i < Levels.Length ? Levels[i] : 34 + 4 * (i - Levels.Length),
                     turnSeconds = i < 4 ? 60f : i < 10 ? 45f : i < 18 ? 30f : 20f,
-                    roundsToWin = i < 6 ? 2 : 3,
+                    roundsToWin = 3, // every 2-player desk: best of 5 (first to 3 wins)
                     size = i < 18 ? 1f : i < 24 ? 0.93f : 0.86f,
                     surface = surf, top = Pal.H(top), topDark = Pal.H(dark), edge = Pal.H(edge),
                     floor = floor, floorA = Pal.H(floorA), floorB = Pal.H(floorB), wall = Pal.H(wall),
