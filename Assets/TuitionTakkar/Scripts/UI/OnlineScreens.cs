@@ -492,7 +492,7 @@ namespace TuitionTakkar
             gm.UI.ShowOverlay(Busy("making a room…"));
             try
             {
-                var room = await OnlineRoom.CreateAsync(gm, OnlineMatch.MaxPlayers, false, Desks.All[0]);   // a friendly desk until the host picks one
+                var room = await OnlineRoom.CreateAsync(gm, Mathf.Clamp(seats, 2, OnlineMatch.MaxPlayers), false, Desks.All[0]);   // as many seats as picked (2, 3 or 4); a friendly desk until the host picks one
                 gm.UI.HideOverlay();
                 ShowRoom(gm, room);
             }
@@ -580,11 +580,46 @@ namespace TuitionTakkar
             room.Changed += onChange;
             room.Ended += onEnd;
             // Quick Match and still nobody else after a while: computer classmates take the empty seats.
+            // Real players first: while alone, look every 3 s for a classmate who opened a room at the
+            // same desk at the same moment, and join theirs (only the newer room moves).
+            bool merging = false;
+            float lastLook = Time.realtimeSinceStartup;
+            async void LookForClassmate()
+            {
+                merging = true;
+                try
+                {
+                    var other = await room.FindOlderQuickAsync();
+                    if (other == null || started || root.panel == null || room.Closed || room.Players.Count > 1) return;
+                    started = true;
+                    gm.UI.ShowOverlay(Busy("found a classmate…"));
+                    try
+                    {
+                        var moved = await room.MoveToAsync(gm, other);
+                        gm.UI.HideOverlay();
+                        ShowRoom(gm, moved);
+                    }
+                    catch (Exception e)
+                    {
+                        // They filled up or left in the meantime: just look again from the start.
+                        Debug.LogWarning("Quick match move: " + e.Message);
+                        gm.UI.HideOverlay();
+                        DoQuick(gm, room.Desk);
+                    }
+                }
+                catch (Exception e) { Debug.LogWarning("Quick match look: " + e.Message); }
+                finally { merging = false; }
+            }
             if (room.IsQuick)
                 root.schedule.Execute(() =>
                 {
                     if (started || root.panel == null || room.Closed || room.Playing || room.Players.Count > 1) return;
-                    if (Time.realtimeSinceStartup - room.JoinedAt < OnlineMatch.BotFillAfter) return;
+                    if (!merging && Time.realtimeSinceStartup - lastLook >= 3f)
+                    {
+                        lastLook = Time.realtimeSinceStartup;
+                        LookForClassmate();
+                    }
+                    if (merging || Time.realtimeSinceStartup - room.JoinedAt < OnlineMatch.BotFillAfter) return;
                     if (Desks.Check(gm.Save, room.Desk, true) != Desks.Block.None) return;
                     started = true;
                     OnlineMatch.BeginWithBots(gm, room);

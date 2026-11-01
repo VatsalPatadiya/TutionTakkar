@@ -159,6 +159,45 @@ namespace TuitionTakkar
             }
         }
 
+        /// <summary>
+        /// Two players who press Find at the same moment each open a room (new rooms take a few
+        /// seconds to show up in searches). While waiting alone, look for another open Quick Match
+        /// room at the same desk and size that is OLDER than mine; only the newer room moves, so the
+        /// two never swap past each other. Returns that room's lobby, or null.
+        /// </summary>
+        public async Task<Lobby> FindOlderQuickAsync()
+        {
+            if (!IsQuick || Closed || Playing || Players.Count > 1) return null;
+            var res = await LobbyService.Instance.QueryLobbiesAsync(new QueryLobbiesOptions
+            {
+                Count = 10,
+                Filters = new List<QueryFilter>
+                {
+                    new QueryFilter(QueryFilter.FieldOptions.S1, KindQuick, QueryFilter.OpOptions.EQ),
+                    new QueryFilter(QueryFilter.FieldOptions.S2, Desk.id, QueryFilter.OpOptions.EQ),
+                    new QueryFilter(QueryFilter.FieldOptions.MaxPlayers, Seats.ToString(), QueryFilter.OpOptions.EQ),
+                    new QueryFilter(QueryFilter.FieldOptions.AvailableSlots, "0", QueryFilter.OpOptions.GT),
+                },
+                Order = new List<QueryOrder> { new QueryOrder(true, QueryOrder.FieldOptions.Created) },
+            });
+            foreach (var l in res.Results)
+            {
+                if (l.Id == Lobby.Id) continue;
+                bool older = l.Created < Lobby.Created || (l.Created == Lobby.Created && string.CompareOrdinal(l.Id, Lobby.Id) < 0);
+                if (older) return l;
+            }
+            return null;
+        }
+
+        /// <summary>Leaves this room and sits in the other (older) Quick Match room.</summary>
+        public async Task<OnlineRoom> MoveToAsync(GameManager gm, Lobby other)
+        {
+            await LeaveAsync();
+            var lobby = await LobbyService.Instance.JoinLobbyByIdAsync(other.Id, new JoinLobbyByIdOptions { Player = Me(gm) });
+            Debug.Log("[TuitionTakkar] quick match: joined a classmate's room that opened at the same time");
+            return await AttachAsync(gm, lobby, true);
+        }
+
         public static async Task<OnlineRoom> JoinByCodeAsync(GameManager gm, string code)
         {
             await LeaveCurrentAsync();
@@ -388,7 +427,6 @@ namespace TuitionTakkar
             Ended?.Invoke(why);
         }
 
-        /// <summary>Room-code / join errors in words a player understands.</summary>
         /// <summary>Why joining failed: "gone" (closed / no such code), "started", "full" or "other".</summary>
         public static string JoinProblem(Exception e)
         {
@@ -403,6 +441,7 @@ namespace TuitionTakkar
             return "other";
         }
 
+        /// <summary>Room-code / join errors in words a player understands.</summary>
         public static string Explain(Exception e)
         {
             if (e is AggregateException ae && ae.InnerException != null) e = ae.InnerException;

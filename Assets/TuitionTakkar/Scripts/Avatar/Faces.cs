@@ -189,8 +189,8 @@ namespace TuitionTakkar
         static readonly Dictionary<string, string> playerFaces = new Dictionary<string, string>();
 
         /// <summary>
-        /// Another player's face from their public profile (loaded once per session). Guests have no
-        /// public profile, so they keep the letter disc.
+        /// Another player's face from their public profile (loaded once per session). Without a saved face
+        /// (older app, guest) it shows their default face from their player ID.
         /// </summary>
         public static async void ForPlayer(VisualElement disc, string playerId)
         {
@@ -199,6 +199,9 @@ namespace TuitionTakkar
             if (!playerFaces.TryGetValue(playerId, out var code))
             {
                 try { code = (await ProfileCloud.LoadAsync(playerId))?.face ?? ""; } catch (Exception) { code = ""; }
+                // No face saved online (an older app, or a guest): use their default face, made from their
+                // player ID exactly like their own phone does, so everyone on a list has a face.
+                if (AvatarParts.Parse(code) == null) code = AvatarParts.Random(playerId).ToString();
                 playerFaces[playerId] = code;
             }
             Fill(disc, code);

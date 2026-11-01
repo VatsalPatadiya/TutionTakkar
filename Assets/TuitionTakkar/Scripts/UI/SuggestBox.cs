@@ -122,7 +122,14 @@ namespace TuitionTakkar
             catch (Exception e)
             {
                 Debug.LogWarning("Suggestion: " + e);
-                var sheet = OnlineScreens.Error(gm, "DIDN'T SEND", "check your internet and try again. your message is kept.");
+                // A missing server script (not deployed yet) is not the player's internet.
+                string m = e.ToString();
+                bool server = m.Contains("404") || m.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0
+                              || m.IndexOf("ScriptNotFound", StringComparison.OrdinalIgnoreCase) >= 0;
+                var sheet = server
+                    ? OnlineScreens.Error(gm, "NOT READY YET", "the idea box isn't switched on yet. please try again later. your message is kept.")
+                    : OnlineScreens.Error(gm, "DIDN'T SEND", NetPopups.IsOnline ? "something went wrong. please try again. your message is kept."
+                                                                          : "check your internet and try again. your message is kept.");
                 // Keep what they wrote: OK goes back to the box with the text still in it.
                 var ok = sheet.Q<Button>();
                 if (ok != null) { ok.clickable = new Clickable(() => gm.UI.ShowOverlay(Box(gm, kindIndex, text))); ok.text = "BACK"; }
