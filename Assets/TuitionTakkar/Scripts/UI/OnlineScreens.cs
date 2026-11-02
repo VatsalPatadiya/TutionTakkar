@@ -51,6 +51,12 @@ namespace TuitionTakkar
                 gm.UI.ShowScreen(SignIn(gm));
             }
             else if (OnlineServices.NameProblem(s.onlineName) != null) gm.UI.ShowScreen(Name(gm));
+            else if (ProfileCloud.NeedsFace(s) && faceAskedFor != OnlineServices.PlayerId)
+            {
+                // A brand-new account and no face picked on this phone: make one before playing.
+                faceAskedFor = OnlineServices.PlayerId;
+                FaceEditor.Show(gm, () => Next(gm));
+            }
             else if (webQuick > 0)
             {
                 seats = Mathf.Clamp(webQuick, 2, OnlineMatch.MaxPlayers);
@@ -61,6 +67,7 @@ namespace TuitionTakkar
         }
 
         static int webQuick;
+        static string faceAskedFor;
 
         /// <summary>The web address asked for a Quick Match with this many players (/play/quick?players=3).</summary>
         public static void QuickFromWeb(GameManager gm, int players)

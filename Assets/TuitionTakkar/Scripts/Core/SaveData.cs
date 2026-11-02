@@ -60,6 +60,8 @@ namespace TuitionTakkar
         public List<string> faceOwned = new List<string>();
         /// <summary>The one-time "this is you! make your face" sheet has been shown.</summary>
         public bool faceIntroSeen;
+        /// <summary>Player id whose online profile was checked on this phone (its face then won over the phone's).</summary>
+        public string accountChecked = "";
 
         // ---------- reminders ----------
         /// <summary>Settings switch for the 7 PM reminders.</summary>

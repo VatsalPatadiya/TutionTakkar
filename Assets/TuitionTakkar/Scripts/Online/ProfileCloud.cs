@@ -57,10 +57,59 @@ namespace TuitionTakkar
 
         static bool busy, again;
 
-        /// <summary>Saves the public summary (Google players only; guests have no online profile).</summary>
+        /// <summary>
+        /// The account owns the avatar: the first time this phone plays as a signed-in player, the
+        /// account's saved face replaces the phone's (silently). A new account (nothing saved yet)
+        /// keeps the face picked on this phone. Until this check has worked, nothing is published,
+        /// so a phone can never overwrite the account's face. Returns false if it couldn't check.
+        /// </summary>
+        public static async Task<bool> EnsureAccountAsync(SaveData s)
+        {
+            if (!OnlineServices.OnLeaderboard(s) || !OnlineServices.SignedIn) return false;
+            string me = OnlineServices.PlayerId;
+            if (string.IsNullOrEmpty(me)) return false;
+            if (s.accountChecked == me) return true;
+            var (p, failed) = await TryLoadAsync(me);
+            if (failed || OnlineServices.PlayerId != me) return false;
+            if (p != null && AvatarParts.Parse(p.face) != null)
+            {
+                s.face = p.face;
+                s.faceIntroSeen = true;
+                OwnFaceParts(s, AvatarParts.Parse(p.face)); // bought on the account, so usable here too
+            }
+            s.accountChecked = me;
+            s.Save();
+            return true;
+        }
+
+        /// <summary>Signed in, but neither the account nor this phone has a face picked yet.</summary>
+        public static bool NeedsFace(SaveData s) =>
+            OnlineServices.OnLeaderboard(s) && s.accountChecked == OnlineServices.PlayerId && AvatarParts.Parse(s.face) == null;
+
+        static void OwnFaceParts(SaveData s, AvatarParts.Face f)
+        {
+            foreach (var layer in AvatarParts.Order)
+            {
+                var part = AvatarParts.Get(f.PartId(layer));
+                if (part != null && !part.Free && !s.faceOwned.Contains(part.id)) s.faceOwned.Add(part.id);
+            }
+            foreach (var k in AvatarParts.ColorKeys)
+            {
+                int i = f.Color(k);
+                if (AvatarParts.ColorPrice(k, i) > 0 && !s.faceOwned.Contains(AvatarParts.ColorItem(k, i))) s.faceOwned.Add(AvatarParts.ColorItem(k, i));
+            }
+        }
+
+        /// <summary>Saves the public summary (signed-in players only; guests have no online profile).</summary>
         public static async void Publish(SaveData s)
         {
             if (!OnlineServices.OnLeaderboard(s) || !OnlineServices.SignedIn) return;
+            if (s.accountChecked != OnlineServices.PlayerId)
+            {
+                // Not checked yet (or it failed): check first, publish only once it worked.
+                if (await EnsureAccountAsync(s)) Publish(s);
+                return;
+            }
             if (busy) { again = true; return; }
             busy = true;
             try

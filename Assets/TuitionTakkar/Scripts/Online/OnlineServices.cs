@@ -113,6 +113,7 @@ namespace TuitionTakkar
             // A guest who signs in picks a real name (the Guest_ one was only for guests).
             if (save.onlineName.StartsWith(GuestPrefix)) save.onlineName = "";
             save.Save();
+            await ProfileCloud.EnsureAccountAsync(save); // the account's own avatar comes back
             return g.displayName;
         }
 
@@ -141,6 +142,7 @@ namespace TuitionTakkar
             await RefreshNameAsync(save);
             if (save.onlineName.StartsWith(GuestPrefix)) save.onlineName = "";
             save.Save();
+            await ProfileCloud.EnsureAccountAsync(save); // the account's own avatar comes back
             return a.firstName;
         }
 
