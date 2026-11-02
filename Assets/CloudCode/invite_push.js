@@ -1,6 +1,6 @@
-// Tuition Takkar · room invite to an offline friend as a phone notification (Firebase Cloud Messaging).
-// Needs the Secret Manager secret FCM_SERVICE_ACCOUNT: the Firebase service-account JSON.
-// The friend's phone token is in their player data key "fcmToken" (written by the game).
+// Tuition Takkar · room invite to an offline friend as a phone notification.
+// Android: Firebase Cloud Messaging (secret FCM_SERVICE_ACCOUNT, player data key "fcmToken").
+// iPhone: Apple directly (secret APNS_KEY, player data key "apnsToken"). See sendApns below.
 const axios = require("axios-1.6");
 const { DataApi } = require("@unity-services/cloud-save-1.4");
 
@@ -35,48 +35,58 @@ module.exports = async ({ params, context, logger, secretManager }) => {
   }
 
   // Another player's data: only the server (service token) may read it.
+  // Android phones save "fcmToken" (Firebase), iPhones save "apnsToken" (Apple, sent directly).
   const api = new DataApi({ accessToken: context.serviceToken });
-  let t;
+  let fcm = "", apns = "";
   try {
-    const items = await api.getItems(context.projectId, to, ["fcmToken"]);
-    t = (items.data.results || []).find((r) => r.key === "fcmToken");
+    const items = await api.getItems(context.projectId, to, ["fcmToken", "apnsToken"]);
+    for (const r of (items.data.results || [])) {
+      if (r.key === "fcmToken" && r.value) fcm = String(r.value);
+      if (r.key === "apnsToken" && r.value) apns = String(r.value);
+    }
   } catch (e) {
     logger.warning("invite_push: token read failed " + (e.response ? e.response.status : e.message));
   }
-  if (!t || !t.value) return { sent: false, error: "their phone hasn't turned on notifications yet. share the room code instead." };
+  if (!fcm && !apns) return { sent: false, error: "their phone hasn't turned on notifications yet. share the room code instead." };
 
-  let account;
-  try {
-    const secret = await secretManager.getSecret("FCM_SERVICE_ACCOUNT");
-    account = JSON.parse(secret.value);
-  } catch (e) {
-    logger.error("invite_push: FCM_SERVICE_ACCOUNT secret missing or not JSON");
-    return { sent: false, error: "phone notifications aren't set up yet." };
-  }
-
-  let access;
-  try { access = await googleToken(account); }
-  catch (e) {
-    const why = describe(e);
-    logger.error("invite_push: Google token failed " + why);
-    return { sent: false, error: "notifications aren't set up right (" + why + ")" };
-  }
+  const title = `${from} saved you a seat ✏️`;
   const body = fee > 0 ? `${desk} · ${fee.toLocaleString("en-IN")} marks entry · ${seated} of ${seats} seated. Join in the next 5 minutes!`
                        : `${desk} · free · ${seated} of ${seats} seated. Join in the next 5 minutes!`;
   const link = `tuitiontakkar://join/${code}?from=${encodeURIComponent(from)}`;
-  try {
-    await axios.post(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
-      message: {
-        token: String(t.value),
-        notification: { title: `${from} saved you a seat ✏️`, body },
-        data: { link, channel: "invites", kind: "invite", code, fromName: from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title: `${from} saved you a seat ✏️`, body },
-        android: { priority: "HIGH", ttl: "300s", notification: { channel_id: "invites" } },
-      },
-    }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
-  } catch (e) {
-    const status = e.response ? e.response.status : 0;
-    logger.warning("invite_push: FCM send failed " + describe(e));
-    if (status === 404 || status === 400) return { sent: false, error: "their phone isn't reachable. share the room code instead." };
+  const data = { link, channel: "invites", kind: "invite", code, fromName: from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title, body };
+
+  let ok = false, setup = false, gone = false;
+  if (apns) {
+    const r = await sendApns(secretManager, logger, apns, title, body, data, 300);
+    ok = ok || r.ok; setup = setup || !!r.setup; gone = gone || !!r.gone;
+  }
+  if (fcm) {
+    let account = null;
+    try { account = JSON.parse((await secretManager.getSecret("FCM_SERVICE_ACCOUNT")).value); }
+    catch (e) { logger.error("invite_push: FCM_SERVICE_ACCOUNT secret missing or not JSON"); setup = true; }
+    if (account) {
+      try {
+        const access = await googleToken(account);
+        await axios.post(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
+          message: {
+            token: fcm,
+            notification: { title, body },
+            data,
+            android: { priority: "HIGH", ttl: "300s", notification: { channel_id: "invites" } },
+          },
+        }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
+        ok = true;
+      } catch (e) {
+        const status = e.response ? e.response.status : 0;
+        logger.warning("invite_push: FCM send failed " + describe(e));
+        if (status === 404 || status === 400) gone = true;
+        else if (status === 401 || status === 403 || !e.response) setup = setup || !e.response;
+      }
+    }
+  }
+  if (!ok) {
+    if (gone) return { sent: false, error: "their phone isn't reachable. share the room code instead." };
+    if (setup) return { sent: false, error: "phone notifications aren't set up yet." };
     return { sent: false, error: "couldn't send the notification. try again." };
   }
   sent[key] = now;
@@ -232,4 +242,93 @@ function sha256(buf) {
   return out;
 }
 
-module.exports._test = { rsaSignPure, sha256, signRS256 };
+// ---------------------------------------------------------------------------
+// iPhone: Apple Push Notification service, sent directly (the iPhone build has no Firebase).
+// Needs the Secret Manager secret APNS_KEY: the contents of the AuthKey_XXXXXXXXXX.p8 file.
+// Optional secret APNS_KEY_ID if that key's ID isn't the default below.
+// Development builds (Xcode Run) get sandbox tokens, TestFlight / App Store get production ones:
+// production is tried first, then sandbox when Apple says the token is from the other one.
+// ---------------------------------------------------------------------------
+
+const APNS = { keyId: "T38W267384", teamId: "87CTM2H52V", topic: "com.unitygame.tuitiontakkar" };
+let apnsJwt = { token: "", at: 0 };
+
+async function sendApns(secretManager, logger, device, title, body, data, ttlSeconds) {
+  device = String(device || "").replace(/[^0-9a-fA-F]/g, "");
+  if (device.length < 32) return { ok: false, gone: true, error: "bad iPhone token" };
+  let jwt;
+  try { jwt = await apnsAuth(secretManager); }
+  catch (e) {
+    logger.error("apns: " + e.message);
+    return { ok: false, setup: true, error: e.message };
+  }
+  const payload = Object.assign({}, data, { aps: { alert: { title, body }, sound: "default" } });
+  const exp = ttlSeconds ? Math.floor(Date.now() / 1000) + ttlSeconds : 0;
+  let r = await apnsPost("api.push.apple.com", device, jwt, payload, exp);
+  if (r.status === 400 && r.reason === "BadDeviceToken") r = await apnsPost("api.sandbox.push.apple.com", device, jwt, payload, exp);
+  if (r.status === 200) return { ok: true };
+  if (r.status === 403) apnsJwt = { token: "", at: 0 }; // key problem: make a fresh token next time
+  const why = ("APNs " + r.status + " " + r.reason).trim();
+  logger.warning("apns: " + why);
+  return { ok: false, gone: r.status === 410 || r.reason === "BadDeviceToken" || r.reason === "Unregistered", setup: r.status === 403, error: why };
+}
+
+async function apnsAuth(secretManager) {
+  if (apnsJwt.token && Date.now() - apnsJwt.at < 40 * 60 * 1000) return apnsJwt.token;
+  let raw;
+  try { raw = (await secretManager.getSecret("APNS_KEY")).value; }
+  catch (e) { throw new Error("APNS_KEY secret missing"); }
+  let keyId = APNS.keyId;
+  try { const k = (await secretManager.getSecret("APNS_KEY_ID")).value; if (k && String(k).trim()) keyId = String(k).trim(); } catch (e) { /* optional */ }
+  // Rebuild the PEM so it works however it was pasted (with or without line breaks / header lines).
+  const b64 = String(raw || "").replace(/\\n/g, "\n").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  if (b64.length < 100) throw new Error("APNS_KEY secret looks empty");
+  const pem = "-----BEGIN PRIVATE KEY-----\n" + b64.match(/.{1,64}/g).join("\n") + "\n-----END PRIVATE KEY-----\n";
+  const input = b64url(JSON.stringify({ alg: "ES256", kid: keyId })) + "." + b64url(JSON.stringify({ iss: APNS.teamId, iat: Math.floor(Date.now() / 1000) }));
+  let sig;
+  try {
+    const crypto = require("crypto");
+    sig = crypto.sign("sha256", Buffer.from(input, "utf8"), { key: pem, dsaEncoding: "ieee-p1363" });
+  } catch (e) { throw new Error("APNS_KEY can't sign: " + e.message); }
+  apnsJwt = { token: input + "." + b64url(sig), at: Date.now() };
+  return apnsJwt.token;
+}
+
+// Apple only accepts HTTP/2, so this uses Node's http2 module (axios is HTTP/1.1).
+function apnsPost(host, device, jwt, payload, exp) {
+  return new Promise((resolve) => {
+    let http2;
+    try { http2 = require("http2"); } catch (e) { return resolve({ status: 0, reason: "http2 not available" }); }
+    let done = false, client, timer;
+    const finish = (r) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { client.close(); } catch (e) { /* closed */ }
+      resolve(r);
+    };
+    timer = setTimeout(() => finish({ status: 0, reason: "timeout" }), 8000);
+    try {
+      client = http2.connect("https://" + host);
+      client.on("error", (e) => finish({ status: 0, reason: e.message }));
+      const req = client.request({
+        ":method": "POST", ":path": "/3/device/" + device,
+        "authorization": "bearer " + jwt, "apns-topic": APNS.topic, "apns-push-type": "alert",
+        "apns-priority": "10", "apns-expiration": String(exp || 0), "content-type": "application/json",
+      });
+      let status = 0, text = "";
+      req.setEncoding("utf8");
+      req.on("response", (h) => { status = Number(h[":status"]) || 0; });
+      req.on("data", (c) => { text += c; });
+      req.on("end", () => {
+        let reason = "";
+        try { reason = text ? (JSON.parse(text).reason || "") : ""; } catch (e) { reason = text.substring(0, 80); }
+        finish({ status, reason });
+      });
+      req.on("error", (e) => finish({ status: 0, reason: e.message }));
+      req.end(JSON.stringify(payload));
+    } catch (e) { finish({ status: 0, reason: e.message }); }
+  });
+}
+
+module.exports._test = { rsaSignPure, sha256, signRS256, apnsAuth, apnsPost, sendApns };
