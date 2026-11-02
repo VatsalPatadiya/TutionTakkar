@@ -450,7 +450,7 @@ namespace TuitionTakkar
             if (uploading || !OnlineServices.SignedIn) return;
             var gm = GameManager.I;
             if (gm == null || !Allowed(gm.Save)) return;
-            if (PlayerPrefs.GetString("tt_push_token_sent", "") == token + apns + OnlineServices.PlayerId) return;
+            if (PlayerPrefs.GetString("tt_push_token_sent", "") == token + apns + OnlineServices.PlayerId) { Push.Status = "on ✓ friends can reach this phone"; return; }
             try
             {
                 uploading = true;
@@ -461,8 +461,9 @@ namespace TuitionTakkar
                 PlayerPrefs.SetString("tt_push_token_sent", token + apns + OnlineServices.PlayerId);
                 PlayerPrefs.Save();
                 Debug.Log("[TuitionTakkar] push token saved for this player");
+                Push.Status = "on ✓ friends can reach this phone";
             }
-            catch (Exception e) { Debug.LogWarning("Push token: " + e.Message); }
+            catch (Exception e) { Debug.LogWarning("Push token: " + e.Message); Push.Status = "couldn't save the token: " + e.Message; }
             uploading = false;
         }
 

@@ -229,6 +229,9 @@ namespace TuitionTakkar
             c.Add(Toggle("Vibration", () => save.hapticsOn, v => save.hapticsOn = v, gm).St(s => s.marginTop = 10));
             c.Add(Toggle("Reminders (7 pm)", () => save.remindersOn, v => Reminders.SetOn(save, v), gm).St(s => s.marginTop = 10));
             if (!WebRoutes.On) c.Add(SuggestBox.SettingsRow(gm)); // ideas come from signed-in app players
+#if UNITY_IOS
+            c.Add(UIKit.Strong("Friend notifications: " + Push.Status, 12f, Pal.InkSoft).St(s => { s.marginTop = 8; s.whiteSpace = WhiteSpace.Normal; }));
+#endif
             var done = UIKit.PrimaryBtn("DONE", () => gm.UI.HideOverlay(), 52f);
             done.style.marginTop = 18;
             c.Add(done);

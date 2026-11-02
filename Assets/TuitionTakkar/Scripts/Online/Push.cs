@@ -15,6 +15,9 @@ namespace TuitionTakkar
     /// </summary>
     public static class Push
     {
+        /// <summary>iPhone: where friend notifications stand, shown in Settings (helps when they don't arrive).</summary>
+        public static string Status = "sign in to get friend notifications";
+
 #if UNITY_IOS && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern void TT_PushInit();
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern void TT_PushSetApns(string hex);
@@ -31,6 +34,7 @@ namespace TuitionTakkar
         {
             if (askedPermission) return;
             askedPermission = true;
+            Status = "asking iPhone for permission…";
             MainThreadRun(AskPermission());
         }
 
@@ -43,11 +47,17 @@ namespace TuitionTakkar
                 while (!req.IsFinished && Time.realtimeSinceStartup - t0 < 60f) yield return null;
                 if (!string.IsNullOrEmpty(req.DeviceToken))
                 {
+                    Status = "got the iPhone token, saving…";
                     apnsToken = req.DeviceToken;
                     try { TT_PushSetApns(req.DeviceToken); } catch (Exception e) { Debug.LogWarning("Push apns: " + e.Message); }
                     Friends.UploadPushToken(); // the Apple token: the server sends iPhone notifications straight to Apple
                 }
-                else Debug.Log("[TuitionTakkar] iPhone notifications: " + (req.Granted ? "no device token yet" : "not allowed") + " " + req.Error);
+                else
+                {
+                    Status = !req.Granted ? "turned off: allow them in iPhone Settings › Tuition Takkar"
+                           : "allowed, but Apple sent no token" + (string.IsNullOrEmpty(req.Error) ? " (check the internet)" : ": " + req.Error);
+                    Debug.Log("[TuitionTakkar] iPhone notifications: " + (req.Granted ? "no device token yet" : "not allowed") + " " + req.Error);
+                }
             }
             // Firebase turns the Apple token into a messaging token a moment later: save it when it appears.
             for (int i = 0; i < 30 && string.IsNullOrEmpty(Token()); i++) yield return new WaitForSecondsRealtime(1f);
