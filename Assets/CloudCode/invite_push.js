@@ -56,14 +56,16 @@ module.exports = async ({ params, context, logger, secretManager }) => {
   const data = { link, channel: "invites", kind: "invite", code, fromName: from, fromId: context.playerId, deskId, seated: String(seated), seats: String(seats), title, body };
 
   let ok = false, setup = false, gone = false;
+  const why = [];
   if (apns) {
     const r = await sendApns(secretManager, logger, apns, title, body, data, 300);
     ok = ok || r.ok; setup = setup || !!r.setup; gone = gone || !!r.gone;
+    if (!r.ok) why.push("iPhone: " + r.error);
   }
   if (fcm) {
     let account = null;
     try { account = JSON.parse((await secretManager.getSecret("FCM_SERVICE_ACCOUNT")).value); }
-    catch (e) { logger.error("invite_push: FCM_SERVICE_ACCOUNT secret missing or not JSON"); setup = true; }
+    catch (e) { logger.error("invite_push: FCM_SERVICE_ACCOUNT secret missing or not JSON"); setup = true; why.push("Android: FCM secret missing"); }
     if (account) {
       try {
         const access = await googleToken(account);
@@ -79,15 +81,17 @@ module.exports = async ({ params, context, logger, secretManager }) => {
       } catch (e) {
         const status = e.response ? e.response.status : 0;
         logger.warning("invite_push: FCM send failed " + describe(e));
+        why.push("Android: " + describe(e));
         if (status === 404 || status === 400) gone = true;
         else if (status === 401 || status === 403 || !e.response) setup = setup || !e.response;
       }
     }
   }
   if (!ok) {
-    if (gone) return { sent: false, error: "their phone isn't reachable. share the room code instead." };
-    if (setup) return { sent: false, error: "phone notifications aren't set up yet." };
-    return { sent: false, error: "couldn't send the notification. try again." };
+    const detail = why.length ? " (" + why.join("; ").substring(0, 160) + ")" : "";
+    if (gone) return { sent: false, error: "their phone isn't reachable. share the room code instead." + detail };
+    if (setup) return { sent: false, error: "phone notifications aren't set up yet." + detail };
+    return { sent: false, error: "couldn't send the notification. try again." + detail };
   }
   sent[key] = now;
   return { sent: true };
