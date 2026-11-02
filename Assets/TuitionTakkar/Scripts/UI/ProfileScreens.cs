@@ -413,9 +413,33 @@ namespace TuitionTakkar
             // Ideas and bugs, on every tab (the app only: the web has no idea box).
             if (!WebRoutes.On) body.Add(SuggestBox.Card(gm));
 
+            // Sign out, on every tab (asks first).
+            var signOut = UIKit.Btn("Sign out", () => gm.UI.ShowOverlay(ConfirmSignOut(gm)), Color.clear, Pal.Red, UIKit.BodyBold, 16f, 50f, 12f, null, Pal.Red);
+            signOut.style.marginLeft = signOut.style.marginRight = 16;
+            signOut.style.marginTop = 4; signOut.style.marginBottom = 28;
+            body.Add(signOut);
+
             scroll.Add(body);
             root.Add(scroll);
             gm.UI.ShowScreen(root);
+        }
+
+        static VisualElement ConfirmSignOut(GameManager gm)
+        {
+            var o = OnlineScreens.Sheet(out var c);
+            c.Add(UIKit.Disp("SIGN OUT?", 28f, Pal.Ink));
+            c.Add(UIKit.HandText("your wins, friends and profile stay safe online. sign back in with "
+                + (gm.Save.appleLinked ? "Apple" : "Google") + " any time to get them back.", 17f, Pal.Ink).St(s => { s.marginTop = 6; s.whiteSpace = WhiteSpace.Normal; }));
+            var yes = UIKit.PrimaryBtn("SIGN OUT", () =>
+            {
+                gm.UI.HideOverlay();
+                OnlineServices.SignOut(gm.Save);
+                gm.ShowHome();
+            }, 54f);
+            yes.style.marginTop = 16;
+            c.Add(yes);
+            c.Add(UIKit.Btn("Cancel", () => gm.UI.HideOverlay(), Color.clear, Pal.Ink, UIKit.BodyBold, 15f, 46f, 12f).St(s => s.marginTop = 6));
+            return o;
         }
 
         static string RarestName(SaveData s)
