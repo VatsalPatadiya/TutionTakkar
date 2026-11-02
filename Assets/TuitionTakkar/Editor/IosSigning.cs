@@ -15,17 +15,16 @@ namespace TuitionTakkar.EditorTools
         // A fresh folder each build: Xcode projects from an older build can't simply be overwritten.
         static string OutDir => "Builds/iOS-" + System.DateTime.Now.ToString("MMdd-HHmm");
 
-        [MenuItem("Tuition Takkar/Set iPhone signing team")]
         /// <summary>Lowest iPhone build number for the next build (raise it before each new TestFlight upload).</summary>
         const int MinBuild = 2;
 
+        [MenuItem("Tuition Takkar/Set iPhone signing team")]
         static void Apply()
         {
             PlayerSettings.iOS.appleDeveloperTeamID = TeamId;
             PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.iOS, "com.unitygame.tuitiontakkar");
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneOnly;
-            // TestFlight / App Store build number: at least 1 (raise it for every upload of the same version).
             // Each TestFlight upload needs a higher build number: raise MinBuild before the next upload.
             if (!int.TryParse(PlayerSettings.iOS.buildNumber, out int build) || build < MinBuild) PlayerSettings.iOS.buildNumber = MinBuild.ToString();
             var schemes = PlayerSettings.iOS.iOSUrlSchemes ?? new string[0];
