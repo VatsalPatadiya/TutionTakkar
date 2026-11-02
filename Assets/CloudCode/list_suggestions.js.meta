@@ -15,4 +15,10 @@ ScriptedImporter:
   - Name: month
     ParameterType: 0
     Required: 0
+  - Name: action
+    ParameterType: 0
+    Required: 0
+  - Name: playerId
+    ParameterType: 0
+    Required: 0
   Source: 0

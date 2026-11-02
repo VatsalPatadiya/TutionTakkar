@@ -1,4 +1,5 @@
-// Tuition Takkar · owner-only: returns the players' suggestions for one month, for the private
+// Tuition Takkar · owner-only: returns the players' suggestions for one month (or, with
+// action="profile", one player's public game profile), for the private
 // web page /admin/ideas. The password is never in the game or the page: the owner stores it in the
 // Unity dashboard (Cloud Save > Game Data > Private > item "admin", key "ideasPassword"), and this
 // script compares against it. Wrong passwords are slowed down and capped at 20 a day.
@@ -36,6 +37,19 @@ module.exports = async ({ params, context, logger }) => {
     logger.warning("list_suggestions: wrong password");
     await sleep(1500);
     return { ok: false, error: "wrong password" };
+  }
+
+  // A player's public game profile (the same one other players see in the game).
+  if (params.action === "profile") {
+    const pid = String(params.playerId || "");
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(pid)) return { ok: false, error: "bad player id" };
+    let profile = null;
+    try {
+      const res = await api.getPublicItems(projectId, pid, ["profile"]);
+      const row = (res.data.results || []).find((r) => r.key === "profile");
+      if (row) profile = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    } catch (e) { logger.warning("profile read: " + e.message); }
+    return { ok: true, profile };
   }
 
   const now = new Date();

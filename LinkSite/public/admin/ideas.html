@@ -45,7 +45,8 @@
   .chip b { font-weight:900; opacity:.7; margin-left:4px; }
 
   .list { display:grid; gap:14px; margin-top:18px; }
-  .card { background:var(--paper); border-radius:6px; padding:16px 18px; box-shadow:0 4px 0 rgba(31,42,68,.12); border-left:8px solid var(--blue); }
+  .card { background:var(--paper); border-radius:6px; padding:16px 18px; box-shadow:0 4px 0 rgba(31,42,68,.12); border-left:8px solid var(--blue);
+          display:flex; flex-direction:column; }
   .card.bug { border-left-color:var(--pink); }
   .card.pen { border-left-color:var(--sticky); }
   .top { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -54,7 +55,29 @@
   .pen .tag { background:var(--sticky); }
   .when { font-weight:800; font-size:13px; color:var(--soft); }
   .text { font-size:18px; font-weight:800; line-height:1.45; margin:10px 0 8px; white-space:pre-wrap; overflow-wrap:anywhere; }
-  .meta { font-size:13px; font-weight:800; color:var(--soft); overflow-wrap:anywhere; }
+  .meta { margin-top:auto; padding-top:10px; border-top:1px dashed #D5DDE4; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .player { display:flex; align-items:center; gap:8px; background:none; border:0; padding:0; cursor:pointer; font:900 15px "Nunito"; color:#1F5FBF; text-align:left; }
+  .player:hover span { text-decoration:underline; }
+  .player canvas, .player .ini { width:30px; height:30px; border-radius:50%; flex-shrink:0; border:2px solid var(--ink); }
+  .ini { display:inline-flex; align-items:center; justify-content:center; background:var(--blue); color:var(--ink); font:400 15px "Lilita One"; }
+  .device { font-size:13px; font-weight:800; color:var(--soft); }
+  .onlyme { border-color:#1F5FBF; color:#1F5FBF; }
+
+  .modal { position:fixed; inset:0; background:rgba(16,26,30,.6); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .pcard { background:var(--paper); width:min(460px, 100%); max-height:calc(100vh - 32px); overflow:auto; border-radius:18px; padding:22px; position:relative;
+           box-shadow:0 8px 0 rgba(0,0,0,.18); }
+  .pclose { position:absolute; top:12px; right:12px; width:40px; height:40px; border-radius:12px; border:2px solid var(--ink); background:#fff; font:900 18px "Nunito"; cursor:pointer; color:var(--ink); }
+  .phead { display:flex; gap:16px; align-items:center; }
+  .phead canvas, .phead .ini { width:96px; height:96px; border-radius:50%; border:4px solid var(--ink); flex-shrink:0; font-size:40px; }
+  .pname { font:400 28px/1.1 "Lilita One"; margin:0; overflow-wrap:anywhere; }
+  .ptitle { font-weight:900; color:#8A6410; font-size:14px; margin-top:4px; }
+  .pcode { display:inline-block; margin-top:8px; background:#F3E7C2; border-radius:10px; padding:4px 10px; font:900 13px "Nunito"; letter-spacing:.08em; }
+  .pgrid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin-top:18px; }
+  .pstat { background:#EEF2F6; border-radius:12px; padding:12px 8px; text-align:center; }
+  .pstat b { display:block; font:400 26px "Lilita One"; }
+  .pstat small { font-weight:900; font-size:11px; letter-spacing:.06em; color:var(--soft); }
+  .pfoot { margin-top:16px; font-weight:800; font-size:14px; color:var(--soft); }
+  .pbtn { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:12px; background:var(--ink); color:#fff; font:900 15px "Nunito"; cursor:pointer; }
   .empty { text-align:center; padding:40px 16px; font-family:"Kalam", cursive; font-size:22px; color:var(--soft); }
   select { padding-right:36px; }
   .list { grid-template-columns:repeat(auto-fill, minmax(420px, 1fr)); }
@@ -92,6 +115,7 @@
     <p class="err" id="err2" role="alert"></p>
     <div class="list" id="list"></div>
   </section>
+  <div class="modal" id="modal" hidden><div class="pcard" id="pcard" role="dialog" aria-modal="true"></div></div>
 </main>
 
 <script>
@@ -101,7 +125,106 @@
   var CODE = "https://cloud-code.services.api.unity.com/v1/projects/" + PROJECT + "/scripts/list_suggestions";
   var KINDS = { idea: "IDEA", bug: "BUG", pen: "PEN IDEA" };
 
-  var password = "", token = "", items = [], filter = "all";
+  var password = "", token = "", items = [], filter = "all", onlyPlayer = null;
+
+  // ---------- faces: the same layered art and colours as the game (Faces.cs / AvatarParts.cs) ----------
+  var ORDER = ["bg","hairback","top","face","cheeks","eyes","brows","nose","mouth","beard","glasses","earrings","hair","hat"];
+  var PAL = {
+    skin: ["#FBE3D0","#F2C9A5","#E0A97E","#C68863","#9C6644","#6B4430"],
+    hairc: ["#1B1B1B","#4A2F23","#8A5A3B","#D9A441","#B5482F","#8E8E8E","#3D7BD9","#D94F9C","#3FAF6C"],
+    cloth: ["#3D7BD9","#E5483A","#3FAF6C","#F2C14E","#D94F9C","#5B5BD6","#F28C28","#8E8E8E","#1B1B1B","#FFFFFF"],
+    iris: ["#6B4430","#2E1E14","#B07D2B","#3D7BD9","#3FAF6C","#8E8E8E"],
+    bgc: ["#3D7BD9","#E5483A","#3FAF6C","#F2C14E","#D94F9C","#5B5BD6","#F28C28","#2F4A3A","#F2ECE2"]
+  };
+  var faceIndex = null, faceImgs = {}, faceCache = {};
+  function loadIndex() {
+    if (faceIndex) return Promise.resolve(faceIndex);
+    return fetch("/admin/face/index.json").then(function (r) { return r.json(); }).then(function (j) {
+      faceIndex = {}; (j.parts || []).forEach(function (p) { faceIndex[p.id] = p; }); return faceIndex;
+    });
+  }
+  function img(f) {
+    if (!faceImgs[f]) faceImgs[f] = new Promise(function (ok) {
+      var i = new Image(); i.onload = function () { ok(i); }; i.onerror = function () { ok(null); }; i.src = "/admin/face/" + f + ".png";
+    });
+    return faceImgs[f];
+  }
+  function shade(hex, k) {
+    var n = parseInt(hex.slice(1), 16), r = Math.floor((n >> 16 & 255) * k), g = Math.floor((n >> 8 & 255) * k), b = Math.floor((n & 255) * k);
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+  function parseFace(code) {
+    if (!code || !faceIndex) return null;
+    var f = { parts: {}, colors: {} };
+    code.split(";").forEach(function (pair) {
+      var i = pair.indexOf("="); if (i <= 0) return;
+      var k = pair.slice(0, i), v = pair.slice(i + 1);
+      if (PAL[k]) { var c = parseInt(v, 10); if (!isNaN(c)) f.colors[k] = Math.max(0, Math.min(PAL[k].length - 1, c)); }
+      else if (ORDER.indexOf(k) >= 0 && (v === "" || faceIndex[k + "_" + v])) f.parts[k] = v;
+    });
+    return f.parts.face ? f : null;
+  }
+  /** Draws a face code onto a canvas (a promise of the canvas), or null if there's no face. */
+  function drawFace(code) {
+    if (faceCache[code]) return faceCache[code];
+    faceCache[code] = loadIndex().then(function () {
+      var f = parseFace(code); if (!f) return null;
+      var col = function (k) { return f.colors[k] || 0; };
+      var skin = PAL.skin[col("skin")], hair = PAL.hairc[col("hairc")], cloth = PAL.cloth[col("cloth")], iris = PAL.iris[col("iris")], back = PAL.bgc[col("bgc")];
+      var hairShade = col("hairc") === 0 ? "#3A3A3A" : shade(hair, 0.70);
+      var hat = f.parts.hat ? faceIndex["hat_" + f.parts.hat] : null, hideHair = hat && hat.hidesHair;
+      var jobs = [];
+      ORDER.forEach(function (layer) {
+        var id = layer === "hairback" ? (f.parts.hair ? "hairback_" + f.parts.hair : null) : (f.parts[layer] ? layer + "_" + f.parts[layer] : null);
+        var part = id && faceIndex[id]; if (!part) return;
+        if (hideHair && (layer === "hair" || layer === "hairback")) return;
+        var bg = layer === "bg";
+        part.layers.forEach(function (lf) {
+          var tint = null;
+          switch (lf.t) {
+            case "SKIN": tint = skin; break; case "SKIN_SHADE": tint = shade(skin, 0.84); break;
+            case "HAIR": tint = hair; break; case "HAIR_SHADE": tint = hairShade; break;
+            case "CLOTH": tint = bg ? back : cloth; break; case "CLOTH_SHADE": tint = shade(bg ? back : cloth, 0.80); break;
+            case "IRIS": tint = iris; break; case "FIX": tint = null; break; default: tint = "#FFFFFF";
+          }
+          jobs.push(img(lf.f).then(function (im) { return { im: im, tint: tint }; }));
+        });
+      });
+      return Promise.all(jobs).then(function (layers) {
+        var c = document.createElement("canvas"); c.width = c.height = 256;
+        var g = c.getContext("2d"), tmp = document.createElement("canvas"); tmp.width = tmp.height = 256;
+        var tg = tmp.getContext("2d");
+        layers.forEach(function (L) {
+          if (!L.im) return;
+          if (!L.tint) { g.drawImage(L.im, 0, 0, 256, 256); return; }
+          tg.globalCompositeOperation = "source-over"; tg.clearRect(0, 0, 256, 256);
+          tg.fillStyle = L.tint; tg.fillRect(0, 0, 256, 256);
+          tg.globalCompositeOperation = "destination-in"; tg.drawImage(L.im, 0, 0, 256, 256);
+          g.drawImage(tmp, 0, 0);
+        });
+        return c;
+      });
+    });
+    return faceCache[code];
+  }
+  /** An avatar element: a copy of the drawn face, or the player's first letter while it loads / if none. */
+  function avatar(code, name) {
+    var ini = document.createElement("span"); ini.className = "ini";
+    ini.textContent = (name || "?").charAt(0).toUpperCase();
+    if (code) drawFace(code).then(function (src) {
+      if (!src || !ini.parentNode) return;
+      var c = document.createElement("canvas"); c.width = c.height = 256; c.getContext("2d").drawImage(src, 0, 0);
+      ini.parentNode.replaceChild(c, ini);
+    }).catch(function () {});
+    return ini;
+  }
+  var profiles = {};
+  function profileOf(pid) {
+    if (!pid) return Promise.resolve(null);
+    if (!profiles[pid]) profiles[pid] = call({ action: "profile", playerId: pid }).then(function (o) { return o && o.ok ? o.profile : null; })
+      .catch(function (e) { delete profiles[pid]; throw e; });
+    return profiles[pid];
+  }
   var $ = function (id) { return document.getElementById(id); };
 
   function store(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) {} }
@@ -126,12 +249,16 @@
     });
   }
 
-  function load(month) {
+  function load(month) { return call({ month: month || "" }); }
+
+  function call(extra) {
+    var params = { password: password };
+    for (var k in extra) params[k] = extra[k];
     var call = function () {
       return fetch(CODE, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ params: { password: password, month: month || "" } })
+        body: JSON.stringify({ params: params })
       });
     };
     return (token ? Promise.resolve() : signIn()).then(call).then(function (r) {
@@ -171,6 +298,12 @@
       b.addEventListener("click", function () { filter = c[0]; chips(); render(); });
       box.appendChild(b);
     });
+    if (onlyPlayer) {
+      var o = document.createElement("button"); o.type = "button"; o.className = "chip onlyme"; o.setAttribute("aria-pressed", "false");
+      o.textContent = "Only " + onlyPlayer.name + "  ✕";
+      o.addEventListener("click", function () { onlyPlayer = null; chips(); render(); });
+      box.appendChild(o);
+    }
   }
 
   function render() {
@@ -178,6 +311,7 @@
     list.innerHTML = "";
     var shown = items.filter(function (it) {
       if (filter !== "all" && it.kind !== filter) return false;
+      if (onlyPlayer && it.playerId !== onlyPlayer.id) return false;
       if (!q) return true;
       return [it.text, it.name, it.version, it.platform, it.playerId].join(" ").toLowerCase().indexOf(q) >= 0;
     });
@@ -195,13 +329,74 @@
       when.textContent = it.at ? new Date(it.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
       top.appendChild(tag); top.appendChild(when);
       var text = document.createElement("p"); text.className = "text"; text.textContent = it.text || "";
+      // Bottom row: the player (tap for their profile) and their device.
       var meta = document.createElement("div"); meta.className = "meta";
-      meta.textContent = [it.name || "player", it.platform, it.version ? "v" + it.version : "", it.playerId ? "id " + it.playerId : ""]
-        .filter(Boolean).join(" · ");
+      var who = document.createElement("button"); who.type = "button"; who.className = "player";
+      who.title = "see " + (it.name || "this player") + "'s profile";
+      who.appendChild(avatar(null, it.name));
+      var nm = document.createElement("span"); nm.textContent = it.name || "player"; who.appendChild(nm);
+      if (it.playerId) {
+        profileOf(it.playerId).then(function (p) {
+          if (p && p.face) { var a = avatar(p.face, it.name); who.replaceChild(a, who.firstChild); }
+        }).catch(function () {});
+        who.addEventListener("click", function () { openProfile(it); });
+      } else who.disabled = true;
+      var dev = document.createElement("span"); dev.className = "device";
+      dev.textContent = [it.platform, it.version ? "v" + it.version : ""].filter(Boolean).join(" · ");
+      meta.appendChild(who); meta.appendChild(dev);
       card.appendChild(top); card.appendChild(text); card.appendChild(meta);
       list.appendChild(card);
     });
   }
+
+  var TIERS = ["CLASSIC", "SILVER", "GOLD", "PLATINUM", "DIAMOND"];
+  function openProfile(it) {
+    var m = $("modal"), c = $("pcard");
+    c.innerHTML = "";
+    var x = document.createElement("button"); x.className = "pclose"; x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Close");
+    x.addEventListener("click", closeProfile); c.appendChild(x);
+    var loading = document.createElement("p"); loading.className = "hand"; loading.textContent = "loading " + (it.name || "player") + "…";
+    c.appendChild(loading);
+    m.hidden = false;
+    profileOf(it.playerId).then(function (p) {
+      c.removeChild(loading);
+      var head = document.createElement("div"); head.className = "phead";
+      head.appendChild(avatar(p && p.face, (p && p.name) || it.name));
+      var hc = document.createElement("div");
+      var nm = document.createElement("p"); nm.className = "pname"; nm.textContent = (p && p.name) || it.name || "player"; hc.appendChild(nm);
+      if (p && p.title) { var t = document.createElement("div"); t.className = "ptitle"; t.textContent = p.title; hc.appendChild(t); }
+      if (p && p.friendId) { var fc = document.createElement("span"); fc.className = "pcode"; fc.textContent = p.friendId; hc.appendChild(fc); }
+      head.appendChild(hc); c.appendChild(head);
+      if (!p) {
+        var none = document.createElement("p"); none.className = "pfoot";
+        none.textContent = "no online profile yet (this player hasn't opened the latest app since signing in).";
+        c.appendChild(none);
+      } else {
+        var played = p.played || 0, won = p.won || 0;
+        var stats = [["LEVEL", p.level || 1], ["MATCHES", played], ["WINS", won],
+                     ["WIN RATE", played ? Math.round(100 * won / played) + "%" : "-"], ["BEST STREAK", p.bestStreak || 0], ["KNOCK-OFFS", p.knockOffs || 0],
+                     ["FLAWLESS", p.flawless || 0], ["TOP DESK", p.highestTier >= 0 ? TIERS[p.highestTier] || "-" : "-"], ["BADGES", (p.badgeIds || []).length]];
+        var grid = document.createElement("div"); grid.className = "pgrid";
+        stats.forEach(function (s) {
+          var d = document.createElement("div"); d.className = "pstat";
+          var b = document.createElement("b"); b.textContent = s[1]; var sm = document.createElement("small"); sm.textContent = s[0];
+          d.appendChild(b); d.appendChild(sm); grid.appendChild(d);
+        });
+        c.appendChild(grid);
+      }
+      var mine = items.filter(function (i) { return i.playerId === it.playerId; });
+      var foot = document.createElement("p"); foot.className = "pfoot";
+      foot.textContent = mine.length + (mine.length === 1 ? " message" : " messages") + " this month · " + [it.platform, it.version ? "v" + it.version : ""].filter(Boolean).join(" · ");
+      c.appendChild(foot);
+      var only = document.createElement("button"); only.type = "button"; only.className = "pbtn";
+      only.textContent = "Show only " + ((p && p.name) || it.name || "this player") + "'s messages";
+      only.addEventListener("click", function () { onlyPlayer = { id: it.playerId, name: (p && p.name) || it.name || "player" }; closeProfile(); chips(); render(); });
+      c.appendChild(only);
+    }).catch(function (e) { loading.textContent = "couldn't load the profile: " + e.message; });
+  }
+  function closeProfile() { $("modal").hidden = true; }
+  $("modal").addEventListener("click", function (e) { if (e.target === $("modal")) closeProfile(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeProfile(); });
 
   function show(month, errBox) {
     errBox.textContent = "";
@@ -232,7 +427,7 @@
   $("month").addEventListener("change", reload);
   $("q").addEventListener("input", render);
   $("lock").addEventListener("click", function () {
-    password = ""; items = []; $("pw").value = ""; $("list").innerHTML = "";
+    password = ""; items = []; onlyPlayer = null; profiles = {}; closeProfile(); $("pw").value = ""; $("list").innerHTML = "";
     $("board").hidden = true; $("who").hidden = true; $("loginForm").hidden = false;
   });
 
