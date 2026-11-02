@@ -61,6 +61,10 @@
   .store a { flex:1; min-width:130px; text-align:center; background:#fff; color:var(--ink); text-decoration:none; font-weight:900; padding:13px; border-radius:12px; }
   .store a.soon { opacity:.55; pointer-events:none; }
   footer { max-width:1200px; margin:0 auto; padding:0 20px 32px; font-weight:800; font-size:13px; color:#33424F; }
+  html { scroll-behavior:smooth; }
+  .howtitle { margin:4px 0 -8px; font:400 30px "Lilita One", sans-serif; scroll-margin-top:16px; }
+  .howtitle:target + .steps .step { animation:howpop .9s ease-out 2; }
+  @keyframes howpop { 0% { box-shadow:0 0 0 0 rgba(255,228,92,.95); } 60% { box-shadow:0 0 0 12px rgba(255,228,92,0); } 100% { box-shadow:0 4px 0 rgba(31,42,68,.12); } }
 </style>
 </head>
 <body>
@@ -101,7 +105,8 @@
       </div>
     </div>
 
-    <div class="steps" id="how">
+    <h2 class="howtitle" id="how">HOW TO PLAY</h2>
+    <div class="steps">
       <div class="step" style="background:var(--sticky);transform:rotate(-1deg)">
         <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#1F2A44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M13 9a2 2 0 0 1 4 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a2 2 0 0 1 3-2l2 2"/></svg>
         <div><b>PRESS</b><small>on your pen</small></div>
