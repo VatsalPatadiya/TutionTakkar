@@ -16,6 +16,9 @@ namespace TuitionTakkar.EditorTools
         static string OutDir => "Builds/iOS-" + System.DateTime.Now.ToString("MMdd-HHmm");
 
         [MenuItem("Tuition Takkar/Set iPhone signing team")]
+        /// <summary>Lowest iPhone build number for the next build (raise it before each new TestFlight upload).</summary>
+        const int MinBuild = 2;
+
         static void Apply()
         {
             PlayerSettings.iOS.appleDeveloperTeamID = TeamId;
@@ -23,7 +26,8 @@ namespace TuitionTakkar.EditorTools
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.iOS, "com.unitygame.tuitiontakkar");
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneOnly;
             // TestFlight / App Store build number: at least 1 (raise it for every upload of the same version).
-            if (!int.TryParse(PlayerSettings.iOS.buildNumber, out int build) || build < 1) PlayerSettings.iOS.buildNumber = "1";
+            // Each TestFlight upload needs a higher build number: raise MinBuild before the next upload.
+            if (!int.TryParse(PlayerSettings.iOS.buildNumber, out int build) || build < MinBuild) PlayerSettings.iOS.buildNumber = MinBuild.ToString();
             var schemes = PlayerSettings.iOS.iOSUrlSchemes ?? new string[0];
             if (!schemes.Contains("tuitiontakkar")) PlayerSettings.iOS.iOSUrlSchemes = schemes.Concat(new[] { "tuitiontakkar" }).ToArray();
             AssetDatabase.SaveAssets();
