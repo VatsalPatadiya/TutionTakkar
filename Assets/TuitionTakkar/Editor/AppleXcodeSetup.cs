@@ -43,6 +43,16 @@ namespace TuitionTakkar.EditorTools
 
             MoveAppSettingsOffProject(projPath, main);
 
+            // Without this Unity's app code ignores Apple's "here is your device token" call, so the game
+            // never gets an iPhone notification token and nothing can be sent to the phone.
+            string pre = Path.Combine(path, "Classes", "Preprocessor.h");
+            if (File.Exists(pre))
+            {
+                string h = File.ReadAllText(pre);
+                string h2 = Regex.Replace(h, @"#define\s+UNITY_USES_REMOTE_NOTIFICATIONS\s+0", "#define UNITY_USES_REMOTE_NOTIFICATIONS 1");
+                if (h2 != h) File.WriteAllText(pre, h2);
+            }
+
             // Unity's own "ReleaseForRunning" / "ReleaseForProfiling" configurations break Swift packages
             // (Xcode builds Firebase under "Release" and then can't find it). Run and Profile with plain Release.
             foreach (var scheme in Directory.GetFiles(Path.Combine(path, "Unity-iPhone.xcodeproj"), "*.xcscheme", SearchOption.AllDirectories))
@@ -52,7 +62,7 @@ namespace TuitionTakkar.EditorTools
                     "buildConfiguration\\s*=\\s*\"ReleaseFor(Running|Profiling)\"", "buildConfiguration=\"Release\"");
                 if (fixedScheme != s) File.WriteAllText(scheme, fixedScheme);
             }
-            UnityEngine.Debug.Log("[TuitionTakkar] Xcode: Sign in with Apple, push, invite links and Firebase added");
+            UnityEngine.Debug.Log("[TuitionTakkar] Xcode: Sign in with Apple, push (remote notifications on), invite links added");
         }
 
         static readonly string[] AppOnlyKeys = { "PRODUCT_NAME", "INFOPLIST_FILE", "CODE_SIGN_ENTITLEMENTS" };
