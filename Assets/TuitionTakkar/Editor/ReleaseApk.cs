@@ -23,6 +23,13 @@ namespace TuitionTakkar.EditorTools
 
         const string BundleOutput = Dir + "/TuitionTakkar-release.aab";
 
+        [MenuItem("Tuition Takkar/Open Android builds in Finder")]
+        static void OpenFolder()
+        {
+            string f = File.Exists(BundleOutput) ? BundleOutput : File.Exists(Output) ? Output : Dir;
+            EditorUtility.RevealInFinder(f);
+        }
+
         [MenuItem("Tuition Takkar/Build Release APK")]
         static void BuildOnly() => Build(false);
 
