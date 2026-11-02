@@ -444,7 +444,7 @@ namespace TuitionTakkar
             col.Add(UIKit.HandText("you're playing as " + OnlineServices.DisplayName(gm.Save) + ". sign in to get your own player ID, add friends and invite them to rooms.", 18f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => s.marginTop = 10));
             col.Add(UIKit.Strong("your marks, pens and level come with you.", 13f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => s.marginTop = 10));
             col.Add(UIKit.Grow());
-            var g = UIKit.Btn("Sign in with Google", () => OnlineScreens.SignInFromDesk(gm), Color.white, Pal.Ink, UIKit.BodyBold, 17f, 58f, 16f, Pal.H("#C9D3DE"), Pal.Ink);
+            var g = UIKit.Btn("Sign in with " + OnlineScreens.Provider, () => OnlineScreens.SignInFromDesk(gm), Color.white, Pal.Ink, UIKit.BodyBold, 17f, 58f, 16f, Pal.H("#C9D3DE"), Pal.Ink);
             g.style.alignSelf = Align.Stretch;
             col.Add(g);
             col.Add(UIKit.Strong("Sign in with Apple comes with the iPhone version", 12f, Pal.BenchText, TextAnchor.MiddleCenter).St(s => { s.marginTop = 10; s.marginBottom = 40; }));

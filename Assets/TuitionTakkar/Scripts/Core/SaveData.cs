@@ -32,6 +32,8 @@ namespace TuitionTakkar
         // ---------- online ----------
         /// <summary>Signed in with Google on this phone (online play unlocked).</summary>
         public bool googleLinked;
+        /// <summary>Signed in with Apple (iPhone). Counts the same as Google everywhere.</summary>
+        public bool appleLinked;
         /// <summary>Editor / dev builds: online without Google, for testing.</summary>
         public bool devGuest;
         /// <summary>Plays online as "Guest_xxxxxx" without Google. Guest wins never go on the leaderboard.</summary>

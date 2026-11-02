@@ -223,7 +223,7 @@ namespace TuitionTakkar
             if (!string.IsNullOrEmpty(title)) who.Add(UIKit.Strong(title, 12f, Pal.Yellow).St(s => s.marginTop = 3));
             if (!string.IsNullOrEmpty(save.friendId))
                 who.Add(IdChip(save.friendId, true).St(s => { s.marginTop = 6; s.alignSelf = Align.FlexStart; }));
-            who.Add(UIKit.Strong((guest ? "Guest" : "Google") + (string.IsNullOrEmpty(st.since) ? "" : " · member since " + st.since), 12f, Pal.Mist).St(s => s.marginTop = 6));
+            who.Add(UIKit.Strong((guest ? "Guest" : gm.Save.appleLinked ? "Apple" : "Google") + (string.IsNullOrEmpty(st.since) ? "" : " · member since " + st.since), 12f, Pal.Mist).St(s => s.marginTop = 6));
             top.Add(who);
             hdr.Add(top);
             var lvRow = UIKit.Row().St(s => s.marginTop = 14);

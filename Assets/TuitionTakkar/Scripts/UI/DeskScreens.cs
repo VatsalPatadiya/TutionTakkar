@@ -106,7 +106,7 @@ namespace TuitionTakkar
                     go = UIKit.Btn("NEED " + Desks.Money(d.fee - save.marks) + " MORE MARKS", () => gm.UI.ShowOverlay(NotEnough(gm, d, mode, room)),
                         Pal.Yellow, Pal.Ink, UIKit.Display, 20f, 58f, 16f, Pal.H("#C7A928"));
                 else if (block == Desks.Block.Guest)
-                    go = UIKit.Btn("SIGN IN WITH GOOGLE TO SIT HERE", () => OnlineScreens.SignInFromDesk(gm), Color.white, Pal.Ink, UIKit.BodyBold, 15f, 58f, 16f, Pal.H("#C9D3DE"), Pal.Ink);
+                    go = UIKit.Btn("SIGN IN WITH " + OnlineScreens.Provider.ToUpperInvariant() + " TO SIT HERE", () => OnlineScreens.SignInFromDesk(gm), Color.white, Pal.Ink, UIKit.BodyBold, 15f, 58f, 16f, Pal.H("#C9D3DE"), Pal.Ink);
                 else
                 {
                     go = UIKit.Btn("OPENS AT LEVEL " + d.level, null, Pal.Locked, Color.white, UIKit.Display, 20f, 58f, 16f, Pal.LockedText);

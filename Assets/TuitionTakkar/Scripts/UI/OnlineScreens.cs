@@ -144,14 +144,9 @@ namespace TuitionTakkar
             {
                 s.position = Position.Absolute; s.right = 12; s.top = -10; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 3, 8, 3, 8); UIKit.Radius(s, 8);
             });
-            var google = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 18f, 64f, 14f, Pal.H("#C9D3DE"), Pal.Ink);
+            var google = AccountButton(gm, "Continue with", 18f, 64f, 26f);
             google.style.marginTop = 22;
             google.style.overflow = Overflow.Visible;
-            var gRow = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
-            gRow.pickingMode = PickingMode.Ignore;
-            gRow.Add(GoogleG(26f));
-            gRow.Add(UIKit.Strong("Continue with Google", 18f, Pal.Ink).St(s => s.marginLeft = 10));
-            google.Add(gRow);
             google.Add(tag);
 #if !UNITY_WEBGL || UNITY_EDITOR
             // Browser players are guests for now (Google sign-in is the phone app's).
@@ -425,13 +420,8 @@ namespace TuitionTakkar
             if (guest)
             {
                 // Sign in later: Google is linked to this same account, nothing is lost.
-                var up = UIKit.Btn("", () => DoGoogle(gm), Color.white, Pal.Ink, UIKit.BodyBold, 15f, 52f, 12f, Pal.H("#C9D3DE"), Pal.Ink);
+                var up = AccountButton(gm, "Sign in with", 16f, 52f, 20f);
                 up.style.marginTop = 12;
-                var uRow = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
-                uRow.pickingMode = PickingMode.Ignore;
-                uRow.Add(GoogleG(20f));
-                uRow.Add(UIKit.Strong("Sign in with Google", 16f, Pal.Ink).St(s => s.marginLeft = 8));
-                up.Add(uRow);
                 body.Add(up);
             }
             else LoadMyRank(gm, winsLabel, rankLabel);
@@ -470,7 +460,81 @@ namespace TuitionTakkar
             else rank.text = "win a match to get on the board";
         }
 
-        internal static void SignInFromDesk(GameManager gm) => DoGoogle(gm);
+        internal static void SignInFromDesk(GameManager gm) => DoAccount(gm);
+
+        /// <summary>iPhone: Sign in with Apple. Android: Google.</summary>
+        internal static bool UseApple => AppleSignIn.Supported;
+        internal static string Provider => UseApple ? "Apple" : "Google";
+
+        static void DoAccount(GameManager gm)
+        {
+            if (UseApple) DoApple(gm);
+            else DoGoogle(gm);
+        }
+
+        /// <summary>The sign-in button in each platform's own style: white with the G, or black with the Apple logo.</summary>
+        static Button AccountButton(GameManager gm, string verb, float font, float height, float icon)
+        {
+            bool apple = UseApple;
+            var b = UIKit.Btn("", () => DoAccount(gm), apple ? Color.black : Color.white, apple ? Color.white : Pal.Ink, UIKit.BodyBold, font, height, 14f,
+                apple ? Pal.H("#3A3A3A") : Pal.H("#C9D3DE"), apple ? Color.black : Pal.Ink);
+            var row = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
+            row.pickingMode = PickingMode.Ignore;
+            row.Add(apple ? AppleLogo(icon) : GoogleG(icon));
+            row.Add(UIKit.Strong(verb + " " + Provider, font, apple ? Color.white : Pal.Ink).St(s => s.marginLeft = 10));
+            b.Add(row);
+            return b;
+        }
+
+        static VisualElement AppleLogo(float size)
+        {
+            var e = new VisualElement { pickingMode = PickingMode.Ignore };
+            e.style.width = size; e.style.height = size; e.style.flexShrink = 0;
+            e.generateVisualContent += ctx =>
+            {
+                var p = ctx.painter2D;
+                float w = e.contentRect.width, h = e.contentRect.height;
+                p.fillColor = Color.white;
+                // Body: a rounded apple with a dip at the top and a bite on the right.
+                p.BeginPath();
+                p.MoveTo(new Vector2(w * 0.50f, h * 0.30f));
+                p.BezierCurveTo(new Vector2(w * 0.30f, h * 0.18f), new Vector2(w * 0.06f, h * 0.26f), new Vector2(w * 0.08f, h * 0.56f));
+                p.BezierCurveTo(new Vector2(w * 0.10f, h * 0.82f), new Vector2(w * 0.28f, h * 1.00f), new Vector2(w * 0.40f, h * 0.96f));
+                p.BezierCurveTo(new Vector2(w * 0.46f, h * 0.94f), new Vector2(w * 0.54f, h * 0.94f), new Vector2(w * 0.60f, h * 0.96f));
+                p.BezierCurveTo(new Vector2(w * 0.72f, h * 1.00f), new Vector2(w * 0.86f, h * 0.84f), new Vector2(w * 0.92f, h * 0.70f));
+                p.BezierCurveTo(new Vector2(w * 0.76f, h * 0.62f), new Vector2(w * 0.74f, h * 0.40f), new Vector2(w * 0.88f, h * 0.33f));
+                p.BezierCurveTo(new Vector2(w * 0.78f, h * 0.20f), new Vector2(w * 0.62f, h * 0.20f), new Vector2(w * 0.50f, h * 0.30f));
+                p.ClosePath();
+                p.Fill();
+                // Leaf.
+                p.BeginPath();
+                p.MoveTo(new Vector2(w * 0.50f, h * 0.24f));
+                p.BezierCurveTo(new Vector2(w * 0.50f, h * 0.10f), new Vector2(w * 0.60f, h * 0.02f), new Vector2(w * 0.70f, h * 0.00f));
+                p.BezierCurveTo(new Vector2(w * 0.70f, h * 0.14f), new Vector2(w * 0.62f, h * 0.22f), new Vector2(w * 0.50f, h * 0.24f));
+                p.ClosePath();
+                p.Fill();
+            };
+            return e;
+        }
+
+        static async void DoApple(GameManager gm)
+        {
+            gm.UI.ShowOverlay(Busy("signing in…"));
+            try
+            {
+                string first = await OnlineServices.SignInWithAppleAsync(gm.Save);
+                suggestedName = SuggestName(first);
+                gm.UI.HideOverlay();
+                Next(gm);
+                Friends.Boot(gm); // friend ID, notification token, public profile, pop-ups
+            }
+            catch (Exception e)
+            {
+                if (e is GoogleSignIn.SignInException g && g.Cancelled) { gm.UI.HideOverlay(); return; }
+                Debug.LogWarning("Apple sign-in: " + e);
+                gm.UI.ShowOverlay(Error(gm, "SIGN-IN DIDN'T WORK", OnlineServices.Explain(e)));
+            }
+        }
 
         internal static async void DoQuick(GameManager gm, DeskDef desk)
         {
@@ -941,8 +1005,8 @@ namespace TuitionTakkar
             if (!OnlineServices.OnLeaderboard(gm.Save))
             {
                 // Guests can look, but only Google players are on the board.
-                mine.Add(UIKit.Strong("Playing as guest: sign in with Google to get on the board", 14f, Pal.Ink).St(s => { s.whiteSpace = WhiteSpace.Normal; s.flexShrink = 1; }));
-                mine.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); DoGoogle(gm); });
+                mine.Add(UIKit.Strong("Playing as guest: sign in with " + Provider + " to get on the board", 14f, Pal.Ink).St(s => { s.whiteSpace = WhiteSpace.Normal; s.flexShrink = 1; }));
+                mine.RegisterCallback<ClickEvent>(_ => { gm.Audio.Ui(); DoAccount(gm); });
                 body.Add(mine);
             }
             else

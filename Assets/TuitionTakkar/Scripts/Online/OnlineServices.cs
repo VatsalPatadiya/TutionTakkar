@@ -46,12 +46,15 @@ namespace TuitionTakkar
         // ---------- Google ----------
 
         /// <summary>True once this phone plays online: with Google, or as a guest.</summary>
-        public static bool HasAccount(SaveData s) => s.googleLinked || s.devGuest || s.onlineGuest;
+        public static bool HasAccount(SaveData s) => Linked(s) || s.devGuest || s.onlineGuest;
+
+        /// <summary>Signed in with Google (Android) or Apple (iPhone): leaderboard, friends, profile, ideas.</summary>
+        public static bool Linked(SaveData s) => s.googleLinked || s.appleLinked;
 
         /// <summary>Only Google players go on the leaderboard.</summary>
-        public static bool OnLeaderboard(SaveData s) => s.googleLinked;
+        public static bool OnLeaderboard(SaveData s) => Linked(s);
 
-        public static bool IsGuest(SaveData s) => !s.googleLinked && (s.onlineGuest || s.devGuest);
+        public static bool IsGuest(SaveData s) => !Linked(s) && (s.onlineGuest || s.devGuest);
 
         // ---------- guest ----------
 
@@ -113,6 +116,34 @@ namespace TuitionTakkar
             return g.displayName;
         }
 
+        /// <summary>
+        /// Sign in with Apple (iPhone): links Apple to the current player (a guest keeps everything), or
+        /// switches to the player that already owns this Apple account. Returns Apple's first name, if sent.
+        /// </summary>
+        public static async Task<string> SignInWithAppleAsync(SaveData save)
+        {
+            await InitAsync();
+            var a = await AppleSignIn.RequestAsync();
+            string before = Auth.PlayerId;
+            try
+            {
+                await Auth.LinkWithAppleAsync(a.idToken);
+            }
+            catch (AuthenticationException e) when (e.ErrorCode == AuthenticationErrorCodes.AccountAlreadyLinked)
+            {
+                Auth.SignOut(true);
+                await Auth.SignInWithAppleAsync(a.idToken);
+            }
+            if (Auth.PlayerId != before) { save.friendId = ""; Friends.Reset(); }
+            save.appleLinked = true;
+            save.devGuest = false;
+            save.onlineGuest = false;
+            await RefreshNameAsync(save);
+            if (save.onlineName.StartsWith(GuestPrefix)) save.onlineName = "";
+            save.Save();
+            return a.firstName;
+        }
+
         /// <summary>Editor and dev builds only: play online without Google, for testing.</summary>
         public static async Task SignInDevGuestAsync(SaveData save)
         {
@@ -127,6 +158,7 @@ namespace TuitionTakkar
             if (SignedIn) Auth.SignOut(true);
             GoogleSignIn.SignOut();
             save.googleLinked = false;
+            save.appleLinked = false;
             save.devGuest = false;
             save.onlineGuest = false;
             save.onlineName = "";
