@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found · Tuition Takkar</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1C2C33">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Kalam:wght@400;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --sage:#CBDDD0; --night:#1C2C33; --wood:#7A5534; --wood-dark:#5C3F25; --yellow:#FFE45C; --yellow-dark:#C7A928;
+          --ink:#1F2A44; --soft:#46546A; --paper:#FFFDF4; --sticky:#FFE680; --pink:#F8C8D4; --blue:#BFE3F0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { min-height:100vh; display:flex; flex-direction:column; color:var(--ink); font-family:"Nunito", system-ui, sans-serif;
+         background-color:var(--sage);
+         background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 3px, transparent 3px 14px); }
+  header { background:var(--night); border-radius:0 0 22px 22px; }
+  .bar { max-width:900px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .logo { background:var(--yellow); font-family:"Lilita One", sans-serif; font-size:22px; padding:6px 14px; transform:rotate(-2deg);
+          box-shadow:0 3px 0 var(--yellow-dark); text-decoration:none; color:var(--ink); }
+  main { flex:1; width:100%; max-width:720px; margin:0 auto; padding:28px 16px 40px; text-align:center; }
+
+  .scene { width:min(100%, 440px); height:auto; display:block; margin:0 auto; overflow:visible; }
+  .pen { transform-box:fill-box; transform-origin:50% 50%; animation:fall 2.6s cubic-bezier(.5,0,.75,.4) infinite; }
+  @keyframes fall {
+    0%, 18%  { transform:translate(0,0) rotate(0deg); opacity:1; }
+    70%      { transform:translate(70px,150px) rotate(220deg); opacity:1; }
+    82%, 100%{ transform:translate(80px,175px) rotate(250deg); opacity:0; }
+  }
+  .wobble { transform-box:fill-box; transform-origin:50% 100%; animation:wob 2.6s ease-in-out infinite; }
+  @keyframes wob { 0%,12% { transform:rotate(0) } 16% { transform:rotate(-8deg) } 22% { transform:rotate(4deg) } 28%,100% { transform:rotate(0) } }
+  @media (prefers-reduced-motion: reduce) { .pen, .wobble { animation:none; } }
+
+  .big { font:400 clamp(72px, 20vw, 120px)/1 "Lilita One", sans-serif; margin:6px 0 0; letter-spacing:2px;
+         color:var(--ink); text-shadow:0 5px 0 rgba(31,42,68,.15); }
+  h1 { font:400 clamp(28px, 6.5vw, 40px)/1.1 "Lilita One", sans-serif; margin:4px 0 0; }
+  .hand { font-family:"Kalam", cursive; font-size:21px; color:var(--soft); margin:8px 0 0; }
+  .note { display:inline-block; max-width:100%; background:var(--sticky); padding:12px 18px; margin:18px 0 0; transform:rotate(-1deg);
+          box-shadow:0 3px 0 rgba(31,42,68,.1); font-weight:800; font-size:15px; word-break:break-all; }
+  .note span { font-family:ui-monospace, Menlo, monospace; font-weight:700; }
+
+  .btns { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:26px; }
+  .btn { display:inline-block; min-width:190px; padding:15px 22px; border-radius:14px; text-decoration:none; font-weight:900; font-size:17px;
+         color:var(--ink); background:#fff; border:3px solid var(--ink); box-shadow:0 4px 0 var(--ink); transition:transform .08s, box-shadow .08s; }
+  .btn.main { background:var(--yellow); }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 var(--ink); }
+  .btn:focus-visible { outline:3px solid #1F5FBF; outline-offset:3px; }
+  .small { margin-top:20px; font-weight:800; font-size:14px; }
+  .small a { color:#1F5FBF; }
+  footer { max-width:900px; width:100%; margin:0 auto; padding:0 16px 28px; font-weight:800; font-size:13px; color:#33424F; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="/">TUITION TAKKAR</a>
+  </div>
+</header>
+
+<main>
+  <svg class="scene" viewBox="0 0 440 230" role="img" aria-label="A pen falling off the school bench">
+    <!-- bench -->
+    <rect x="20" y="96" width="300" height="20" rx="4" fill="#7A5534"/>
+    <rect x="20" y="112" width="300" height="8" rx="3" fill="#5C3F25"/>
+    <rect x="44" y="118" width="14" height="96" rx="3" fill="#5C3F25"/>
+    <rect x="282" y="118" width="14" height="96" rx="3" fill="#5C3F25"/>
+    <!-- doodle on the bench -->
+    <path d="M70 106 q10 -6 20 0 t20 0" stroke="#A47A52" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- winner pen staying on the bench -->
+    <g class="wobble">
+      <rect x="120" y="80" width="110" height="14" rx="7" fill="#BFE3F0" stroke="#1F2A44" stroke-width="3"/>
+      <rect x="196" y="80" width="34" height="14" rx="7" fill="#1F5FBF" stroke="#1F2A44" stroke-width="3"/>
+      <path d="M120 87 l-14 0" stroke="#1F2A44" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <!-- the pen that got knocked off -->
+    <g class="pen">
+      <rect x="262" y="80" width="96" height="14" rx="7" fill="#F8C8D4" stroke="#1F2A44" stroke-width="3"/>
+      <rect x="326" y="80" width="32" height="14" rx="7" fill="#E05A7A" stroke="#1F2A44" stroke-width="3"/>
+      <path d="M262 87 l-12 0" stroke="#1F2A44" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <!-- takkar spark -->
+    <g stroke="#1F2A44" stroke-width="3" stroke-linecap="round">
+      <path d="M244 66 l-6 -10"/><path d="M252 64 l2 -12"/><path d="M260 68 l8 -8"/>
+    </g>
+    <!-- floor -->
+    <path d="M0 216 H440" stroke="#1F2A44" stroke-opacity=".25" stroke-width="3" stroke-dasharray="10 8"/>
+  </svg>
+
+  <div class="big">404</div>
+  <h1>THIS PAGE FELL OFF THE BENCH</h1>
+  <p class="hand">we looked under the desk. it's not here.</p>
+  <div class="note">no page at <span id="path">this link</span></div>
+
+  <div class="btns">
+    <a class="btn main" href="/">GO HOME</a>
+    <a class="btn" href="/play/">PLAY IN BROWSER</a>
+  </div>
+  <p class="small">got a room invite? ask your friend to send the link again. · <a href="/privacy">Privacy</a></p>
+</main>
+<footer>Tuition Takkar · flick their pen off the bench. keep it.</footer>
+<script>
+  try {
+    var p = decodeURIComponent(location.pathname);
+    if (p.length > 60) p = p.slice(0, 57) + "…";
+    document.getElementById("path").textContent = p;
+  } catch (e) {}
+</script>
+</body>
+</html>
