@@ -23,6 +23,7 @@ namespace TuitionTakkar
         static readonly System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, string>> iosInbox =
             new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, string>>();
         static bool iosForeground = true, askedPermission;
+        static string apnsToken = "";
         static string lastTapped = "";
 
         /// <summary>Asks for notification permission once (signed-in players, when the friends features start).</summary>
@@ -42,7 +43,9 @@ namespace TuitionTakkar
                 while (!req.IsFinished && Time.realtimeSinceStartup - t0 < 60f) yield return null;
                 if (!string.IsNullOrEmpty(req.DeviceToken))
                 {
+                    apnsToken = req.DeviceToken;
                     try { TT_PushSetApns(req.DeviceToken); } catch (Exception e) { Debug.LogWarning("Push apns: " + e.Message); }
+                    Friends.UploadPushToken(); // the Apple token: the server sends iPhone notifications straight to Apple
                 }
                 else Debug.Log("[TuitionTakkar] iPhone notifications: " + (req.Granted ? "no device token yet" : "not allowed") + " " + req.Error);
             }
@@ -57,9 +60,12 @@ namespace TuitionTakkar
             if (host != null) host.StartCoroutine(routine);
             else if (GameManager.I != null) GameManager.I.StartCoroutine(routine);
         }
+        /// <summary>iPhone: the Apple (APNs) device token, hex ("" before permission).</summary>
+        public static string ApnsToken() => apnsToken ?? "";
 #else
         /// <summary>Android asks at start-up; nothing to do here.</summary>
         public static void EnsurePermission() { }
+        public static string ApnsToken() => "";
 #endif
 
         const string Bridge = "com.unitygame.push.PushBridge";

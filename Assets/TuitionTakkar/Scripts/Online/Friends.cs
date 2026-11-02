@@ -444,15 +444,20 @@ namespace TuitionTakkar
         {
             if (OnlineServices.SignedIn && GameManager.I != null && Allowed(GameManager.I.Save)) Push.EnsurePermission(); // iPhone: asks once
             string token = Push.Token();
-            if (string.IsNullOrEmpty(token) || uploading || !OnlineServices.SignedIn) return;
+            string apns = Push.ApnsToken(); // iPhone: Apple's token (the server sends to Apple directly)
+            if (string.IsNullOrEmpty(token) && string.IsNullOrEmpty(apns)) return;
+            if (uploading || !OnlineServices.SignedIn) return;
             var gm = GameManager.I;
             if (gm == null || !Allowed(gm.Save)) return;
-            if (PlayerPrefs.GetString("tt_push_token_sent", "") == token + OnlineServices.PlayerId) return;
+            if (PlayerPrefs.GetString("tt_push_token_sent", "") == token + apns + OnlineServices.PlayerId) return;
             try
             {
                 uploading = true;
-                await CloudSaveService.Instance.Data.Player.SaveAsync(new Dictionary<string, object> { { "fcmToken", token } });
-                PlayerPrefs.SetString("tt_push_token_sent", token + OnlineServices.PlayerId);
+                var data = new Dictionary<string, object>();
+                if (!string.IsNullOrEmpty(token)) data["fcmToken"] = token;
+                if (!string.IsNullOrEmpty(apns)) data["apnsToken"] = apns;
+                await CloudSaveService.Instance.Data.Player.SaveAsync(data);
+                PlayerPrefs.SetString("tt_push_token_sent", token + apns + OnlineServices.PlayerId);
                 PlayerPrefs.Save();
                 Debug.Log("[TuitionTakkar] push token saved for this player");
             }

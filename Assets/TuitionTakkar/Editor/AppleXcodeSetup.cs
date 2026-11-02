@@ -29,22 +29,9 @@ namespace TuitionTakkar.EditorTools
             proj.AddFrameworkToProject(fw, "AuthenticationServices.framework", true);
             proj.AddFrameworkToProject(fw, "UserNotifications.framework", false);
 
-            // Firebase Messaging (turns the Apple token into a messaging token). Linked into the MAIN app:
-            // Xcode can't reliably build Swift-package libraries into UnityFramework ("Build input files cannot
-            // be found: FirebaseMessaging.o"). TTPush.mm finds Firebase at run time, so UnityFramework doesn't need it.
-            string pkg = proj.AddRemotePackageReferenceAtVersionUpToNextMajor("https://github.com/firebase/firebase-ios-sdk", "11.0.0");
-            proj.AddRemotePackageFrameworkToProject(main, "FirebaseMessaging", pkg, false);
-            proj.AddRemotePackageFrameworkToProject(main, "FirebaseCore", pkg, false);
-            proj.AddBuildProperty(main, "OTHER_LDFLAGS", "-ObjC"); // keep Firebase's classes (nothing references them by name)
-
-            // Firebase reads GoogleService-Info.plist from the app.
-            const string plist = "GoogleService-Info.plist";
-            if (File.Exists("Assets/" + plist))
-            {
-                File.Copy("Assets/" + plist, Path.Combine(path, plist), true);
-                proj.AddFileToBuild(main, proj.AddFile(plist, plist));
-            }
-            else UnityEngine.Debug.LogWarning("[TuitionTakkar] Xcode: Assets/" + plist + " missing, iPhone notifications won't work");
+            // No Firebase on iPhone: Swift-package Firebase doesn't build reliably inside Unity's Xcode project
+            // (missing .o files, then missing resource bundles). iPhone notifications go straight to Apple
+            // (APNs) from the Cloud Code scripts instead, using the token Unity Mobile Notifications provides.
             proj.WriteToFile(projPath);
 
             var caps = new ProjectCapabilityManager(projPath, "Unity-iPhone/TuitionTakkar.entitlements", null, main);
