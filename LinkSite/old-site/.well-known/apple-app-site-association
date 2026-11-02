@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "87CTM2H52V.com.unitygame.tuitiontakkar"
+        ],
+        "components": [
+          {
+            "/": "/join/*",
+            "comment": "room invites open the game"
+          }
+        ]
+      }
+    ]
+  }
+}

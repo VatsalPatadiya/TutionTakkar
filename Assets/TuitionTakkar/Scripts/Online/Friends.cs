@@ -442,6 +442,7 @@ namespace TuitionTakkar
 
         public static async void UploadPushToken()
         {
+            if (OnlineServices.SignedIn && GameManager.I != null && Allowed(GameManager.I.Save)) Push.EnsurePermission(); // iPhone: asks once
             string token = Push.Token();
             if (string.IsNullOrEmpty(token) || uploading || !OnlineServices.SignedIn) return;
             var gm = GameManager.I;

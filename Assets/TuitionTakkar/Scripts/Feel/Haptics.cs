@@ -66,6 +66,10 @@ namespace TuitionTakkar
         }
 #endif
 
+#if UNITY_IOS && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern void TT_Haptic(int level);
+#endif
+
         /// <summary>A single pulse. amplitude 1..255 (Android 8+).</summary>
         public static void Pulse(int ms, int amplitude = 160, bool big = false)
         {
@@ -80,7 +84,9 @@ namespace TuitionTakkar
             EnsureWorker();
             jobs.TryAdd(new Job { ms = ms, amp = amplitude, big = big }); // dropped if 8 are already waiting
 #elif UNITY_IOS && !UNITY_EDITOR
-            if (big) Handheld.Vibrate();
+            // iPhone has no millisecond buzz: a light / medium / heavy tap by strength (Plugins/iOS/TTHaptics.mm).
+            try { TT_Haptic(big ? 3 : amplitude >= 200 ? 2 : amplitude >= 120 ? 1 : 0); }
+            catch (System.Exception) { if (big) Handheld.Vibrate(); }
 #endif
         }
 
