@@ -38,7 +38,15 @@ namespace TuitionTakkar.EditorTools
         {
             Apply();
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
+            {
+                // The Xcode set-up (AppleXcodeSetup: Sign in with Apple, push, links) only compiles once Unity is
+                // on iPhone, so building in the same step would leave it out. Switch now, build next time.
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.iOS, BuildTarget.iOS);
+                string wait = "[TuitionTakkar] IPHONE build NOT STARTED: switched Unity to iPhone first. Run Build iPhone (Xcode project) again.";
+                Debug.LogWarning(wait);
+                System.IO.File.WriteAllText("Builds/ios-info.txt", wait);
+                return;
+            }
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             string outDir = OutDir;
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
