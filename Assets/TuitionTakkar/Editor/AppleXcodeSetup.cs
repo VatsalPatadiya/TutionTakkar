@@ -43,6 +43,14 @@ namespace TuitionTakkar.EditorTools
 
             MoveAppSettingsOffProject(projPath, main);
 
+            // Unity Mobile Notifications only asks Apple for a device token when this Info.plist switch is on
+            // (its own setting is off because this file adds the push capability itself).
+            string plistPath = Path.Combine(path, "Info.plist");
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            plist.root.SetBoolean("UnityAddRemoteNotificationCapability", true);
+            plist.WriteToFile(plistPath);
+
             // Without this Unity's app code ignores Apple's "here is your device token" call, so the game
             // never gets an iPhone notification token and nothing can be sent to the phone.
             string pre = Path.Combine(path, "Classes", "Preprocessor.h");
