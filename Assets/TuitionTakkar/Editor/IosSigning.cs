@@ -33,6 +33,14 @@ namespace TuitionTakkar.EditorTools
             Debug.Log("[TuitionTakkar] iOS settings: team " + TeamId + ", version " + PlayerSettings.bundleVersion + " (" + PlayerSettings.iOS.buildNumber + "), iPhone only");
         }
 
+        [MenuItem("Tuition Takkar/Open latest iPhone build in Finder")]
+        static void OpenLatest()
+        {
+            var dirs = System.IO.Directory.GetDirectories("Builds", "iOS-*").OrderByDescending(d => System.IO.Directory.GetLastWriteTimeUtc(d)).ToArray();
+            if (dirs.Length == 0) { Debug.Log("[TuitionTakkar] no iPhone build yet"); return; }
+            EditorUtility.RevealInFinder(dirs[0] + "/Unity-iPhone.xcodeproj");
+        }
+
         [MenuItem("Tuition Takkar/Build iPhone (Xcode project)")]
         static void Build()
         {
