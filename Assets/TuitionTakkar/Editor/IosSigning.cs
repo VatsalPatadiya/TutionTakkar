@@ -22,10 +22,12 @@ namespace TuitionTakkar.EditorTools
             PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.iOS, "com.unitygame.tuitiontakkar");
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneOnly;
+            // TestFlight / App Store build number: at least 1 (raise it for every upload of the same version).
+            if (!int.TryParse(PlayerSettings.iOS.buildNumber, out int build) || build < 1) PlayerSettings.iOS.buildNumber = "1";
             var schemes = PlayerSettings.iOS.iOSUrlSchemes ?? new string[0];
             if (!schemes.Contains("tuitiontakkar")) PlayerSettings.iOS.iOSUrlSchemes = schemes.Concat(new[] { "tuitiontakkar" }).ToArray();
             AssetDatabase.SaveAssets();
-            Debug.Log("[TuitionTakkar] iOS settings: team " + TeamId + ", automatic signing, iPhone only, tuitiontakkar:// links");
+            Debug.Log("[TuitionTakkar] iOS settings: team " + TeamId + ", version " + PlayerSettings.bundleVersion + " (" + PlayerSettings.iOS.buildNumber + "), iPhone only");
         }
 
         [MenuItem("Tuition Takkar/Build iPhone (Xcode project)")]
