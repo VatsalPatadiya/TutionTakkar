@@ -5,6 +5,15 @@ namespace TuitionTakkar
 {
     public static class RoundResultView
     {
+        const string CardClass = "tt-round-result";
+
+        /// <summary>Removes the round card if it is still showing (leaves any other pop-up alone).</summary>
+        public static void CloseIfOpen(GameManager gm)
+        {
+            var layer = gm.UI.OverlayLayer;
+            for (int i = layer.childCount - 1; i >= 0; i--)
+                if (layer[i].ClassListContains(CardClass)) layer[i].RemoveFromHierarchy();
+        }
         static string Possessive(MatchSetup s, int i)
         {
             int me = s.mode == MatchMode.Online ? s.localIndex : 0;
@@ -19,6 +28,7 @@ namespace TuitionTakkar
 
             var o = UIKit.El().St(s => s.backgroundColor = new Color(0.063f, 0.102f, 0.118f, 0.62f));
             o.pickingMode = PickingMode.Position;
+            o.AddToClassList(CardClass);
 
             var card = UIKit.Col().St(s =>
             {
@@ -82,15 +92,15 @@ namespace TuitionTakkar
             if (online)
             {
                 // Both phones move on by themselves, so nobody waits on a button.
-                var next = UIKit.HandText(sum.matchOver ? "match over…" : "next round in 4…", 18f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => s.marginTop = 14);
+                int left = Mathf.RoundToInt(GameConfig.OnlineRoundPause);
+                var next = UIKit.HandText(sum.matchOver ? "match over…" : "next round in " + left + "…", 18f, Pal.InkSoft, TextAnchor.MiddleCenter).St(s => s.marginTop = 14);
                 card.Add(next);
-                int left = 4;
                 next.schedule.Execute(() =>
                 {
                     left--;
                     if (left > 0) { if (!sum.matchOver) next.text = "next round in " + left + "…"; return; }
-                    if (next.panel == null) return;
-                    gm.UI.HideOverlay();
+                    if (next.panel == null) return; // replaced by another pop-up: the match moves on by itself
+                    CloseIfOpen(gm);
                     gm.Match.Continue();
                 }).StartingIn(1000).Every(1000).Until(() => left <= 0);
                 o.Add(card);

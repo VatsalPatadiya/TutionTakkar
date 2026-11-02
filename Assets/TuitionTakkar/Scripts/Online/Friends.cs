@@ -442,7 +442,8 @@ namespace TuitionTakkar
 
         public static async void UploadPushToken()
         {
-            if (OnlineServices.SignedIn && GameManager.I != null && Allowed(GameManager.I.Save)) Push.EnsurePermission(); // iPhone: asks once
+            if (OnlineServices.SignedIn && GameManager.I != null && Allowed(GameManager.I.Save) && !GameManager.I.Match.Running)
+                Push.EnsurePermission(); // iPhone: asks once (never in the middle of a match: the system pop-up pauses the game)
             string token = Push.Token();
             string apns = Push.ApnsToken(); // iPhone: Apple's token (the server sends to Apple directly)
             if (string.IsNullOrEmpty(token) && string.IsNullOrEmpty(apns)) return;

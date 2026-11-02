@@ -144,13 +144,16 @@ namespace TuitionTakkar
             {
                 s.position = Position.Absolute; s.right = 12; s.top = -10; s.backgroundColor = Pal.Yellow; UIKit.Pad(s, 3, 8, 3, 8); UIKit.Radius(s, 8);
             });
-            var google = AccountButton(gm, "Continue with", 18f, 64f, 26f);
-            google.style.marginTop = 22;
-            google.style.overflow = Overflow.Visible;
-            google.Add(tag);
+            // iPhone: Apple and Google. Android: Google.
+            var first = AccountButton(gm, "Continue with", 18f, 64f, 26f, UseApple);
+            first.style.marginTop = 22;
+            first.style.overflow = Overflow.Visible;
+            first.Add(tag);
 #if !UNITY_WEBGL || UNITY_EDITOR
             // Browser players are guests for now (Google sign-in is the phone app's).
-            card.Add(google);
+            card.Add(first);
+            if (UseApple && GoogleSignIn.Supported)
+                card.Add(AccountButton(gm, "Continue with", 18f, 64f, 26f, false).St(s => s.marginTop = 10));
             card.Add(Perk("get on the leaderboard", LineIcon.Kind.Medal));
 
             var or = UIKit.Row().St(s => { s.marginTop = 16; s.alignItems = Align.Center; });
@@ -420,9 +423,11 @@ namespace TuitionTakkar
             if (guest)
             {
                 // Sign in later: Google is linked to this same account, nothing is lost.
-                var up = AccountButton(gm, "Sign in with", 16f, 52f, 20f);
+                var up = AccountButton(gm, "Sign in with", 16f, 52f, 20f, UseApple);
                 up.style.marginTop = 12;
                 body.Add(up);
+                if (UseApple && GoogleSignIn.Supported)
+                    body.Add(AccountButton(gm, "Sign in with", 16f, 52f, 20f, false).St(s => s.marginTop = 8));
             }
             else LoadMyRank(gm, winsLabel, rankLabel);
 
@@ -462,26 +467,40 @@ namespace TuitionTakkar
 
         internal static void SignInFromDesk(GameManager gm) => DoAccount(gm);
 
-        /// <summary>iPhone: Sign in with Apple. Android: Google.</summary>
+        /// <summary>iPhone: Sign in with Apple and with Google. Android: Google.</summary>
         internal static bool UseApple => AppleSignIn.Supported;
-        internal static string Provider => UseApple ? "Apple" : "Google";
+        /// <summary>Both kinds of sign-in on this phone (iPhone).</summary>
+        internal static bool BothProviders => UseApple && GoogleSignIn.Supported;
+        internal static string Provider => BothProviders ? "Apple or Google" : UseApple ? "Apple" : "Google";
 
+        /// <summary>From a "sign in" button elsewhere: iPhone asks which one, Android goes straight to Google.</summary>
         static void DoAccount(GameManager gm)
         {
-            if (UseApple) DoApple(gm);
+            if (BothProviders) gm.UI.ShowOverlay(ChooseAccount(gm));
+            else if (UseApple) DoApple(gm);
             else DoGoogle(gm);
         }
 
-        /// <summary>The sign-in button in each platform's own style: white with the G, or black with the Apple logo.</summary>
-        static Button AccountButton(GameManager gm, string verb, float font, float height, float icon)
+        static VisualElement ChooseAccount(GameManager gm)
         {
-            bool apple = UseApple;
-            var b = UIKit.Btn("", () => DoAccount(gm), apple ? Color.black : Color.white, apple ? Color.white : Pal.Ink, UIKit.BodyBold, font, height, 14f,
+            var o = Sheet(out var c);
+            c.Add(UIKit.Disp("SIGN IN", 28f, Pal.Ink));
+            c.Add(UIKit.HandText("your wins, friends and leaderboard spot follow you.", 17f, Pal.InkSoft));
+            c.Add(AccountButton(gm, "Continue with", 17f, 58f, 24f, true).St(s => s.marginTop = 14));
+            c.Add(AccountButton(gm, "Continue with", 17f, 58f, 24f, false).St(s => s.marginTop = 10));
+            c.Add(UIKit.Btn("Cancel", () => gm.UI.HideOverlay(), Color.clear, Pal.Ink, UIKit.BodyBold, 15f, 46f, 12f).St(s => s.marginTop = 6));
+            return o;
+        }
+
+        /// <summary>The sign-in button in each provider's own style: white with the G, or black with the Apple logo.</summary>
+        static Button AccountButton(GameManager gm, string verb, float font, float height, float icon, bool apple)
+        {
+            var b = UIKit.Btn("", () => { if (apple) DoApple(gm); else DoGoogle(gm); }, apple ? Color.black : Color.white, apple ? Color.white : Pal.Ink, UIKit.BodyBold, font, height, 14f,
                 apple ? Pal.H("#3A3A3A") : Pal.H("#C9D3DE"), apple ? Color.black : Pal.Ink);
             var row = UIKit.Row().St(s => { s.justifyContent = Justify.Center; s.flexGrow = 1; });
             row.pickingMode = PickingMode.Ignore;
             row.Add(apple ? AppleLogo(icon) : GoogleG(icon));
-            row.Add(UIKit.Strong(verb + " " + Provider, font, apple ? Color.white : Pal.Ink).St(s => s.marginLeft = 10));
+            row.Add(UIKit.Strong(verb + " " + (apple ? "Apple" : "Google"), font, apple ? Color.white : Pal.Ink).St(s => s.marginLeft = 10));
             b.Add(row);
             return b;
         }

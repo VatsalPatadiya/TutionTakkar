@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Signing in · Tuition Takkar</title>
+<style>
+  :root { --sage:#CBDDD0; --ink:#1F2A44; --yellow:#FFE45C; }
+  html, body { margin:0; height:100%; }
+  body { display:flex; align-items:center; justify-content:center; background:var(--sage); color:var(--ink);
+         font:800 18px/1.4 "Nunito", system-ui, sans-serif; text-align:center; padding:16px; box-sizing:border-box; }
+  .card { background:#FFFDF4; padding:22px 24px; max-width:340px; box-shadow:0 4px 0 rgba(31,42,68,.12); }
+  a { display:inline-block; margin-top:14px; background:var(--yellow); color:var(--ink); padding:12px 18px; border-radius:12px;
+      border:3px solid var(--ink); text-decoration:none; font-weight:900; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="msg">back to Tuition Takkar…</div>
+  <a id="back" href="tuitiontakkar://google?error=closed">OPEN THE GAME</a>
+</div>
+<script>
+  // Google sends the sign-in result after the "#". Hand it to the app (it is never stored here).
+  (function () {
+    var p = new URLSearchParams((location.hash || "").replace(/^#/, "") || (location.search || "").replace(/^\?/, ""));
+    var token = p.get("id_token"), err = p.get("error");
+    var target = "tuitiontakkar://google?" + (token ? "id_token=" + encodeURIComponent(token) : "error=" + encodeURIComponent(err || "no_token"));
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    document.getElementById("back").href = target;
+    if (!token) document.getElementById("msg").textContent = err === "access_denied" ? "sign-in cancelled." : "sign-in didn't finish.";
+    location.replace(target);
+  })();
+</script>
+</body>
+</html>

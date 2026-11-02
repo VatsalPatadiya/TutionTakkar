@@ -72,6 +72,8 @@ namespace TuitionTakkar
         float lastPower;
         bool running;
         float teeterTime;
+        /// <summary>A round just ended and the next one hasn't started yet (Continue may run once).</summary>
+        bool betweenRounds;
 
         public MatchSetup Setup => setup;
         public int Round => round;
@@ -102,6 +104,7 @@ namespace TuitionTakkar
             firstShooter = 0;
             turnNo = 0;
             autoShotsUsed = 0;
+            betweenRounds = false;
             running = true;
             gm.World.SpawnPens(s.pens);
             if (s.IsParty)
@@ -127,6 +130,7 @@ namespace TuitionTakkar
             turnTimer = null;
             gm?.UI.Hud.HideAutoShot();
             running = false;
+            betweenRounds = false;
             Shooting = false;
             gm?.Input.Disable();
             gm?.Aim.Hide();
@@ -461,7 +465,21 @@ namespace TuitionTakkar
                 matchOver = score[winner] >= GameConfig.RoundsToWin
             };
             gm.UI.Hud.SetMatch(setup, score, round);
+            betweenRounds = true;
             gm.OnRoundOver(sum);
+            // Online, the next round must start on time on every phone, whatever happens to the
+            // round card (another pop-up replacing it, a tap on pause…): the match moves on by itself.
+            if (Online) StartCoroutine(OnlineNextRound(round));
+        }
+
+        /// <summary>Backup for the round card's own countdown, kept out of the UI so nothing can stall it.</summary>
+        IEnumerator OnlineNextRound(int endedRound)
+        {
+            yield return new WaitForSecondsRealtime(GameConfig.OnlineRoundPause + 0.5f);
+            if (!running || !betweenRounds || round != endedRound) yield break;
+            Debug.Log("[TuitionTakkar] online: round card didn't move on, starting round " + (endedRound + 1) + " anyway");
+            RoundResultView.CloseIfOpen(gm);
+            Continue();
         }
 
         /// <summary>
@@ -720,7 +738,8 @@ namespace TuitionTakkar
         /// <summary>Called by the round-result screen's button.</summary>
         public void Continue()
         {
-            if (!running) return;
+            if (!running || !betweenRounds) return;   // only once per round end (card button + online backup)
+            betweenRounds = false;
             if (score[0] >= GameConfig.RoundsToWin || score[1] >= GameConfig.RoundsToWin)
             {
                 int winner = score[0] >= GameConfig.RoundsToWin ? 0 : 1;
@@ -733,7 +752,13 @@ namespace TuitionTakkar
                 return;
             }
             round++;
-            StartRound();
+            try { StartRound(); }
+            catch (System.Exception e)
+            {
+                // Never leave the desk frozen: log it and still hand out the turn.
+                Debug.LogException(e);
+                if (running && turnTimer == null && !Shooting) BeginTurn();
+            }
         }
     }
 }

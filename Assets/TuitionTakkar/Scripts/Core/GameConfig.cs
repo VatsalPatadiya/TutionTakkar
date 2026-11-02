@@ -99,6 +99,8 @@ namespace TuitionTakkar
         public static float OnlineTurnTimeLimit => Desks.OnlineTurnSeconds; // per desk
         /// <summary>Extra seconds to wait for the other phone before it counts as gone.</summary>
         public const float OnlineAbsentGrace = 20f;
+        /// <summary>Online: seconds the round card shows before the next round starts by itself (every phone).</summary>
+        public const float OnlineRoundPause = 4f;
         /// <summary>
         /// Online: auto shots each player may get per match when their clock runs out.
         /// One more time-out after that and they lose the match (or their pen is out).

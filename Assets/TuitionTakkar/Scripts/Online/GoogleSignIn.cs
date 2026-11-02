@@ -6,7 +6,9 @@ namespace TuitionTakkar
 {
     /// <summary>
     /// Gets a Google ID token from the phone. Android uses Credential Manager through
-    /// Plugins/Android/GoogleSignIn.androidlib. iPhone comes later (needs the Apple account).
+    /// Plugins/Android/GoogleSignIn.androidlib. iPhone opens Google's page in Apple's secure sign-in
+    /// browser (Plugins/iOS/TTGoogleSignIn.mm); Google returns the token to
+    /// https://tuitiontakkar.web.app/auth/google, which hands it back to the app.
     /// </summary>
     public static class GoogleSignIn
     {
@@ -26,8 +28,11 @@ namespace TuitionTakkar
             public bool Cancelled => Code == "cancelled";
         }
 
+        /// <summary>The page Google sends the iPhone sign-in result to (must be an authorized redirect URI of the web client).</summary>
+        public const string IosRedirect = "https://tuitiontakkar.web.app/auth/google";
+
         public static bool Supported =>
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
             true;
 #else
             false;
@@ -51,9 +56,61 @@ namespace TuitionTakkar
                 tcs.TrySetException(new SignInException("failed", e.Message));
             }
             return tcs.Task;
+#elif UNITY_IOS && !UNITY_EDITOR
+            iosPending?.TrySetException(new SignInException("cancelled", "replaced"));
+            iosPending = new TaskCompletionSource<Result>();
+            var t = iosPending.Task;
+            string nonce = Guid.NewGuid().ToString("N");
+            string url = "https://accounts.google.com/o/oauth2/v2/auth"
+                + "?client_id=" + Uri.EscapeDataString(WebClientId)
+                + "&redirect_uri=" + Uri.EscapeDataString(IosRedirect)
+                + "&response_type=id_token"
+                + "&scope=" + Uri.EscapeDataString("openid profile")
+                + "&nonce=" + nonce
+                + "&prompt=select_account";
+            try { TT_GoogleSignIn(url, OnIosResult); }
+            catch (Exception e) { iosPending = null; return Task.FromException<Result>(new SignInException("failed", e.Message)); }
+            return t;
 #else
             return Task.FromException<Result>(new SignInException("unsupported", "Google sign-in works in the phone build."));
 #endif
+        }
+
+#if UNITY_IOS && !UNITY_EDITOR
+        delegate void IosCallback(int status, string token, string error);
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern void TT_GoogleSignIn(string authUrl, IosCallback cb);
+        static TaskCompletionSource<Result> iosPending;
+
+        [AOT.MonoPInvokeCallback(typeof(IosCallback))]
+        static void OnIosResult(int status, string token, string error)
+        {
+            var tcs = iosPending;
+            iosPending = null;
+            if (tcs == null) return;
+            MainThread.Run(() =>
+            {
+                if (status == 1) tcs.TrySetResult(new Result { idToken = token, displayName = NameIn(token) });
+                else if (status == 2) tcs.TrySetException(new SignInException("cancelled", "cancelled"));
+                else tcs.TrySetException(new SignInException("failed", string.IsNullOrEmpty(error) ? "Google sign-in didn't work" : error));
+            });
+        }
+#endif
+
+        [Serializable] class Claims { public string name; public string given_name; }
+
+        /// <summary>The player's first name inside a Google ID token (only to suggest a game name).</summary>
+        static string NameIn(string idToken)
+        {
+            try
+            {
+                var parts = idToken.Split('.');
+                if (parts.Length < 2) return "";
+                string b = parts[1].Replace('-', '+').Replace('_', '/');
+                b = b.PadRight(b.Length + (4 - b.Length % 4) % 4, '=');
+                var c = JsonUtility.FromJson<Claims>(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b)));
+                return !string.IsNullOrEmpty(c.given_name) ? c.given_name : c.name ?? "";
+            }
+            catch (Exception) { return ""; }
         }
 
         public static void SignOut()
