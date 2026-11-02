@@ -1,1 +1,17 @@
-{ "projects": { "default": "penfighter-6be8b" } }
+{
+  "projects": {
+    "default": "penfighter-6be8b"
+  },
+  "targets": {
+    "penfighter-6be8b": {
+      "hosting": {
+        "main": [
+          "tuitiontakkar"
+        ],
+        "old": [
+          "penfighter-6be8b"
+        ]
+      }
+    }
+  }
+}

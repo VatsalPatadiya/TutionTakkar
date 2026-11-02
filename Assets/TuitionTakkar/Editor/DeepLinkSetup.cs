@@ -11,13 +11,14 @@ namespace TuitionTakkar.EditorTools
     /// <summary>
     /// Invite links (see DeepLinks.cs):
     ///  • Android: adds two intent filters to the game's main activity in the generated Gradle
-    ///    project: tuitiontakkar://join/… and the verified App Link https://penfighter-6be8b.web.app/join/…
+    ///    project: tuitiontakkar://join/… and the verified App Link https://tuitiontakkar.web.app/join/… (and the old penfighter-6be8b.web.app)
     ///  • iOS: registers the tuitiontakkar:// URL scheme in Player Settings.
     /// </summary>
     class DeepLinkSetup : IPostGenerateGradleAndroidProject, IPreprocessBuildWithReport
     {
         const string Scheme = "tuitiontakkar";
-        const string Host = "penfighter-6be8b.web.app";
+        const string Host = "tuitiontakkar.web.app";
+        const string OldHost = "penfighter-6be8b.web.app"; // invite links shared before the move
         const string AndroidNs = "http://schemas.android.com/apk/res/android";
 
         public int callbackOrder => 10;
@@ -69,8 +70,9 @@ namespace TuitionTakkar.EditorTools
 
             if (activity.SelectSingleNode("intent-filter/data[@android:scheme='" + Scheme + "']", ns) == null)
                 activity.AppendChild(Filter(doc, false, Scheme, "join", null));
-            if (activity.SelectSingleNode("intent-filter/data[@android:host='" + Host + "']", ns) == null)
-                activity.AppendChild(Filter(doc, true, "https", Host, "/join"));
+            foreach (var h in new[] { Host, OldHost })
+                if (activity.SelectSingleNode("intent-filter/data[@android:host='" + h + "']", ns) == null)
+                    activity.AppendChild(Filter(doc, true, "https", h, "/join"));
 
             doc.Save(path);
             return true;

@@ -6,7 +6,7 @@ namespace TuitionTakkar
 {
     /// <summary>
     /// Room invites. Sharing builds a link like
-    ///   https://penfighter-6be8b.web.app/join/ABC123?from=Vatsal
+    ///   https://tuitiontakkar.web.app/join/ABC123?from=Vatsal
     /// Tapping it opens the game (Android App Link, or the landing page's "Open" button which
     /// uses tuitiontakkar://join/ABC123), and the game goes straight to Play Online with the
     /// Join Room sheet already filled in. One tap on JOIN and they're in.
@@ -14,7 +14,9 @@ namespace TuitionTakkar
     public static class DeepLinks
     {
         public const string Scheme = "tuitiontakkar";
-        public const string Host = "penfighter-6be8b.web.app";
+        public const string Host = "tuitiontakkar.web.app";
+        /// <summary>The first web address; links shared before the move still open the app.</summary>
+        public const string OldHost = "penfighter-6be8b.web.app";
 
         static readonly Regex CodeRx = new Regex(@"(?:join(?:/|\?code=|\?c=)|room/|[?&]code=)([A-Za-z0-9]{6})", RegexOptions.IgnoreCase);
         static readonly Regex FromRx = new Regex(@"[?&]from=([^&#]+)", RegexOptions.IgnoreCase);

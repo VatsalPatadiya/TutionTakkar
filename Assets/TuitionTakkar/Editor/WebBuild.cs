@@ -7,7 +7,7 @@ namespace TuitionTakkar.EditorTools
 {
     /// <summary>
     /// Tuition Takkar ▸ Build Web: the browser version of the game, written into LinkSite/public/play
-    /// so Firebase Hosting serves it at https://penfighter-6be8b.web.app/play/?code=ABC123.
+    /// so Firebase Hosting serves it at https://tuitiontakkar.web.app/play/?code=ABC123.
     /// Gzip with the decompression fallback, so it works without special hosting headers.
     /// Building switches the editor to the Web target; the APK menu switches back to Android.
     /// Result: Builds/web-info.txt

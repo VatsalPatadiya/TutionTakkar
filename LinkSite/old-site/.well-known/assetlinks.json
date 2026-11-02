@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.unitygame.tuitiontakkar",
+      "sha256_cert_fingerprints": [
+        "E6:1C:EC:88:BC:92:FB:F0:93:83:AB:D7:44:25:6C:2A:3B:2C:6B:91:09:E6:6F:4F:36:68:C4:D0:29:5E:55:F0"
+      ]
+    }
+  }
+]
