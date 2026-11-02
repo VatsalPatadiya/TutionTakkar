@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 8e2f6a1d4c9b47e3a5d0f7b2c1e9a634
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: fbc33bd6a5704c0881dc7a9ead54089b, type: 3}
+  Parameters:
+  - Name: password
+    ParameterType: 0
+    Required: 1
+  - Name: month
+    ParameterType: 0
+    Required: 0
+  Source: 0

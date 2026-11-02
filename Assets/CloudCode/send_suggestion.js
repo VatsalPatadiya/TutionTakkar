@@ -1,6 +1,6 @@
 // Tuition Takkar · a signed-in player sends an idea / bug / pen idea.
-// Saved as Cloud Save custom items "suggestions_YYYY_MM" (one list per month, server-only writes),
-// readable in the Unity dashboard: Cloud Save > Custom items. Max 3 per player per day.
+// Saved as private Cloud Save game data "suggestions_YYYY_MM" (one list per month): only server
+// scripts and the dashboard can read it. Read them on the web at /admin/ideas. Max 3 per player per day.
 const { DataApi } = require("@unity-services/cloud-save-1.4");
 
 const KINDS = ["idea", "bug", "pen"];
@@ -24,7 +24,8 @@ module.exports = async ({ params, context, logger }) => {
   const now = new Date();
   const list = "suggestions_" + now.getUTCFullYear() + "_" + String(now.getUTCMonth() + 1).padStart(2, "0");
   const key = now.getTime() + "_" + playerId.slice(0, 8);
-  await api.setCustomItem(projectId, list, {
+  // Private: only server scripts and the dashboard can read it (players can't).
+  await api.setPrivateCustomItem(projectId, list, {
     key,
     value: {
       kind,
