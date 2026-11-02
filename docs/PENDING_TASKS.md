@@ -171,3 +171,14 @@ Suggested order: **7 → 8 → 9 → 2 → 1 → 6 → avatars (3) → 4 → 5.*
 ## 4. Prompt to start the new account
 
 > I'm continuing my Unity game Tuition Takkar. Please read `docs/PENDING_TASKS.md` first, then `docs/PROJECT_GUIDE.md`. Follow the owner's decisions in section 3, then work through the 9-point list in the suggested order (7 → 8 → 9 → 2 → 1 → 6 → 3 → 4 → 5). Show me mockups or before/after screenshots before changing any UI, keep the current UI style, commit to `main` after each finished task, and keep explanations simple. Never ask me to paste passwords or keys into chat.
+
+## Idea replies in the app (next app update)
+Server + admin page are done (2 Nov 2026): /admin/ideas has Reply; Cloud Code list_suggestions action="reply" saves the
+reply on the idea, copies it to the player's protected data "ideaReplies" (newest first, last 20:
+{key, month, kind, idea, reply, at, read}) and sends a notification with data kind="idea_reply" (key, month, title, body).
+Still to do in the app:
+- Push kind "idea_reply": tap or arrival while open -> pop-up with the idea and the reply (Friends.FromPush / Push.cs).
+- Me tab idea card: "1 new reply" badge from ideaReplies where read=false.
+- "My ideas" list (past ideas + replies). Past ideas without replies need a small server change too
+  (send_suggestion could also keep the player's own last ideas in protected data).
+- Marking replies read needs a tiny Cloud Code script (protected data is server-write only).

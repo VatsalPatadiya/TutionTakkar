@@ -78,6 +78,16 @@
   .pstat small { font-weight:900; font-size:11px; letter-spacing:.06em; color:var(--soft); }
   .pfoot { margin-top:16px; font-weight:800; font-size:14px; color:var(--soft); }
   .pbtn { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:12px; background:var(--ink); color:#fff; font:900 15px "Nunito"; cursor:pointer; }
+  .reply { margin:2px 0 10px; background:#E9F6EE; border-left:4px solid #3E8E5E; border-radius:8px; padding:10px 12px; }
+  .reply b { display:block; font:900 12px "Nunito"; letter-spacing:.06em; color:#2E6B47; margin-bottom:4px; }
+  .reply p { margin:0; font-size:16px; font-weight:800; line-height:1.4; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .rbtn { border:2px solid var(--ink); background:#fff; color:var(--ink); border-radius:10px; padding:7px 14px; font:900 14px "Nunito"; cursor:pointer; }
+  .rbtn.done { border-color:#3E8E5E; color:#2E6B47; }
+  .rquote { background:#EEF2F6; border-radius:10px; padding:10px 12px; font-weight:800; font-size:15px; line-height:1.4; margin:12px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  textarea { width:100%; min-height:130px; border:3px solid var(--ink); border-radius:12px; padding:12px 14px; font:800 17px/1.4 "Nunito"; color:var(--ink); resize:vertical; }
+  .rcount { text-align:right; font-weight:800; font-size:12px; color:var(--soft); margin-top:4px; }
+  .rnote { font-weight:800; font-size:14px; margin:10px 0 0; min-height:20px; }
+  .rnote.ok { color:#2E6B47; } .rnote.bad { color:var(--red); }
   .empty { text-align:center; padding:40px 16px; font-family:"Kalam", cursive; font-size:22px; color:var(--soft); }
   select { padding-right:36px; }
   .list { grid-template-columns:repeat(auto-fill, minmax(420px, 1fr)); }
@@ -344,7 +354,20 @@
       var dev = document.createElement("span"); dev.className = "device";
       dev.textContent = [it.platform, it.version ? "v" + it.version : ""].filter(Boolean).join(" · ");
       meta.appendChild(who); meta.appendChild(dev);
-      card.appendChild(top); card.appendChild(text); card.appendChild(meta);
+      card.appendChild(top); card.appendChild(text);
+      if (it.reply && it.reply.text) {
+        var rp = document.createElement("div"); rp.className = "reply";
+        var rb = document.createElement("b");
+        rb.textContent = "YOUR REPLY" + (it.reply.at ? " · " + new Date(it.reply.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "");
+        var rt = document.createElement("p"); rt.textContent = it.reply.text;
+        rp.appendChild(rb); rp.appendChild(rt); card.appendChild(rp);
+      }
+      var rbtn = document.createElement("button"); rbtn.type = "button";
+      rbtn.className = "rbtn" + (it.reply ? " done" : "");
+      rbtn.textContent = it.reply ? "Replied ✓ · edit" : "Reply";
+      rbtn.addEventListener("click", function () { openReply(it); });
+      meta.appendChild(rbtn);
+      card.appendChild(meta);
       list.appendChild(card);
     });
   }
@@ -395,6 +418,44 @@
     }).catch(function (e) { loading.textContent = "couldn't load the profile: " + e.message; });
   }
   function closeProfile() { $("modal").hidden = true; }
+
+  // ---------- reply: saved on the idea + a phone notification to the player ----------
+  function openReply(it) {
+    var m = $("modal"), c = $("pcard");
+    c.innerHTML = "";
+    var x = document.createElement("button"); x.className = "pclose"; x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Close");
+    x.addEventListener("click", closeProfile); c.appendChild(x);
+    var h = document.createElement("p"); h.className = "pname"; h.textContent = "REPLY TO " + String(it.name || "PLAYER").toUpperCase(); c.appendChild(h);
+    var q = document.createElement("p"); q.className = "rquote"; q.textContent = it.text || ""; c.appendChild(q);
+    var lab = document.createElement("label"); lab.textContent = "Your reply"; lab.setAttribute("for", "rtext"); c.appendChild(lab);
+    var ta = document.createElement("textarea"); ta.id = "rtext"; ta.maxLength = 300;
+    ta.placeholder = "thanks for the idea! …"; ta.value = it.reply ? it.reply.text : ""; c.appendChild(ta);
+    var cnt = document.createElement("div"); cnt.className = "rcount"; c.appendChild(cnt);
+    var hint = document.createElement("p"); hint.className = "pfoot";
+    hint.textContent = "they get a phone notification: \"Techiebutler replied to your " + (it.kind === "bug" ? "bug report" : it.kind === "pen" ? "pen idea" : "idea") + " 💡\" with your first line.";
+    c.appendChild(hint);
+    var send = document.createElement("button"); send.type = "button"; send.className = "pbtn"; send.textContent = it.reply ? "SEND UPDATED REPLY" : "SEND REPLY";
+    c.appendChild(send);
+    var note = document.createElement("p"); note.className = "rnote"; note.setAttribute("role", "status"); c.appendChild(note);
+    var paint = function () { cnt.textContent = ta.value.length + " / 300"; send.disabled = ta.value.trim().length < 2; };
+    ta.addEventListener("input", paint); paint();
+    send.addEventListener("click", function () {
+      var txt = ta.value.trim(); if (txt.length < 2) return;
+      send.disabled = true; send.textContent = "SENDING…"; note.className = "rnote"; note.textContent = "";
+      call({ action: "reply", month: $("month").value, key: it.key, text: txt }).then(function (o) {
+        if (!o || !o.ok) throw new Error((o && o.error) || "something went wrong");
+        it.reply = o.reply; render();
+        note.className = "rnote " + (o.notified ? "ok" : "bad");
+        note.textContent = o.notified ? "sent ✓ they got a notification." : "reply saved ✓ but no notification: " + (o.notifyError || "unknown reason");
+        send.textContent = "SENT"; ta.disabled = true;
+      }).catch(function (e) {
+        note.className = "rnote bad"; note.textContent = "couldn't send: " + e.message;
+        send.disabled = false; send.textContent = "TRY AGAIN";
+      });
+    });
+    m.hidden = false;
+    setTimeout(function () { ta.focus(); }, 50);
+  }
   $("modal").addEventListener("click", function (e) { if (e.target === $("modal")) closeProfile(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeProfile(); });
 
