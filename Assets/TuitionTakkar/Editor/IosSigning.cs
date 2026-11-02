@@ -12,7 +12,8 @@ namespace TuitionTakkar.EditorTools
     static class IosSigning
     {
         public const string TeamId = "87CTM2H52V";
-        const string OutDir = "Builds/iOS";
+        // A fresh folder each build: Xcode projects from an older build can't simply be overwritten.
+        static string OutDir => "Builds/iOS-" + System.DateTime.Now.ToString("MMdd-HHmm");
 
         [MenuItem("Tuition Takkar/Set iPhone signing team")]
         static void Apply()
@@ -34,18 +35,19 @@ namespace TuitionTakkar.EditorTools
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.iOS, BuildTarget.iOS);
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            string outDir = OutDir;
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = scenes,
-                locationPathName = OutDir,
+                locationPathName = outDir,
                 target = BuildTarget.iOS,
                 options = BuildOptions.None,
             });
             var r = report.summary;
-            string msg = "[TuitionTakkar] IPHONE build " + r.result + " in " + Mathf.RoundToInt((float)r.totalTime.TotalSeconds) + " s, errors " + r.totalErrors + " -> " + System.IO.Path.GetFullPath(OutDir);
+            string msg = "[TuitionTakkar] IPHONE build " + r.result + " in " + Mathf.RoundToInt((float)r.totalTime.TotalSeconds) + " s, errors " + r.totalErrors + " -> " + System.IO.Path.GetFullPath(outDir);
             Debug.Log(msg);
             System.IO.File.WriteAllText("Builds/ios-info.txt", msg);
-            if (r.result == BuildResult.Succeeded) EditorUtility.RevealInFinder(OutDir + "/Unity-iPhone.xcodeproj");
+            if (r.result == BuildResult.Succeeded) EditorUtility.RevealInFinder(outDir + "/Unity-iPhone.xcodeproj");
         }
     }
 }

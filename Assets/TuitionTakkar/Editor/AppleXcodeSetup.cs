@@ -28,11 +28,13 @@ namespace TuitionTakkar.EditorTools
             proj.AddFrameworkToProject(fw, "AuthenticationServices.framework", true);
             proj.AddFrameworkToProject(fw, "UserNotifications.framework", false);
 
-            // Firebase Messaging (turns the Apple token into a messaging token).
+            // Firebase Messaging (turns the Apple token into a messaging token). Linked into the MAIN app:
+            // Xcode can't reliably build Swift-package libraries into UnityFramework ("Build input files cannot
+            // be found: FirebaseMessaging.o"). TTPush.mm finds Firebase at run time, so UnityFramework doesn't need it.
             string pkg = proj.AddRemotePackageReferenceAtVersionUpToNextMajor("https://github.com/firebase/firebase-ios-sdk", "11.0.0");
-            proj.AddRemotePackageFrameworkToProject(fw, "FirebaseMessaging", pkg, false);
-            proj.AddRemotePackageFrameworkToProject(fw, "FirebaseCore", pkg, false);
-            proj.AddBuildProperty(fw, "OTHER_LDFLAGS", "-ObjC");
+            proj.AddRemotePackageFrameworkToProject(main, "FirebaseMessaging", pkg, false);
+            proj.AddRemotePackageFrameworkToProject(main, "FirebaseCore", pkg, false);
+            proj.AddBuildProperty(main, "OTHER_LDFLAGS", "-ObjC"); // keep Firebase's classes (nothing references them by name)
 
             // Firebase reads GoogleService-Info.plist from the app.
             const string plist = "GoogleService-Info.plist";
@@ -56,8 +58,8 @@ namespace TuitionTakkar.EditorTools
             foreach (var scheme in Directory.GetFiles(Path.Combine(path, "Unity-iPhone.xcodeproj"), "*.xcscheme", SearchOption.AllDirectories))
             {
                 string s = File.ReadAllText(scheme);
-                string fixedScheme = s.Replace("buildConfiguration = \"ReleaseForRunning\"", "buildConfiguration = \"Release\"")
-                                      .Replace("buildConfiguration = \"ReleaseForProfiling\"", "buildConfiguration = \"Release\"");
+                string fixedScheme = System.Text.RegularExpressions.Regex.Replace(s,
+                    "buildConfiguration\\s*=\\s*\"ReleaseFor(Running|Profiling)\"", "buildConfiguration=\"Release\"");
                 if (fixedScheme != s) File.WriteAllText(scheme, fixedScheme);
             }
             UnityEngine.Debug.Log("[TuitionTakkar] Xcode: Sign in with Apple, push, invite links and Firebase added");
