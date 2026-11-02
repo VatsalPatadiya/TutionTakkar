@@ -21,13 +21,19 @@ namespace TuitionTakkar.EditorTools
         const string Info = Dir + "/release-info.txt";
         const string Package = "com.unitygame.tuitiontakkar";
 
+        const string BundleOutput = Dir + "/TuitionTakkar-release.aab";
+
         [MenuItem("Tuition Takkar/Build Release APK")]
         static void BuildOnly() => Build(false);
+
+        /// <summary>The Google Play upload: an Android App Bundle (.aab), same release keystore and version.</summary>
+        [MenuItem("Tuition Takkar/Build Play Store Bundle (AAB)")]
+        static void BuildBundle() => Build(false, true);
 
         [MenuItem("Tuition Takkar/Build Release APK and Install")]
         static void BuildAndInstall() => Build(true);
 
-        static void Build(bool install)
+        static void Build(bool install, bool bundle = false)
         {
             Directory.CreateDirectory(Dir);
             var log = new StringBuilder();
@@ -41,23 +47,25 @@ namespace TuitionTakkar.EditorTools
 
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, Package);
             AssetDatabase.SaveAssets();
-            EditorUserBuildSettings.buildAppBundle = false;
+            EditorUserBuildSettings.buildAppBundle = bundle;
+            string output = bundle ? BundleOutput : Output;
             EditorUserBuildSettings.development = false;
             var scenes = new System.Collections.Generic.List<string>();
             foreach (var s in EditorBuildSettings.scenes) if (s.enabled) scenes.Add(s.path);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = scenes.ToArray(), locationPathName = Output, target = BuildTarget.Android, options = BuildOptions.None,
+                scenes = scenes.ToArray(), locationPathName = output, target = BuildTarget.Android, options = BuildOptions.None,
             });
+            EditorUserBuildSettings.buildAppBundle = false;
             var sum = report.summary;
-            log.AppendLine("[TuitionTakkar] RELEASE APK build " + sum.result + " in " + (int)sum.totalTime.TotalSeconds + " s, errors " +
-                           sum.totalErrors + " -> " + Path.GetFullPath(Output));
+            log.AppendLine("[TuitionTakkar] RELEASE " + (bundle ? "AAB" : "APK") + " build " + sum.result + " in " + (int)sum.totalTime.TotalSeconds + " s, errors " +
+                           sum.totalErrors + " -> " + Path.GetFullPath(output));
             log.AppendLine("version " + PlayerSettings.bundleVersion + " (code " + PlayerSettings.Android.bundleVersionCode + "), alias " +
                            PlayerSettings.Android.keyaliasName);
             if (sum.result != BuildResult.Succeeded) { Write(log.ToString()); return; }
 
             string keytool = Path.Combine(AndroidExternalToolsSettings.jdkRootPath, "bin", "keytool");
-            log.AppendLine("\n$ signing certificate\n" + Run(keytool, "-printcert -jarfile \"" + Path.GetFullPath(Output) + "\""));
+            log.AppendLine("\n$ signing certificate\n" + Run(keytool, "-printcert -jarfile \"" + Path.GetFullPath(output) + "\""));
 
             if (!install) { Write(log.ToString()); return; }
             string adb = Path.Combine(AndroidExternalToolsSettings.sdkRootPath, "platform-tools", "adb");
