@@ -50,6 +50,16 @@ namespace TuitionTakkar.EditorTools
             caps.AddAssociatedDomains(LinkDomains);
             caps.AddBackgroundModes(BackgroundModesOptions.RemoteNotifications);
             caps.WriteToFile();
+
+            // Unity's own "ReleaseForRunning" / "ReleaseForProfiling" configurations break Swift packages
+            // (Xcode builds Firebase under "Release" and then can't find it). Run and Profile with plain Release.
+            foreach (var scheme in Directory.GetFiles(Path.Combine(path, "Unity-iPhone.xcodeproj"), "*.xcscheme", SearchOption.AllDirectories))
+            {
+                string s = File.ReadAllText(scheme);
+                string fixedScheme = s.Replace("buildConfiguration = \"ReleaseForRunning\"", "buildConfiguration = \"Release\"")
+                                      .Replace("buildConfiguration = \"ReleaseForProfiling\"", "buildConfiguration = \"Release\"");
+                if (fixedScheme != s) File.WriteAllText(scheme, fixedScheme);
+            }
             UnityEngine.Debug.Log("[TuitionTakkar] Xcode: Sign in with Apple, push, invite links and Firebase added");
         }
     }
