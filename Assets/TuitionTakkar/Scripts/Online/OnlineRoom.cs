@@ -104,6 +104,8 @@ namespace TuitionTakkar
 
         // ---------- create / join ----------
 
+        // Lobby keeps at most 10 values per player. In use: name, pen, face, lv, ok, back (here and in the
+        // room) and net, emote, quit, forfeit (OnlineLink). A new value means merging two of these.
         static Player Me(GameManager gm, bool canPay = true) => new Player(data: new Dictionary<string, PlayerDataObject>
         {
             { "name", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, OnlineServices.DisplayName(gm.Save)) },

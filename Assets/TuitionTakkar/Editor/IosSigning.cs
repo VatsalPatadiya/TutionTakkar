@@ -16,7 +16,7 @@ namespace TuitionTakkar.EditorTools
         static string OutDir => "Builds/iOS-" + System.DateTime.Now.ToString("MMdd-HHmm");
 
         /// <summary>Lowest iPhone build number for the next build (raise it before each new TestFlight upload).</summary>
-        const int MinBuild = 2;
+        const int MinBuild = 3;
 
         [MenuItem("Tuition Takkar/Set iPhone signing team")]
         static void Apply()

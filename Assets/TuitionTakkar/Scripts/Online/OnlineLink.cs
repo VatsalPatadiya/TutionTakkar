@@ -9,9 +9,12 @@ namespace TuitionTakkar
 {
     /// <summary>
     /// The wire between phones during an online match, carried in Lobby player data.
-    /// Each player only ever writes their own data:
-    ///   shot = "match|turn|shooter|pen0;pen1|strikeT|dirX|dirZ|power"   (sent when they flick)
-    ///   rest = "match|turn|shooter|pen0;pen1"                          (where everything stopped)
+    /// Each player only ever writes their own data (Lobby allows at most 10 values per player, so all
+    /// shots and rests share ONE value):
+    ///   net  = up to 3 latest messages, oldest first, joined by '~':
+    ///          "S:match|turn|shooter|pen0;pen1|strikeT|dirX|dirZ|power"   (a flick)
+    ///          "R:match|turn|shooter|pen0;pen1"                          (where everything stopped)
+    ///          Keeping the last 3 lets a slower phone still read turn N after turn N+1 was sent.
     ///   quit = "match"                                                 (they left the match)
     /// pen = "x,y,z,qx,qy,qz,qw,flat,out" with round-trip floats, so every phone starts each
     /// flick from bit-identical positions. The shooter's "rest" is the final word.
@@ -61,15 +64,54 @@ namespace TuitionTakkar
             SendTurn("shot", turn, sb.ToString());
         }
 
-        /// <summary>
-        /// Shots and rests go in the usual key (older apps read that) and also in a slot by turn
-        /// number, so a slower phone (often the web) can still read turn N after turn N+1 was sent,
-        /// for example when the next round starts with the same shooter.
-        /// </summary>
-        void SendTurn(string key, int turn, string value) =>
-            Send(new Dictionary<string, string> { { key, value }, { key + (turn % TurnSlots), value } }, key);
+        /// <summary>Shots ("S") and rests ("R") go into the one "net" value, which keeps the latest few.</summary>
+        void SendTurn(string key, int turn, string value)
+        {
+            netLog.Add((key == "shot" ? "S:" : "R:") + value);
+            while (netLog.Count > NetKeep) netLog.RemoveAt(0);
+            netValue = string.Join("~", netLog);
+            if (!netSending) SendNet();
+        }
 
-        const int TurnSlots = 3;
+        const int NetKeep = 3;
+        readonly List<string> netLog = new List<string>();
+        string netValue = "";
+        bool netSending;
+
+        /// <summary>
+        /// One send at a time, always with the newest value: an older send finishing late can never
+        /// overwrite a newer turn. Retries for as long as the connection-lost popup allows.
+        /// </summary>
+        async void SendNet()
+        {
+            netSending = true;
+            float start = Time.realtimeSinceStartup;
+            int attempt = 0;
+            string sent = null;
+            try
+            {
+                while (!Room.Closed && !over && sent != netValue && Time.realtimeSinceStartup - start < ConnectionWatch.GiveUpAfter + 10f)
+                {
+                    string v = netValue;
+                    attempt++;
+                    try
+                    {
+                        await Room.SetMyDataAsync(new Dictionary<string, string> { { "net", v } });
+                        NetFailing = false;
+                        sent = v;
+                        attempt = 0;
+                        start = Time.realtimeSinceStartup;
+                    }
+                    catch (Exception e)
+                    {
+                        NetFailing = true;
+                        Debug.LogWarning("Online send net (try " + attempt + "): " + e.Message);
+                        await Task.Delay(Mathf.Min(1000 * attempt, 3000));
+                    }
+                }
+            }
+            finally { netSending = false; }
+        }
 
         public void SendRest(int turn, int shooter, NetPen[] pens)
         {
@@ -174,17 +216,21 @@ namespace TuitionTakkar
             return pens != null;
         }
 
-        /// <summary>This turn's message: the latest one, or (if a newer turn already replaced it) its turn slot.</summary>
+        /// <summary>This turn's shot or rest from that player's "net" value, split on '|' (null until it arrives).</summary>
         string[] ReadTurn(string key, int index, int turn)
         {
+            var p = Room.Find(PlayerIdAt(index));
+            if (p == null) return null;
+            string all = OnlineRoom.PlayerData(p, "net", null);
+            if (string.IsNullOrEmpty(all)) return null;
+            string prefix = key == "shot" ? "S:" : "R:";
             string t = turn.ToString();
-            var parts = Read(key, index);
-            if (parts != null && parts.Length > 1 && parts[1] == t) return parts;
-            var slot = Read(key + (turn % TurnSlots), index);
-            if (slot != null && slot.Length > 1 && slot[1] == t)
+            var msgs = all.Split('~');
+            for (int i = msgs.Length - 1; i >= 0; i--)
             {
-                Debug.Log("[TuitionTakkar] online: read " + key + " for turn " + turn + " from its slot (a newer one was already sent)");
-                return slot;
+                if (!msgs[i].StartsWith(prefix, StringComparison.Ordinal)) continue;
+                var parts = msgs[i].Substring(2).Split('|');
+                if (parts.Length > 1 && parts[0] == MatchId && parts[1] == t) return parts;
             }
             return null;
         }
