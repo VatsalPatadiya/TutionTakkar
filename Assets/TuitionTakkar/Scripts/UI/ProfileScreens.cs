@@ -410,6 +410,9 @@ namespace TuitionTakkar
             rec.Add(UIKit.Strong("only you can see this list", 12f, Soft).St(s => s.marginTop = 6));
             if (profileTab == 2) body.Add(rec);
 
+            // Ideas and bugs, on every tab (the app only: the web has no idea box).
+            if (!WebRoutes.On) body.Add(SuggestBox.Card(gm));
+
             scroll.Add(body);
             root.Add(scroll);
             gm.UI.ShowScreen(root);

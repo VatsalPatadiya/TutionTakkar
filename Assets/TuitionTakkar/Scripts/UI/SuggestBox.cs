@@ -35,6 +35,30 @@ namespace TuitionTakkar
             return b;
         }
 
+        /// <summary>Opens the idea box (signed-in players), or the sign-in flow for guests.</summary>
+        public static void Open(GameManager gm)
+        {
+            if (Allowed(gm.Save)) gm.UI.ShowOverlay(Box(gm));
+            else OnlineScreens.Enter(gm);
+        }
+
+        /// <summary>A sticky-note card for the Me tab: "Got an idea?" with a button that opens the box.</summary>
+        public static VisualElement Card(GameManager gm)
+        {
+            var c = UIKit.Col().St(s =>
+            {
+                s.marginTop = 18; s.marginBottom = 24; s.marginLeft = s.marginRight = 16;
+                s.backgroundColor = Pal.H("#FFE680"); UIKit.Pad(s, 16, 18, 16, 18); UIKit.Radius(s, 16);
+                s.borderBottomWidth = 5; s.borderBottomColor = new Color(0f, 0f, 0f, 0.12f);
+            });
+            c.Add(UIKit.Disp("GOT AN IDEA?", 22f, Pal.Ink));
+            c.Add(UIKit.HandText("tell us what to add or fix. we read every one.", 16f, Pal.Ink).St(s => { s.marginTop = 2; s.whiteSpace = WhiteSpace.Normal; }));
+            var b = UIKit.Btn("Send us an idea", () => Open(gm), Pal.Ink, Color.white, UIKit.BodyBold, 16f, 50f, 12f);
+            b.style.marginTop = 12;
+            c.Add(b);
+            return c;
+        }
+
         static VisualElement Box(GameManager gm, int kind = 0, string draft = "")
         {
             var o = OnlineScreens.Sheet(out var c);
