@@ -247,19 +247,28 @@ function sha256(buf) {
 }
 
 // ---------------------------------------------------------------------------
-// iPhone: Apple Push Notification service, sent directly (the iPhone build has no Firebase).
+// iPhone: Apple Push Notification service (the iPhone build has no Firebase SDK).
 // Needs the Secret Manager secret APNS_KEY: the contents of the AuthKey_XXXXXXXXXX.p8 file.
 // Optional secret APNS_KEY_ID if that key's ID isn't the default below.
+// Route 1: straight to Apple over HTTP/2 (if the server runtime has Node's http2).
+// Route 2 (no http2 here): Firebase turns the Apple token into a Firebase one and delivers it
+//          (needs the same .p8 uploaded in Firebase > Project settings > Cloud Messaging > Apple app).
 // Development builds (Xcode Run) get sandbox tokens, TestFlight / App Store get production ones:
-// production is tried first, then sandbox when Apple says the token is from the other one.
+// production is tried first, then sandbox.
+// Cloud Code has no Node "crypto", so the ES256 signature is computed here in plain JavaScript.
 // ---------------------------------------------------------------------------
 
 const APNS = { keyId: "T38W267384", teamId: "87CTM2H52V", topic: "com.unitygame.tuitiontakkar" };
 let apnsJwt = { token: "", at: 0 };
+const fcmIos = {}; // Apple token + env -> Firebase token (cached per instance)
 
 async function sendApns(secretManager, logger, device, title, body, data, ttlSeconds) {
   device = String(device || "").replace(/[^0-9a-fA-F]/g, "");
   if (device.length < 32) return { ok: false, gone: true, error: "bad iPhone token" };
+  let http2 = null;
+  try { http2 = require("http2"); } catch (e) { http2 = null; }
+  if (!http2) return sendIosViaFirebase(secretManager, logger, device, title, body, data, ttlSeconds);
+
   let jwt;
   try { jwt = await apnsAuth(secretManager); }
   catch (e) {
@@ -268,13 +277,62 @@ async function sendApns(secretManager, logger, device, title, body, data, ttlSec
   }
   const payload = Object.assign({}, data, { aps: { alert: { title, body }, sound: "default" } });
   const exp = ttlSeconds ? Math.floor(Date.now() / 1000) + ttlSeconds : 0;
-  let r = await apnsPost("api.push.apple.com", device, jwt, payload, exp);
-  if (r.status === 400 && r.reason === "BadDeviceToken") r = await apnsPost("api.sandbox.push.apple.com", device, jwt, payload, exp);
+  let r = await apnsPost(http2, "api.push.apple.com", device, jwt, payload, exp);
+  if (r.status === 400 && r.reason === "BadDeviceToken") r = await apnsPost(http2, "api.sandbox.push.apple.com", device, jwt, payload, exp);
   if (r.status === 200) return { ok: true };
   if (r.status === 403) apnsJwt = { token: "", at: 0 }; // key problem: make a fresh token next time
   const why = ("APNs " + r.status + " " + r.reason).trim();
   logger.warning("apns: " + why);
   return { ok: false, gone: r.status === 410 || r.reason === "BadDeviceToken" || r.reason === "Unregistered", setup: r.status === 403, error: why };
+}
+
+/** No HTTP/2 here: let Firebase deliver to the iPhone (Apple token imported into Firebase first). */
+async function sendIosViaFirebase(secretManager, logger, device, title, body, data, ttlSeconds) {
+  let account;
+  try { account = JSON.parse((await secretManager.getSecret("FCM_SERVICE_ACCOUNT")).value); }
+  catch (e) { return { ok: false, setup: true, error: "FCM_SERVICE_ACCOUNT secret missing" }; }
+  let access;
+  try { access = await googleToken(account); }
+  catch (e) { return { ok: false, setup: true, error: "Google token: " + describe(e) }; }
+  let last = "";
+  for (const sandbox of [false, true]) {
+    let token;
+    try { token = await importApnsToken(access, device, sandbox); }
+    catch (e) { last = "import " + (sandbox ? "sandbox" : "production") + ": " + describe(e); continue; }
+    if (!token) { last = "import " + (sandbox ? "sandbox" : "production") + ": no token"; continue; }
+    try {
+      await axios.post(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
+        message: {
+          token,
+          notification: { title, body },
+          data,
+          apns: {
+            headers: Object.assign({ "apns-priority": "10" }, ttlSeconds ? { "apns-expiration": String(Math.floor(Date.now() / 1000) + ttlSeconds) } : {}),
+            payload: { aps: { sound: "default" } },
+          },
+        },
+      }, { headers: { Authorization: "Bearer " + access, "Content-Type": "application/json" } });
+      return { ok: true };
+    } catch (e) {
+      last = "FCM " + (sandbox ? "sandbox" : "production") + ": " + describe(e);
+      delete fcmIos[device + (sandbox ? ":s" : ":p")];
+    }
+  }
+  logger.warning("apns via firebase: " + last);
+  const setup = /THIRD_PARTY_AUTH|APNS|auth|403|401/i.test(last);
+  return { ok: false, setup, gone: !setup && /UNREGISTERED|NOT_FOUND|404/i.test(last), error: last.substring(0, 160) };
+}
+
+async function importApnsToken(access, device, sandbox) {
+  const key = device + (sandbox ? ":s" : ":p");
+  if (fcmIos[key]) return fcmIos[key];
+  const res = await axios.post("https://iid.googleapis.com/iid/v1:batchImport",
+    { application: APNS.topic, sandbox, apns_tokens: [device] },
+    { headers: { Authorization: "Bearer " + access, access_token_auth: "true", "Content-Type": "application/json" } });
+  const r = ((res.data || {}).results || [])[0] || {};
+  if (r.status && r.status !== "OK") throw new Error(r.status);
+  if (r.registration_token) fcmIos[key] = r.registration_token;
+  return r.registration_token || "";
 }
 
 async function apnsAuth(secretManager) {
@@ -284,25 +342,20 @@ async function apnsAuth(secretManager) {
   catch (e) { throw new Error("APNS_KEY secret missing"); }
   let keyId = APNS.keyId;
   try { const k = (await secretManager.getSecret("APNS_KEY_ID")).value; if (k && String(k).trim()) keyId = String(k).trim(); } catch (e) { /* optional */ }
-  // Rebuild the PEM so it works however it was pasted (with or without line breaks / header lines).
+  // Works however the key was pasted (with or without line breaks / header lines).
   const b64 = String(raw || "").replace(/\\n/g, "\n").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   if (b64.length < 100) throw new Error("APNS_KEY secret looks empty");
-  const pem = "-----BEGIN PRIVATE KEY-----\n" + b64.match(/.{1,64}/g).join("\n") + "\n-----END PRIVATE KEY-----\n";
   const input = b64url(JSON.stringify({ alg: "ES256", kid: keyId })) + "." + b64url(JSON.stringify({ iss: APNS.teamId, iat: Math.floor(Date.now() / 1000) }));
   let sig;
-  try {
-    const crypto = require("crypto");
-    sig = crypto.sign("sha256", Buffer.from(input, "utf8"), { key: pem, dsaEncoding: "ieee-p1363" });
-  } catch (e) { throw new Error("APNS_KEY can't sign: " + e.message); }
+  try { sig = es256Sign(Buffer.from(input, "utf8"), Buffer.from(b64, "base64")); }
+  catch (e) { throw new Error("APNS_KEY can't sign: " + e.message); }
   apnsJwt = { token: input + "." + b64url(sig), at: Date.now() };
   return apnsJwt.token;
 }
 
-// Apple only accepts HTTP/2, so this uses Node's http2 module (axios is HTTP/1.1).
-function apnsPost(host, device, jwt, payload, exp) {
+// Apple only accepts HTTP/2 (axios is HTTP/1.1).
+function apnsPost(http2, host, device, jwt, payload, exp) {
   return new Promise((resolve) => {
-    let http2;
-    try { http2 = require("http2"); } catch (e) { return resolve({ status: 0, reason: "http2 not available" }); }
     let done = false, client, timer;
     const finish = (r) => {
       if (done) return;
@@ -335,4 +388,114 @@ function apnsPost(host, device, jwt, payload, exp) {
   });
 }
 
-module.exports._test = { rsaSignPure, sha256, signRS256, apnsAuth, apnsPost, sendApns };
+// ----- ES256 (ECDSA P-256 + SHA-256) in plain JavaScript, deterministic k (RFC 6979) -----
+
+const P256 = {
+  p: BigInt("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
+  n: BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"),
+  gx: BigInt("0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
+  gy: BigInt("0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
+};
+
+function es256Sign(msg, der) {
+  const d = ecPrivateScalar(der);
+  const n = P256.n;
+  const h = bytesToInt(sha256(msg)) % n;
+  const k = rfc6979k(d, sha256(msg));
+  const R = ecMul(k, [P256.gx, P256.gy]);
+  const r = R[0] % n;
+  if (r === 0n) throw new Error("bad signature r");
+  const s = (modInv(k, n) * ((h + r * d) % n)) % n;
+  if (s === 0n) throw new Error("bad signature s");
+  return Buffer.concat([intToBytes(r, 32), intToBytes(s, 32)]);
+}
+
+/** The 32-byte private number inside a PKCS#8 (or SEC1) EC key: INTEGER 1, OCTET STRING(32). */
+function ecPrivateScalar(der) {
+  for (let i = 0; i + 37 <= der.length; i++)
+    if (der[i] === 0x02 && der[i + 1] === 0x01 && der[i + 2] === 0x01 && der[i + 3] === 0x04 && der[i + 4] === 0x20)
+      return bytesToInt(der.slice(i + 5, i + 37));
+  throw new Error("not an EC P-256 private key (.p8)");
+}
+
+function rfc6979k(x, h1) {
+  const n = P256.n;
+  const xb = intToBytes(x, 32);
+  const hb = intToBytes(bytesToInt(h1) % n, 32);
+  let V = Buffer.alloc(32, 1), K = Buffer.alloc(32, 0);
+  K = hmac(K, Buffer.concat([V, Buffer.from([0]), xb, hb])); V = hmac(K, V);
+  K = hmac(K, Buffer.concat([V, Buffer.from([1]), xb, hb])); V = hmac(K, V);
+  for (;;) {
+    V = hmac(K, V);
+    const k = bytesToInt(V);
+    if (k > 0n && k < n) return k;
+    K = hmac(K, Buffer.concat([V, Buffer.from([0])])); V = hmac(K, V);
+  }
+}
+
+function hmac(key, msg) {
+  if (key.length > 64) key = sha256(key);
+  const k = Buffer.alloc(64, 0); key.copy(k);
+  const ipad = Buffer.alloc(64), opad = Buffer.alloc(64);
+  for (let i = 0; i < 64; i++) { ipad[i] = k[i] ^ 0x36; opad[i] = k[i] ^ 0x5c; }
+  return sha256(Buffer.concat([opad, sha256(Buffer.concat([ipad, msg]))]));
+}
+
+function mod(a, m) { const r = a % m; return r < 0n ? r + m : r; }
+
+function modInv(a, m) {
+  let [r0, r1] = [mod(a, m), m], [s0, s1] = [1n, 0n];
+  while (r1 !== 0n) { const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1]; }
+  return mod(s0, m);
+}
+
+// Jacobian coordinates on y^2 = x^3 - 3x + b (one inversion at the end).
+function ecDouble(P) {
+  const p = P256.p;
+  const [X, Y, Z] = P;
+  if (Y === 0n) return [0n, 1n, 0n];
+  const Y2 = mod(Y * Y, p), S = mod(4n * X * Y2, p), Z2 = mod(Z * Z, p);
+  const M = mod(3n * (X - Z2) * (X + Z2), p);
+  const X3 = mod(M * M - 2n * S, p);
+  const Y3 = mod(M * (S - X3) - 8n * Y2 * Y2, p);
+  const Z3 = mod(2n * Y * Z, p);
+  return [X3, Y3, Z3];
+}
+
+function ecAdd(P, Q) {
+  const p = P256.p;
+  if (P[2] === 0n) return Q;
+  if (Q[2] === 0n) return P;
+  const Z1Z1 = mod(P[2] * P[2], p), Z2Z2 = mod(Q[2] * Q[2], p);
+  const U1 = mod(P[0] * Z2Z2, p), U2 = mod(Q[0] * Z1Z1, p);
+  const S1 = mod(P[1] * Q[2] * Z2Z2, p), S2 = mod(Q[1] * P[2] * Z1Z1, p);
+  if (U1 === U2) return S1 === S2 ? ecDouble(P) : [0n, 1n, 0n];
+  const H = mod(U2 - U1, p), R = mod(S2 - S1, p);
+  const H2 = mod(H * H, p), H3 = mod(H * H2, p), U1H2 = mod(U1 * H2, p);
+  const X3 = mod(R * R - H3 - 2n * U1H2, p);
+  const Y3 = mod(R * (U1H2 - X3) - S1 * H3, p);
+  const Z3 = mod(H * P[2] * Q[2], p);
+  return [X3, Y3, Z3];
+}
+
+function ecMul(k, G) {
+  const p = P256.p;
+  let R = [0n, 1n, 0n], A = [G[0], G[1], 1n];
+  while (k > 0n) {
+    if (k & 1n) R = ecAdd(R, A);
+    A = ecDouble(A);
+    k >>= 1n;
+  }
+  const zi = modInv(R[2], p), zi2 = mod(zi * zi, p);
+  return [mod(R[0] * zi2, p), mod(R[1] * zi2 * zi, p)];
+}
+
+function bytesToInt(b) { return BigInt("0x" + (Buffer.from(b).toString("hex") || "0")); }
+
+function intToBytes(x, len) {
+  let hex = x.toString(16);
+  while (hex.length < len * 2) hex = "0" + hex;
+  return Buffer.from(hex, "hex");
+}
+
+module.exports._test = { rsaSignPure, sha256, signRS256, apnsAuth, apnsPost, sendApns, es256Sign };
